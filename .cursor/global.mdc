@@ -1,0 +1,14 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+### Code Style and Structure
+
+* **Code is for humans.** Write your code with clarity and empathy—assume a tired teammate will need to debug it at 3 a.m.
+* **Comment *why*, not *what*.** Explain assumptions, edge cases, trade-offs, or complexity. Don't echo the obvious.
+* **Clarity over cleverness.** Be concise, but favour explicit over terse or obscure idioms. Prefer code that's easy to follow.
+* **Use functions and composition.** Avoid repetition by extracting reusable logic. Prefer generators or comprehensions to imperative repetition when readable.
+* **Name things precisely.** Use clear, descriptive variable and function names. For booleans, prefer names with `is`, `has`, or `should`.
+* **Structure logically.** Each file should encapsulate a coherent module. Group related code (e.g., models + utilities + fixtures) close together.
+* **Group by feature, not layer.** Colocate views, logic, fixtures, and helpers related to a domain concept rather than splitting by type.
