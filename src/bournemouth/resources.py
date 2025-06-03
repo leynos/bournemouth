@@ -26,7 +26,9 @@ class ChatResource:
 
         # TODO(pmcintosh): plug in RAG and LLM call
         # https://github.com/example/repo/issues/1
-        resp.media = {"answer": "This is a placeholder response."}
+        raise falcon.HTTPNotImplemented(
+            description="This endpoint is not yet implemented."
+        )
 
 
 class OpenRouterTokenResource:
@@ -38,8 +40,9 @@ class OpenRouterTokenResource:
             raise falcon.HTTPBadRequest(description="`api_key` field required")
 
         # TODO(pmcintosh): persist the token for the authenticated user
-        # https://github.com/example/repo/issues/2
-        resp.media = {"status": "stored"}
+        raise falcon.HTTPNotImplemented(
+            description="This endpoint is not yet implemented."
+        )
 
 
 class HealthResource:
