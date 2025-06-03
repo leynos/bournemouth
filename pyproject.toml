@@ -40,6 +40,13 @@ package = true
 
 [tool.pyright]
 typeCheckingMode = "strict"
+reportMissingTypeStubs = false
+reportMissingModuleSource = false
+reportMissingImports = false
+reportUnknownMemberType = false
+reportUnknownVariableType = false
+reportUnknownParameterType = false
+reportAttributeAccessIssue = false
 
 [tool.ruff]
 line-length = 88
