@@ -18,7 +18,8 @@ class SessionManager:
 
     def create_cookie(self, username: str) -> str:
         """Return a signed cookie value for *username*."""
-        return self._serializer.dumps({"u": username})
+        token = self._serializer.dumps({"u": username})
+        return typing.cast(str, token)
 
     def verify_cookie(self, cookie: str) -> str | None:
         """Return the username if *cookie* is valid and not expired."""
