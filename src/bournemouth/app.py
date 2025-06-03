@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import falcon
 
-from .resources import ChatResource, OpenRouterTokenResource, HealthResource
+from .resources import ChatResource, HealthResource, OpenRouterTokenResource
 
 
 def create_app() -> falcon.asgi.App:
