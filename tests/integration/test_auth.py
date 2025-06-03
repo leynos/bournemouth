@@ -7,6 +7,10 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 from typing import Any, cast
 
+from datetime import timedelta
+
+from freezegun import freeze_time
+
 from bournemouth.app import create_app
 
 
@@ -80,3 +84,27 @@ async def test_health_does_not_require_auth() -> None:
     ) as ac:
         resp = await ac.get("/health")
     assert resp.status_code == HTTPStatus.OK
+
+
+@pytest.mark.asyncio
+async def test_expired_session_cookie_rejected() -> None:
+    """Requests with expired session cookies should return 401."""
+    app = create_app(session_timeout=1)
+    credentials = base64.b64encode(b"admin:adminpass").decode()
+    async with AsyncClient(
+        transport=ASGITransport(app=cast(Any, app)),  # pyright: ignore[reportUnknownArgumentType]
+        base_url="http://test",
+    ) as ac:
+        with freeze_time() as frozen:
+            login_resp = await ac.post(
+                "/login", headers={"Authorization": f"Basic {credentials}"}
+            )
+            assert login_resp.status_code == HTTPStatus.OK
+            session_cookie = login_resp.cookies["session"]
+            frozen.tick(delta=timedelta(seconds=2))
+            check_resp = await ac.post(
+                "/chat",
+                json={"message": "hi"},
+                cookies={"session": session_cookie},
+            )
+    assert check_resp.status_code == HTTPStatus.UNAUTHORIZED
