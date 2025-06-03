@@ -24,7 +24,8 @@ class ChatResource:
         if not data or "message" not in data:
             raise falcon.HTTPBadRequest(description="`message` field required")
 
-        # TODO: plug in RAG and LLM call
+        # TODO(pmcintosh): plug in RAG and LLM call
+        # https://github.com/example/repo/issues/1
         resp.media = {"answer": "This is a placeholder response."}
 
 
@@ -36,7 +37,8 @@ class OpenRouterTokenResource:
         if not data or "api_key" not in data:
             raise falcon.HTTPBadRequest(description="`api_key` field required")
 
-        # TODO: persist the token for the authenticated user
+        # TODO(pmcintosh): persist the token for the authenticated user
+        # https://github.com/example/repo/issues/2
         resp.media = {"status": "stored"}
 
 
