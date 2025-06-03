@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+from http import HTTPStatus
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -20,7 +21,7 @@ async def test_login_sets_cookie() -> None:
         resp = await ac.post(
             "/login", headers={"Authorization": f"Basic {credentials}"}
         )
-    assert resp.status_code == 200
+    assert resp.status_code == HTTPStatus.OK
     assert "session" in resp.cookies
 
 
@@ -35,7 +36,7 @@ async def test_login_rejects_bad_credentials() -> None:
         resp = await ac.post(
             "/login", headers={"Authorization": f"Basic {credentials}"}
         )
-    assert resp.status_code == 401
+    assert resp.status_code == HTTPStatus.UNAUTHORIZED
 
 
 @pytest.mark.asyncio
@@ -46,7 +47,7 @@ async def test_protected_endpoint_requires_cookie() -> None:
         base_url="http://test",
     ) as ac:
         resp = await ac.post("/chat", json={"message": "hi"})
-    assert resp.status_code == 401
+    assert resp.status_code == HTTPStatus.UNAUTHORIZED
 
 
 @pytest.mark.asyncio
@@ -67,7 +68,7 @@ async def test_chat_with_valid_session() -> None:
             json={"message": "hi"},
             cookies={"session": session_cookie},
         )
-    assert chat_resp.status_code == 200
+    assert chat_resp.status_code == HTTPStatus.OK
 
 
 @pytest.mark.asyncio
@@ -78,4 +79,4 @@ async def test_health_does_not_require_auth() -> None:
         base_url="http://test",
     ) as ac:
         resp = await ac.get("/health")
-    assert resp.status_code == 200
+    assert resp.status_code == HTTPStatus.OK

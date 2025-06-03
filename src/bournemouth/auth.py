@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import base64
+import typing
+from http import HTTPStatus
 
 import falcon
 
@@ -25,7 +27,7 @@ class AuthMiddleware:
         if cookie is None:
             raise falcon.HTTPUnauthorized()
 
-        user = self._session.verify_cookie(cookie)
+        user = self._session.verify_cookie(typing.cast(str, cookie))
         if user is None:
             raise falcon.HTTPUnauthorized()
 
@@ -47,8 +49,8 @@ class LoginResource:
             raise falcon.HTTPUnauthorized()
 
         try:
-            encoded = auth_header[len(prefix) :]
-            decoded_bytes = base64.b64decode(encoded.encode())
+            encoded = typing.cast(str, auth_header[len(prefix) :])
+            decoded_bytes = base64.b64decode(encoded)
             decoded = decoded_bytes.decode()
             username, password = decoded.split(":", 1)
         except Exception:
@@ -65,4 +67,5 @@ class LoginResource:
             http_only=True,
             same_site="Lax",
         )
+        resp.status = HTTPStatus.OK
         resp.media = {"status": "logged_in"}
