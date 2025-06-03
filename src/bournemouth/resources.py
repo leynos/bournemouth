@@ -24,8 +24,11 @@ class ChatResource:
         if not data or "message" not in data:
             raise falcon.HTTPBadRequest(description="`message` field required")
 
-        # TODO: plug in RAG and LLM call
-        resp.media = {"answer": "This is a placeholder response."}
+        # TODO(pmcintosh): plug in RAG and LLM call
+        # https://github.com/example/repo/issues/1
+        raise falcon.HTTPNotImplemented(
+            description="This endpoint is not yet implemented."
+        )
 
 
 class OpenRouterTokenResource:
@@ -36,8 +39,10 @@ class OpenRouterTokenResource:
         if not data or "api_key" not in data:
             raise falcon.HTTPBadRequest(description="`api_key` field required")
 
-        # TODO: persist the token for the authenticated user
-        resp.media = {"status": "stored"}
+        # TODO(pmcintosh): persist the token for the authenticated user
+        raise falcon.HTTPNotImplemented(
+            description="This endpoint is not yet implemented."
+        )
 
 
 class HealthResource:
