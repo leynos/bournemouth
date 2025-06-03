@@ -43,10 +43,10 @@ my\_falcon\_project/
 │   ├── conftest.py       \# Shared pytest fixtures  
 │   └── test\_resources.py \# Test file for resources  
 ├──.venv/                \# Virtual environment  
-├── pyproject.toml        \# Project metadata and dependencies managed by uv
+├── pyproject.toml        \# Project metadata, dependencies, and PEP 735 groups managed by uv
 └── pytest.ini            \# Pytest configuration (optional)
 
-This structure separates application code from test code, and conftest.py can house shared fixtures accessible across multiple test files. Dependencies are declared in ``pyproject.toml`` and installed with ``uv sync``. A similar structure is often suggested for web applications, promoting modularity.
+This structure separates application code from test code, and conftest.py can house shared fixtures accessible across multiple test files. Dependencies and dependency groups (PEP 735) are declared in ``pyproject.toml`` and installed with ``uv sync``. A similar structure is often suggested for web applications, promoting modularity.
 
 ### **Configuring pytest-asyncio**
 
