@@ -49,7 +49,7 @@ reportUnknownParameterType = false
 reportAttributeAccessIssue = false
 
 
-[tool.ruff]
+[tool.ruff.lint]
 line-length = 88
 select = [
     "F",        # Pyflakes rules
