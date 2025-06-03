@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import dataclasses
-import typing as t
+import typing
 
 import falcon
 
@@ -13,7 +13,7 @@ class ChatRequest:
     """Request body for the chat endpoint."""
 
     message: str
-    history: list[dict[str, t.Any]] | None = None
+    history: list[dict[str, typing.Any]] | None = None
 
 
 class ChatResource:
