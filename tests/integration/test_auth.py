@@ -1,15 +1,13 @@
 from __future__ import annotations
 
 import base64
+import datetime as dt
+import typing
 from http import HTTPStatus
 
 import pytest
-from httpx import ASGITransport, AsyncClient
-from typing import Any, cast
-
-from datetime import timedelta
-
 from freezegun import freeze_time
+from httpx import ASGITransport, AsyncClient
 
 from bournemouth.app import create_app
 
@@ -19,7 +17,7 @@ async def test_login_sets_cookie() -> None:
     app = create_app()
     credentials = base64.b64encode(b"admin:adminpass").decode()
     async with AsyncClient(
-        transport=ASGITransport(app=cast(Any, app)),  # pyright: ignore[reportUnknownArgumentType]
+        transport=ASGITransport(app=typing.cast("typing.Any", app)),  # pyright: ignore[reportUnknownArgumentType]
         base_url="http://test",
     ) as ac:
         resp = await ac.post(
@@ -34,7 +32,7 @@ async def test_login_rejects_bad_credentials() -> None:
     app = create_app()
     credentials = base64.b64encode(b"admin:wrong").decode()
     async with AsyncClient(
-        transport=ASGITransport(app=cast(Any, app)),  # pyright: ignore[reportUnknownArgumentType]
+        transport=ASGITransport(app=typing.cast("typing.Any", app)),  # pyright: ignore[reportUnknownArgumentType]
         base_url="http://test",
     ) as ac:
         resp = await ac.post(
@@ -47,7 +45,7 @@ async def test_login_rejects_bad_credentials() -> None:
 async def test_protected_endpoint_requires_cookie() -> None:
     app = create_app()
     async with AsyncClient(
-        transport=ASGITransport(app=cast(Any, app)),  # pyright: ignore[reportUnknownArgumentType]
+        transport=ASGITransport(app=typing.cast("typing.Any", app)),  # pyright: ignore[reportUnknownArgumentType]
         base_url="http://test",
     ) as ac:
         resp = await ac.post("/chat", json={"message": "hi"})
@@ -59,7 +57,7 @@ async def test_chat_with_valid_session() -> None:
     app = create_app()
     credentials = base64.b64encode(b"admin:adminpass").decode()
     async with AsyncClient(
-        transport=ASGITransport(app=cast(Any, app)),  # pyright: ignore[reportUnknownArgumentType]
+        transport=ASGITransport(app=typing.cast("typing.Any", app)),  # pyright: ignore[reportUnknownArgumentType]
         base_url="http://test",
     ) as ac:
         login_resp = await ac.post(
@@ -79,7 +77,7 @@ async def test_chat_with_valid_session() -> None:
 async def test_health_does_not_require_auth() -> None:
     app = create_app()
     async with AsyncClient(
-        transport=ASGITransport(app=cast(Any, app)),  # pyright: ignore[reportUnknownArgumentType]
+        transport=ASGITransport(app=typing.cast("typing.Any", app)),  # pyright: ignore[reportUnknownArgumentType]
         base_url="http://test",
     ) as ac:
         resp = await ac.get("/health")
@@ -92,7 +90,7 @@ async def test_expired_session_cookie_rejected() -> None:
     app = create_app(session_timeout=1)
     credentials = base64.b64encode(b"admin:adminpass").decode()
     async with AsyncClient(
-        transport=ASGITransport(app=cast(Any, app)),  # pyright: ignore[reportUnknownArgumentType]
+        transport=ASGITransport(app=typing.cast("typing.Any", app)),  # pyright: ignore[reportUnknownArgumentType]
         base_url="http://test",
     ) as ac:
         with freeze_time() as frozen:
@@ -101,7 +99,7 @@ async def test_expired_session_cookie_rejected() -> None:
             )
             assert login_resp.status_code == HTTPStatus.OK
             session_cookie = login_resp.cookies["session"]
-            frozen.tick(delta=timedelta(seconds=2))
+            frozen.tick(delta=dt.timedelta(seconds=2))
             check_resp = await ac.post(
                 "/chat",
                 json={"message": "hi"},
