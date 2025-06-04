@@ -40,6 +40,7 @@ class OpenRouterTokenResource:
             raise falcon.HTTPBadRequest(description="`api_key` field required")
 
         # TODO(pmcintosh): persist the token for the authenticated user
+        # https://github.com/example/repo/issues/2
         raise falcon.HTTPNotImplemented(
             description="This endpoint is not yet implemented."
         )

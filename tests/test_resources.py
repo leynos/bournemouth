@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import typing
+from http import HTTPStatus
+
 import pytest
 from httpx import ASGITransport, AsyncClient
-from http import HTTPStatus
-from falcon import asgi
-import typing
+
+if typing.TYPE_CHECKING:
+    from falcon import asgi
 
 from bournemouth.app import create_app
 
@@ -17,7 +20,7 @@ def app() -> asgi.App:
 @pytest.mark.asyncio
 async def test_chat_not_implemented(app: asgi.App) -> None:
     async with AsyncClient(
-        transport=ASGITransport(app=typing.cast(typing.Any, app)),
+        transport=ASGITransport(app=typing.cast("typing.Any", app)),
         base_url="http://test",
     ) as client:
         resp = await client.post("/chat", json={"message": "hello"})
@@ -31,7 +34,7 @@ async def test_chat_not_implemented(app: asgi.App) -> None:
 @pytest.mark.asyncio
 async def test_chat_missing_message(app: asgi.App) -> None:
     async with AsyncClient(
-        transport=ASGITransport(app=typing.cast(typing.Any, app)),
+        transport=ASGITransport(app=typing.cast("typing.Any", app)),
         base_url="http://test",
     ) as client:
         resp = await client.post("/chat", json={})
@@ -41,7 +44,7 @@ async def test_chat_missing_message(app: asgi.App) -> None:
 @pytest.mark.asyncio
 async def test_store_token_not_implemented(app: asgi.App) -> None:
     async with AsyncClient(
-        transport=ASGITransport(app=typing.cast(typing.Any, app)),
+        transport=ASGITransport(app=typing.cast("typing.Any", app)),
         base_url="http://test",
     ) as client:
         resp = await client.post("/auth/openrouter-token", json={"api_key": "xyz"})
@@ -55,7 +58,7 @@ async def test_store_token_not_implemented(app: asgi.App) -> None:
 @pytest.mark.asyncio
 async def test_store_token_missing_key(app: asgi.App) -> None:
     async with AsyncClient(
-        transport=ASGITransport(app=typing.cast(typing.Any, app)),
+        transport=ASGITransport(app=typing.cast("typing.Any", app)),
         base_url="http://test",
     ) as client:
         resp = await client.post("/auth/openrouter-token", json={})

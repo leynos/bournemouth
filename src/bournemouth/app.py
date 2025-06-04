@@ -2,23 +2,22 @@
 
 from __future__ import annotations
 
-from falcon import asgi
-
 import base64
 import os
-from typing import Optional
 
-from .resources import ChatResource, OpenRouterTokenResource, HealthResource
+from falcon import asgi
+
 from .auth import AuthMiddleware, LoginResource
+from .resources import ChatResource, HealthResource, OpenRouterTokenResource
 from .session import SessionManager
 
 
 def create_app(
     *,
-    session_secret: Optional[str] = None,
-    session_timeout: Optional[int] = None,
-    login_user: Optional[str] = None,
-    login_password: Optional[str] = None,
+    session_secret: str | None = None,
+    session_timeout: int | None = None,
+    login_user: str | None = None,
+    login_password: str | None = None,
 ) -> asgi.App:
     """Configure and return the Falcon ASGI app.
 
@@ -36,9 +35,6 @@ def create_app(
         Expected Basic Auth password. Defaults to ``LOGIN_PASSWORD`` or
         ``adminpass``.
     """
-
-def create_app() -> asgi.App:
-    """Configure and return the Falcon ASGI app."""
     secret = session_secret or os.getenv("SESSION_SECRET")
     if secret is None:
         secret_bytes = os.urandom(32)

@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import base64
+import binascii
 import typing
 from http import HTTPStatus
 
 import falcon
 
-from .session import SessionManager
+if typing.TYPE_CHECKING:
+    from .session import SessionManager
 
 __all__ = ["AuthMiddleware", "LoginResource"]
 
@@ -23,7 +25,7 @@ class AuthMiddleware:
         if req.path in {"/health", "/login"}:
             return
 
-        cookie = typing.cast(str | None, req.cookies.get("session"))
+        cookie = typing.cast("str | None", req.cookies.get("session"))
         if cookie is None:
             raise falcon.HTTPUnauthorized()
 
@@ -49,12 +51,12 @@ class LoginResource:
             raise falcon.HTTPUnauthorized()
 
         try:
-            encoded = typing.cast(str, auth_header[len(prefix) :])
+            encoded = typing.cast("str", auth_header[len(prefix) :])
             decoded_bytes = base64.b64decode(encoded)
             decoded = decoded_bytes.decode()
             username, password = decoded.split(":", 1)
-        except Exception:
-            raise falcon.HTTPUnauthorized()
+        except (binascii.Error, ValueError):
+            raise falcon.HTTPUnauthorized() from None
 
         if username != self._user or password != self._password:
             raise falcon.HTTPUnauthorized()
