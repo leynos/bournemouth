@@ -53,6 +53,17 @@ async def test_protected_endpoint_requires_cookie() -> None:
 
 
 @pytest.mark.asyncio
+async def test_empty_session_cookie_rejected() -> None:
+    app = create_app()
+    async with AsyncClient(
+        transport=ASGITransport(app=typing.cast("typing.Any", app)),
+        base_url="http://test",
+    ) as ac:
+        resp = await ac.post("/chat", json={"message": "hi"}, cookies={"session": ""})
+    assert resp.status_code == HTTPStatus.UNAUTHORIZED
+
+
+@pytest.mark.asyncio
 async def test_chat_with_valid_session() -> None:
     app = create_app()
     credentials = base64.b64encode(b"admin:adminpass").decode()

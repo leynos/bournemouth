@@ -26,7 +26,7 @@ class AuthMiddleware:
             return
 
         cookie = req.cookies.get("session")
-        if cookie is None:
+        if not cookie:
             raise falcon.HTTPUnauthorized()
 
         user = self._session.verify_cookie(cookie)
