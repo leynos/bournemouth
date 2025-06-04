@@ -61,6 +61,7 @@ Ini, TOML
 
 \[pytest\]  
 asyncio\_mode \= auto
+asyncio_default_fixture_loop_scope = function
 
 While auto mode can reduce boilerplate, it may obscure the asynchronous nature of a test to readers unfamiliar with the project's configuration, especially in mixed synchronous/asynchronous test suites. The explicit use of @pytest.mark.asyncio, even when auto mode is enabled or if strict mode is the default, enhances code readability and makes the test's asynchronous execution context immediately apparent. This explicitness is generally recommended for clarity, particularly in collaborative projects or when onboarding new team members. The decision between these modes reflects a balance between conciseness and the explicit declaration of asynchronous behavior.
 
