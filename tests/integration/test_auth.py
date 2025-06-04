@@ -18,7 +18,7 @@ async def test_login_sets_cookie() -> None:
     credentials = base64.b64encode(b"admin:adminpass").decode()
     async with AsyncClient(
         transport=ASGITransport(app=typing.cast("typing.Any", app)),  # pyright: ignore[reportUnknownArgumentType]
-        base_url="http://test",
+        base_url="https://test",
     ) as ac:
         resp = await ac.post(
             "/login", headers={"Authorization": f"Basic {credentials}"}
@@ -33,7 +33,7 @@ async def test_login_rejects_bad_credentials() -> None:
     credentials = base64.b64encode(b"admin:wrong").decode()
     async with AsyncClient(
         transport=ASGITransport(app=typing.cast("typing.Any", app)),  # pyright: ignore[reportUnknownArgumentType]
-        base_url="http://test",
+        base_url="https://test",
     ) as ac:
         resp = await ac.post(
             "/login", headers={"Authorization": f"Basic {credentials}"}
@@ -46,7 +46,7 @@ async def test_protected_endpoint_requires_cookie() -> None:
     app = create_app()
     async with AsyncClient(
         transport=ASGITransport(app=typing.cast("typing.Any", app)),  # pyright: ignore[reportUnknownArgumentType]
-        base_url="http://test",
+        base_url="https://test",
     ) as ac:
         resp = await ac.post("/chat", json={"message": "hi"})
     assert resp.status_code == HTTPStatus.UNAUTHORIZED
@@ -57,7 +57,7 @@ async def test_empty_session_cookie_rejected() -> None:
     app = create_app()
     async with AsyncClient(
         transport=ASGITransport(app=typing.cast("typing.Any", app)),
-        base_url="http://test",
+        base_url="https://test",
     ) as ac:
         resp = await ac.post("/chat", json={"message": "hi"}, cookies={"session": ""})
     assert resp.status_code == HTTPStatus.UNAUTHORIZED
@@ -69,18 +69,13 @@ async def test_chat_with_valid_session() -> None:
     credentials = base64.b64encode(b"admin:adminpass").decode()
     async with AsyncClient(
         transport=ASGITransport(app=typing.cast("typing.Any", app)),  # pyright: ignore[reportUnknownArgumentType]
-        base_url="http://test",
+        base_url="https://test",
     ) as ac:
         login_resp = await ac.post(
             "/login", headers={"Authorization": f"Basic {credentials}"}
         )
-        session_cookie = login_resp.cookies.get("session")
-        assert session_cookie is not None
-        chat_resp = await ac.post(
-            "/chat",
-            json={"message": "hi"},
-            cookies={"session": session_cookie},
-        )
+        assert "session" in login_resp.cookies
+        chat_resp = await ac.post("/chat", json={"message": "hi"})
     assert chat_resp.status_code == HTTPStatus.NOT_IMPLEMENTED
 
 
@@ -89,7 +84,7 @@ async def test_health_does_not_require_auth() -> None:
     app = create_app()
     async with AsyncClient(
         transport=ASGITransport(app=typing.cast("typing.Any", app)),  # pyright: ignore[reportUnknownArgumentType]
-        base_url="http://test",
+        base_url="https://test",
     ) as ac:
         resp = await ac.get("/health")
     assert resp.status_code == HTTPStatus.OK
@@ -102,18 +97,14 @@ async def test_expired_session_cookie_rejected() -> None:
     credentials = base64.b64encode(b"admin:adminpass").decode()
     async with AsyncClient(
         transport=ASGITransport(app=typing.cast("typing.Any", app)),  # pyright: ignore[reportUnknownArgumentType]
-        base_url="http://test",
+        base_url="https://test",
     ) as ac:
         with freeze_time() as frozen:
             login_resp = await ac.post(
                 "/login", headers={"Authorization": f"Basic {credentials}"}
             )
             assert login_resp.status_code == HTTPStatus.OK
-            session_cookie = login_resp.cookies["session"]
+            assert "session" in login_resp.cookies
             frozen.tick(delta=dt.timedelta(seconds=2))
-            check_resp = await ac.post(
-                "/chat",
-                json={"message": "hi"},
-                cookies={"session": session_cookie},
-            )
+            check_resp = await ac.post("/chat", json={"message": "hi"})
     assert check_resp.status_code == HTTPStatus.UNAUTHORIZED
