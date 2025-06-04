@@ -58,8 +58,9 @@ async def test_empty_session_cookie_rejected() -> None:
     async with AsyncClient(
         transport=ASGITransport(app=typing.cast("typing.Any", app)),
         base_url="https://test",
+        cookies={"session": ""},
     ) as ac:
-        resp = await ac.post("/chat", json={"message": "hi"}, cookies={"session": ""})
+        resp = await ac.post("/chat", json={"message": "hi"})
     assert resp.status_code == HTTPStatus.UNAUTHORIZED
 
 
