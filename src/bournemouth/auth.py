@@ -25,7 +25,7 @@ class AuthMiddleware:
         if req.path in {"/health", "/login"}:
             return
 
-        cookie = typing.cast("str | None", req.cookies.get("session"))
+        cookie = req.cookies.get("session")
         if cookie is None:
             raise falcon.HTTPUnauthorized()
 
@@ -51,7 +51,7 @@ class LoginResource:
             raise falcon.HTTPUnauthorized()
 
         try:
-            encoded = typing.cast("str", auth_header[len(prefix) :])
+            encoded = auth_header[len(prefix) :]
             decoded_bytes = base64.b64decode(encoded)
             decoded = decoded_bytes.decode()
             username, password = decoded.split(":", 1)

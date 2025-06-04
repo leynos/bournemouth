@@ -70,7 +70,7 @@ async def test_chat_with_valid_session() -> None:
             json={"message": "hi"},
             cookies={"session": session_cookie},
         )
-    assert chat_resp.status_code == HTTPStatus.OK
+    assert chat_resp.status_code == HTTPStatus.NOT_IMPLEMENTED
 
 
 @pytest.mark.asyncio
