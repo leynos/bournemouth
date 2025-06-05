@@ -1,5 +1,45 @@
 """Main package for bournemouth project."""
 
 from .app import create_app
+from .openrouter import (
+    ChatCompletionRequest,
+    ChatCompletionResponse,
+    ChatMessage,
+    OpenRouterAPIError,
+    OpenRouterAsyncClient,
+    OpenRouterAuthenticationError,
+    OpenRouterClientError,
+    OpenRouterDataValidationError,
+    OpenRouterInsufficientCreditsError,
+    OpenRouterInvalidRequestError,
+    OpenRouterNetworkError,
+    OpenRouterPermissionError,
+    OpenRouterRateLimitError,
+    OpenRouterRequestDataValidationError,
+    OpenRouterResponseDataValidationError,
+    OpenRouterServerError,
+    OpenRouterTimeoutError,
+    StreamChunk,
+)
 
-__all__ = ["create_app"]
+__all__ = [
+    "ChatCompletionRequest",
+    "ChatCompletionResponse",
+    "ChatMessage",
+    "OpenRouterAPIError",
+    "OpenRouterAsyncClient",
+    "OpenRouterAuthenticationError",
+    "OpenRouterClientError",
+    "OpenRouterDataValidationError",
+    "OpenRouterInsufficientCreditsError",
+    "OpenRouterInvalidRequestError",
+    "OpenRouterNetworkError",
+    "OpenRouterPermissionError",
+    "OpenRouterRateLimitError",
+    "OpenRouterRequestDataValidationError",
+    "OpenRouterResponseDataValidationError",
+    "OpenRouterServerError",
+    "OpenRouterTimeoutError",
+    "StreamChunk",
+    "create_app",
+]
