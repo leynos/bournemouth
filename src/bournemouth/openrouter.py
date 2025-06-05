@@ -116,7 +116,6 @@ class ChatCompletionRequest(msgspec.Struct, forbid_unknown_fields=True):
     models: list[str] | None = None
     route: typing.Literal["fallback"] | None = None
     provider: ProviderPreferences | None = None
-    usage: dict[str, typing.Any] | None = None
 
 
 class FunctionCall(msgspec.Struct):
