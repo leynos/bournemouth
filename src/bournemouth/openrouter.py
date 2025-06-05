@@ -267,30 +267,23 @@ class OpenRouterAsyncClient:
 
     async def __aenter__(self) -> OpenRouterAsyncClient:
         headers = {"Authorization": f"Bearer {self.api_key}"}
-        headers |= self._user_headers
-        self._client = httpx.AsyncClient(
-            base_url=self.base_url,
-            timeout=self.timeout,
-            headers=headers,
-            transport=self._transport,
+    async def _raise_for_status(self, resp: httpx.Response) -> None:
+        if resp.status_code < 400:
+            return
+        data = await resp.aread()
+        try:
+            err = self._ERR_DECODER.decode(data).error
+        except msgspec.DecodeError:
+            err = None
+        exc_cls = _map_status_to_error(resp.status_code)
+        raise exc_cls(
+            f"API error {resp.status_code}",
+            status_code=resp.status_code,
+            error_details=err,
         )
-        return self
 
-    async def __aexit__(
-        self,
-        exc_type: type[BaseException] | None,
-        exc: BaseException | None,
-        tb: types.TracebackType | None,
-    ) -> None:  # pragma: no cover - simple cleanup
-        if self._client:
-            await self._client.aclose()
-
-    async def _handle_response(self, resp: httpx.Response) -> ChatCompletionResponse:
-        if resp.status_code >= 400:
-            data = await resp.aread()
-            try:
-                err = self._ERR_DECODER.decode(data).error
-            except msgspec.DecodeError:
+        await self._raise_for_status(resp)
+                await self._raise_for_status(resp)
                 err = None
             exc_cls = _map_status_to_error(resp.status_code)
             raise exc_cls(
