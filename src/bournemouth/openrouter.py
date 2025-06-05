@@ -311,10 +311,6 @@ class OpenRouterAsyncClient:
 
         await self._raise_for_status(resp)
         data = await resp.aread()
-        return self._RESP_DECODER.decode(data)
-
-        """Return the validated and decoded body."""
-
         return await self._decode_response(resp)
     async def _post(self, path: str, *, content: bytes) -> httpx.Response:
         """Send a POST request handling network errors."""
