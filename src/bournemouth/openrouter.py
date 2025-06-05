@@ -266,7 +266,7 @@ class OpenRouterAsyncClient:
         self._client: httpx.AsyncClient | None = None
         self._transport = transport
 
-    async def __aenter__(self) -> OpenRouterAsyncClient:
+    async def __aenter__(self) -> typing.Self:
         """Initialize the underlying ``httpx`` client."""
 
         headers = {"Authorization": f"Bearer {self.api_key}"}
