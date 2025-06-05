@@ -266,7 +266,11 @@ class OpenRouterAsyncClient:
         self._transport = transport
 
     async def __aenter__(self) -> OpenRouterAsyncClient:
+        """Initialize the underlying ``httpx`` client."""
+
         headers = {"Authorization": f"Bearer {self.api_key}"}
+        """Close the ``httpx`` client and reset internal state."""
+
             self._client = None
     async def _decode_error(
         self, resp: httpx.Response
@@ -297,8 +301,12 @@ class OpenRouterAsyncClient:
         data = await resp.aread()
         return self._RESP_DECODER.decode(data)
 
+        """Validate ``resp`` and return the decoded body."""
+
         await self._raise_for_status(resp)
         return await self._decode_response(resp)
+        """Send a non-streaming completion request."""
+        """Yield ``StreamChunk`` objects for a streaming request."""
                 err = None
             exc_cls = _map_status_to_error(resp.status_code)
             raise exc_cls(
