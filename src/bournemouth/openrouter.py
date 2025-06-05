@@ -335,8 +335,8 @@ class OpenRouterAsyncClient:
         if request.stream:
             raise ValueError("stream flag must be False for create_chat_completion")
         payload = self._ENCODER.encode(request)
-        resp = await self._post("/chat/completions", content=payload)
-        async with self._stream_post("/chat/completions", content=payload) as resp:
+            request = msgspec.structs.replace(request, stream=False)
+            request = msgspec.structs.replace(request, stream=True)
             await self._raise_for_status(resp)
             async for line in resp.aiter_lines():
                 if not line or line.startswith(":"):

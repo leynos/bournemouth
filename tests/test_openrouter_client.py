@@ -178,3 +178,61 @@ async def test_timeout_error_maps_to_timeout_exception() -> None:
         )
         with pytest.raises(OpenRouterTimeoutError):
             await client.create_chat_completion(req)
+
+
+@pytest.mark.asyncio
+async def test_create_chat_completion_ignores_stream_true() -> None:
+    content = {
+        "id": "1",
+        "object": "chat.completion",
+        "created": 1,
+        "model": "m",
+        "choices": [
+            {"index": 0, "message": {"role": "assistant", "content": "ok"}}
+        ],
+    }
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        data = await request.aread()
+        body = msgspec.json.decode(data)
+        assert body["stream"] is False
+        return httpx.Response(200, json=content)
+
+    transport = MockTransport(handler)
+    async with OpenRouterAsyncClient(api_key="k", transport=transport) as client:
+        req = ChatCompletionRequest(
+            model="m",
+            messages=[ChatMessage(role="user", content="hi")],
+            stream=True,
+        )
+        resp = await client.create_chat_completion(req)
+        assert resp.choices[0].message.content == "ok"
+
+
+@pytest.mark.asyncio
+async def test_stream_chat_completion_sets_stream_true() -> None:
+    content = (
+        b'data: {"id": "1", "object": "chat.completion.chunk", "created": 1, '
+        b'"model": "m", "choices": [{"index": 0, "delta": {"content": "hi"}}]}\n'
+        b"data: \n"
+    )
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        data = await request.aread()
+        body = msgspec.json.decode(data)
+        assert body["stream"] is True
+        return httpx.Response(
+            200,
+            content=content,
+            headers={"Content-Type": "text/event-stream"},
+        )
+
+    transport = MockTransport(handler)
+    async with OpenRouterAsyncClient(api_key="k", transport=transport) as client:
+        req = ChatCompletionRequest(
+            model="m",
+            messages=[ChatMessage(role="user", content="hi")],
+            stream=False,
+        )
+        chunks = [c async for c in client.stream_chat_completion(req)]
+        assert chunks[0].choices[0].delta.content == "hi"
