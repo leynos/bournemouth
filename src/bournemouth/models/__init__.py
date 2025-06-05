@@ -71,7 +71,7 @@ class UserAccount(Base, UuidPKMixin, TimestampMixin):
     )
 
 
-class AuditEvent(Base):
+class AuditEvent(Base, CreatedAtMixin):
     __tablename__ = "audit_event"
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -84,11 +84,6 @@ class AuditEvent(Base):
     http_request_id: Mapped[uuid.UUID | None] = mapped_column(Uuid(as_uuid=True))
     detail: Mapped[str | None] = mapped_column(Text)
     meta_json: Mapped[typing.Any | None] = mapped_column(JSON)
-    created_at: Mapped[dt.datetime] = mapped_column(
-        TIMESTAMP(timezone=True),
-        nullable=False,
-        default=lambda: dt.datetime.now(dt.UTC),
-    )
 
     user: Mapped[UserAccount] = relationship(back_populates="audit_events")
 
