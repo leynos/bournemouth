@@ -268,23 +268,37 @@ class OpenRouterAsyncClient:
     async def __aenter__(self) -> OpenRouterAsyncClient:
         headers = {"Authorization": f"Bearer {self.api_key}"}
             self._client = None
+    async def _decode_error(
+        self, resp: httpx.Response
+    ) -> OpenRouterAPIErrorDetails | None:
+        """Return parsed error details if the body is decodable."""
+
+        try:
+            return self._ERR_DECODER.decode(await resp.aread()).error
+        except msgspec.DecodeError:
+            return None
+
     async def _raise_for_status(self, resp: httpx.Response) -> None:
+        """Raise an API error if the response status indicates failure."""
+
         if resp.status_code < 400:
             return
-        data = await resp.aread()
-        try:
-            err = self._ERR_DECODER.decode(data).error
-        except msgspec.DecodeError:
-            err = None
+        details = await self._decode_error(resp)
         exc_cls = _map_status_to_error(resp.status_code)
         raise exc_cls(
             f"API error {resp.status_code}",
             status_code=resp.status_code,
-            error_details=err,
+            error_details=details,
         )
 
+    async def _decode_response(self, resp: httpx.Response) -> ChatCompletionResponse:
+        """Return the deserialized response body."""
+
+        data = await resp.aread()
+        return self._RESP_DECODER.decode(data)
+
         await self._raise_for_status(resp)
-                await self._raise_for_status(resp)
+        return await self._decode_response(resp)
                 err = None
             exc_cls = _map_status_to_error(resp.status_code)
             raise exc_cls(
