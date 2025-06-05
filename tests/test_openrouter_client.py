@@ -12,7 +12,9 @@ from bournemouth import (
     ChatMessage,
     OpenRouterAsyncClient,
     OpenRouterAuthenticationError,
+    OpenRouterNetworkError,
     OpenRouterRateLimitError,
+    OpenRouterTimeoutError,
 )
 
 
@@ -146,3 +148,33 @@ async def test_client_closes_on_exit() -> None:
         await c.create_chat_completion(req)
     with pytest.raises(RuntimeError):
         await client.create_chat_completion(req)
+
+
+@pytest.mark.asyncio
+async def test_network_error_maps_to_client_error() -> None:
+    async def handler(request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("boom", request=request)
+
+    transport = MockTransport(handler)
+    async with OpenRouterAsyncClient(api_key="k", transport=transport) as client:
+        req = ChatCompletionRequest(
+            model="m",
+            messages=[ChatMessage(role="user", content="hi")],
+        )
+        with pytest.raises(OpenRouterNetworkError):
+            await client.create_chat_completion(req)
+
+
+@pytest.mark.asyncio
+async def test_timeout_error_maps_to_timeout_exception() -> None:
+    async def handler(request: httpx.Request) -> httpx.Response:
+        raise httpx.TimeoutException("slow", request=request)
+
+    transport = MockTransport(handler)
+    async with OpenRouterAsyncClient(api_key="k", transport=transport) as client:
+        req = ChatCompletionRequest(
+            model="m",
+            messages=[ChatMessage(role="user", content="hi")],
+        )
+        with pytest.raises(OpenRouterTimeoutError):
+            await client.create_chat_completion(req)

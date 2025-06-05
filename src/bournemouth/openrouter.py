@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import typing
 
 if typing.TYPE_CHECKING:  # pragma: no cover - imports for type checking
@@ -305,38 +306,51 @@ class OpenRouterAsyncClient:
 
         await self._raise_for_status(resp)
         return await self._decode_response(resp)
-        """Send a non-streaming completion request."""
-        """Yield ``StreamChunk`` objects for a streaming request."""
-                err = None
-            exc_cls = _map_status_to_error(resp.status_code)
-            raise exc_cls(
-                f"API error {resp.status_code}",
-                status_code=resp.status_code,
-                error_details=err,
-            )
-        return self._RESP_DECODER.decode(await resp.aread())
+    async def _post(self, path: str, *, content: bytes) -> httpx.Response:
+        """Send a POST request handling network errors."""
 
-    async def create_chat_completion(
-        self, request: ChatCompletionRequest
-    ) -> ChatCompletionResponse:
-        if request.stream:
-            raise ValueError("stream flag must be False for create_chat_completion")
         if not self._client:
             raise RuntimeError("client not initialized; use async with")
-        payload = self._ENCODER.encode(request)
         try:
-            resp = await self._client.post("/chat/completions", content=payload)
+            return await self._client.post(path, content=content)
         except httpx.TimeoutException as e:
             raise OpenRouterTimeoutError(str(e)) from e
         except httpx.RequestError as e:
             raise OpenRouterNetworkError(str(e)) from e
-        return await self._handle_response(resp)
 
-    async def stream_chat_completion(
+    @contextlib.asynccontextmanager
+    async def _stream_post(
+        self, path: str, *, content: bytes
+    ) -> cabc.AsyncIterator[httpx.Response]:
+        """Yield a streaming response while mapping network errors."""
+
+            async with self._client.stream("POST", path, content=content) as resp:
+                yield resp
+
+    async def create_chat_completion(
         self, request: ChatCompletionRequest
-    ) -> cabc.AsyncIterator[StreamChunk]:
-        if not request.stream:
-            raise ValueError("stream flag must be True for stream_chat_completion")
+    ) -> ChatCompletionResponse:
+        """Send a non-streaming completion request."""
+        if request.stream:
+            raise ValueError("stream flag must be False for create_chat_completion")
+        payload = self._ENCODER.encode(request)
+        resp = await self._post("/chat/completions", content=payload)
+        async with self._stream_post("/chat/completions", content=payload) as resp:
+            await self._raise_for_status(resp)
+            async for line in resp.aiter_lines():
+                if not line or line.startswith(":"):
+                    continue
+                if line.startswith("data: "):
+                    payload_str = line[6:]
+                    if payload_str == "":
+                        break
+                    try:
+                        yield self._STREAM_DECODER.decode(payload_str)
+                    except msgspec.DecodeError as e:
+                        raise OpenRouterAPIError(
+                            f"failed to decode stream chunk: {payload_str}"
+                        ) from e
+
         if not self._client:
             raise RuntimeError("client not initialized; use async with")
         payload = self._ENCODER.encode(request)
