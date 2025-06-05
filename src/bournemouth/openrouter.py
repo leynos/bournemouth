@@ -267,7 +267,7 @@ class OpenRouterAsyncClient:
 
     async def __aenter__(self) -> OpenRouterAsyncClient:
         headers = {"Authorization": f"Bearer {self.api_key}"}
-        headers.update(self._user_headers)
+        headers |= self._user_headers
         self._client = httpx.AsyncClient(
             base_url=self.base_url,
             timeout=self.timeout,
