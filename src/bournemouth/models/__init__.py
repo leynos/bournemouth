@@ -3,7 +3,7 @@ from __future__ import annotations
 import datetime as dt
 import enum
 import typing
-import uuid
+import uuid  # noqa: TC003 - required at runtime for SQLAlchemy annotations
 
 from sqlalchemy import (
     JSON,
@@ -18,6 +18,8 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy.types import Uuid
+
+from .mixins import CreatedAtMixin, TimestampMixin, UuidPKMixin
 
 
 class Base(DeclarativeBase):
@@ -47,31 +49,16 @@ class MessageRole(enum.StrEnum):
     SYSTEM = "system"
 
 
-class UserAccount(Base):
+class UserAccount(Base, UuidPKMixin, TimestampMixin):
     __tablename__ = "user_account"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
     google_sub: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
     display_name: Mapped[str | None] = mapped_column(String(255))
     openrouter_token_enc: Mapped[bytes | None] = mapped_column(LargeBinary)
-    created_at: Mapped[dt.datetime] = mapped_column(
-        TIMESTAMP(timezone=True),
-        nullable=False,
-        default=lambda: dt.datetime.now(dt.UTC),
-    )
-    updated_at: Mapped[dt.datetime] = mapped_column(
-        TIMESTAMP(timezone=True),
-        nullable=False,
-        default=lambda: dt.datetime.now(dt.UTC),
-    )
     last_login_at: Mapped[dt.datetime | None] = mapped_column(TIMESTAMP(timezone=True))
 
-    __table_args__ = (
-        CheckConstraint("instr(email, '@') > 1", name="chk_email"),
-    )
+    __table_args__ = (CheckConstraint("email LIKE '%@%'", name="chk_email"),)
 
     audit_events: Mapped[list[AuditEvent]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
@@ -133,55 +120,43 @@ class KgChange(Base):
     __table_args__ = (Index("idx_kgchange_user_time", "user_id", "created_at"),)
 
 
-class EncKeyHistory(Base):
+class EncKeyHistory(Base, CreatedAtMixin):
     __tablename__ = "enc_key_history"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     key_id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
-    created_at: Mapped[dt.datetime] = mapped_column(
-        TIMESTAMP(timezone=True),
-        nullable=False,
-        default=lambda: dt.datetime.now(dt.UTC),
-    )
+    __table_args__ = (Index("idx_enckeyhistory_key_id", "key_id"),)
     retired_at: Mapped[dt.datetime | None] = mapped_column(TIMESTAMP(timezone=True))
 
 
-class Conversation(Base):
+class Conversation(Base, UuidPKMixin, TimestampMixin):
     __tablename__ = "conversation"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
     user_id: Mapped[uuid.UUID | None] = mapped_column(
         Uuid(as_uuid=True), ForeignKey("user_account.id", ondelete="CASCADE")
     )
-    root_message_id: Mapped[uuid.UUID | None] = mapped_column(Uuid(as_uuid=True))
+    root_message_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("message.id", ondelete="SET NULL")
+    )
     title: Mapped[str | None] = mapped_column(Text)
-    created_at: Mapped[dt.datetime] = mapped_column(
-        TIMESTAMP(timezone=True),
-        nullable=False,
-        default=lambda: dt.datetime.now(dt.UTC),
+    forked_from_conv_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("conversation.id", ondelete="SET NULL")
     )
-    updated_at: Mapped[dt.datetime] = mapped_column(
-        TIMESTAMP(timezone=True),
-        nullable=False,
-        default=lambda: dt.datetime.now(dt.UTC),
+    forked_from_msg_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("message.id", ondelete="SET NULL")
     )
-    forked_from_conv_id: Mapped[uuid.UUID | None] = mapped_column(Uuid(as_uuid=True))
-    forked_from_msg_id: Mapped[uuid.UUID | None] = mapped_column(Uuid(as_uuid=True))
 
     user: Mapped[UserAccount] = relationship(back_populates="conversations")
     messages: Mapped[list[Message]] = relationship(
-        back_populates="conversation", cascade="all, delete-orphan"
+        back_populates="conversation",
+        cascade="all, delete-orphan",
+        foreign_keys=lambda: [Message.conversation_id],
     )
 
 
-class Message(Base):
+class Message(Base, UuidPKMixin, CreatedAtMixin):
     __tablename__ = "message"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
     conversation_id: Mapped[uuid.UUID | None] = mapped_column(
         Uuid(as_uuid=True), ForeignKey("conversation.id", ondelete="CASCADE")
     )
@@ -193,14 +168,12 @@ class Message(Base):
     )
     content: Mapped[str] = mapped_column(Text, nullable=False)
     params: Mapped[typing.Any | None] = mapped_column(JSON)
-    created_at: Mapped[dt.datetime] = mapped_column(
-        TIMESTAMP(timezone=True),
-        nullable=False,
-        default=lambda: dt.datetime.now(dt.UTC),
+    conversation: Mapped[Conversation] = relationship(
+        back_populates="messages", foreign_keys=[conversation_id]
     )
-
-    conversation: Mapped[Conversation] = relationship(back_populates="messages")
-    parent: Mapped[Message] = relationship(remote_side="Message.id")
+    parent: Mapped[Message | None] = relationship(
+        remote_side="Message.id", foreign_keys=[parent_id]
+    )
 
     __table_args__ = (
         Index("idx_msg_parent", "parent_id"),
