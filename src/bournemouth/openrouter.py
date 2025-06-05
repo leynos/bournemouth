@@ -267,6 +267,7 @@ class OpenRouterAsyncClient:
 
     async def __aenter__(self) -> OpenRouterAsyncClient:
         headers = {"Authorization": f"Bearer {self.api_key}"}
+            self._client = None
     async def _raise_for_status(self, resp: httpx.Response) -> None:
         if resp.status_code < 400:
             return

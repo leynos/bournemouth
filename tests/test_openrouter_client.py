@@ -31,6 +31,7 @@ class MockTransport(httpx.AsyncBaseTransport):
 async def test_create_chat_completion_success() -> None:
     async def handler(request: httpx.Request) -> httpx.Response:
         assert request.method == "POST"
+        assert request.headers["Authorization"] == "Bearer k"
         data = await request.aread()
         body = msgspec.json.decode(data)
         assert body["model"] == "openai/gpt-3.5-turbo"
@@ -119,3 +120,29 @@ async def test_streaming_error_status() -> None:
         with pytest.raises(OpenRouterRateLimitError):
             async for _ in client.stream_chat_completion(req):
                 pass
+
+
+@pytest.mark.asyncio
+async def test_client_closes_on_exit() -> None:
+    async def handler(request: httpx.Request) -> httpx.Response:
+        content = {
+            "id": "1",
+            "object": "chat.completion",
+            "created": 1,
+            "model": "m",
+            "choices": [
+                {"index": 0, "message": {"role": "assistant", "content": "hi"}}
+            ],
+        }
+        return httpx.Response(200, json=content)
+
+    transport = MockTransport(handler)
+    client = OpenRouterAsyncClient(api_key="k", transport=transport)
+    async with client as c:
+        req = ChatCompletionRequest(
+            model="m",
+            messages=[ChatMessage(role="user", content="hi")],
+        )
+        await c.create_chat_completion(req)
+    with pytest.raises(RuntimeError):
+        await client.create_chat_completion(req)
