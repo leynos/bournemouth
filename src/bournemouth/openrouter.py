@@ -273,13 +273,13 @@ class OpenRouterAsyncClient:
         """Close the ``httpx`` client and reset internal state."""
 
             self._client = None
-    async def _decode_error(
-        self, resp: httpx.Response
+    async def _decode_error_details(
+        self, data: bytes
     ) -> OpenRouterAPIErrorDetails | None:
-        """Return parsed error details if the body is decodable."""
+        """Return parsed error details if ``data`` is valid JSON."""
 
         try:
-            return self._ERR_DECODER.decode(await resp.aread()).error
+            return self._ERR_DECODER.decode(data).error
         except msgspec.DecodeError:
             return None
 
@@ -288,7 +288,8 @@ class OpenRouterAsyncClient:
 
         if resp.status_code < 400:
             return
-        details = await self._decode_error(resp)
+        raw = await resp.aread()
+        details = await self._decode_error_details(raw)
         exc_cls = _map_status_to_error(resp.status_code)
         raise exc_cls(
             f"API error {resp.status_code}",
