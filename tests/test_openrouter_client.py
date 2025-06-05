@@ -12,11 +12,16 @@ from bournemouth import (
     ChatMessage,
     OpenRouterAsyncClient,
     OpenRouterAuthenticationError,
+    OpenRouterInsufficientCreditsError,
     OpenRouterInvalidRequestError,
     OpenRouterNetworkError,
+    OpenRouterPermissionError,
     OpenRouterRateLimitError,
+    OpenRouterResponseDataValidationError,
+    OpenRouterServerError,
     OpenRouterTimeoutError,
 )
+from bournemouth.openrouter import TextContentPart
 
 
 class MockTransport(httpx.AsyncBaseTransport):
@@ -253,3 +258,101 @@ async def test_stream_chat_completion_sets_stream_true() -> None:
         )
         chunks = [c async for c in client.stream_chat_completion(req)]
         assert chunks[0].choices[0].delta.content == "hi"
+
+
+@pytest.mark.asyncio
+async def test_insufficient_credits_error() -> None:
+    async def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            HTTPStatus.PAYMENT_REQUIRED,
+            json={"error": {"message": "pay up"}},
+        )
+
+    transport = MockTransport(handler)
+    async with OpenRouterAsyncClient(api_key="k", transport=transport) as client:
+        req = ChatCompletionRequest(
+            model="m",
+            messages=[ChatMessage(role="user", content="hi")],
+        )
+        with pytest.raises(OpenRouterInsufficientCreditsError):
+            await client.create_chat_completion(req)
+
+
+@pytest.mark.asyncio
+async def test_permission_error() -> None:
+    async def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            HTTPStatus.FORBIDDEN,
+            json={"error": {"message": "no"}},
+        )
+
+    transport = MockTransport(handler)
+    async with OpenRouterAsyncClient(api_key="k", transport=transport) as client:
+        req = ChatCompletionRequest(
+            model="m",
+            messages=[ChatMessage(role="user", content="hi")],
+        )
+        with pytest.raises(OpenRouterPermissionError):
+            await client.create_chat_completion(req)
+
+
+@pytest.mark.asyncio
+async def test_server_error() -> None:
+    async def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            HTTPStatus.INTERNAL_SERVER_ERROR,
+            json={"error": {"message": "boom"}},
+        )
+
+    transport = MockTransport(handler)
+    async with OpenRouterAsyncClient(api_key="k", transport=transport) as client:
+        req = ChatCompletionRequest(
+            model="m",
+            messages=[ChatMessage(role="user", content="hi")],
+        )
+        with pytest.raises(OpenRouterServerError):
+            await client.create_chat_completion(req)
+
+
+@pytest.mark.asyncio
+async def test_invalid_json_raises_validation_error() -> None:
+    async def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, content=b"{bad json}")
+
+    transport = MockTransport(handler)
+    async with OpenRouterAsyncClient(api_key="k", transport=transport) as client:
+        req = ChatCompletionRequest(
+            model="m",
+            messages=[ChatMessage(role="user", content="hi")],
+        )
+        with pytest.raises(OpenRouterResponseDataValidationError):
+            await client.create_chat_completion(req)
+
+
+@pytest.mark.asyncio
+async def test_stream_invalid_chunk_raises_validation_error() -> None:
+    async def handler(request: httpx.Request) -> httpx.Response:
+        content = b"data: {bad json}\n"
+        return httpx.Response(
+            200,
+            content=content,
+            headers={"Content-Type": "text/event-stream"},
+        )
+
+    transport = MockTransport(handler)
+    async with OpenRouterAsyncClient(api_key="k", transport=transport) as client:
+        req = ChatCompletionRequest(
+            model="m",
+            messages=[ChatMessage(role="user", content="hi")],
+            stream=True,
+        )
+        with pytest.raises(OpenRouterResponseDataValidationError):
+            async for _ in client.stream_chat_completion(req):
+                pass
+
+
+def test_chat_message_validation_errors() -> None:
+    with pytest.raises(ValueError):
+        ChatMessage(role="tool", content="x")
+    with pytest.raises(ValueError):
+        ChatMessage(role="assistant", content=[TextContentPart(text="hi")])
