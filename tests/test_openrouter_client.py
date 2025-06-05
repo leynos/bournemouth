@@ -12,6 +12,7 @@ from bournemouth import (
     ChatMessage,
     OpenRouterAsyncClient,
     OpenRouterAuthenticationError,
+    OpenRouterInvalidRequestError,
     OpenRouterNetworkError,
     OpenRouterRateLimitError,
     OpenRouterTimeoutError,
@@ -78,6 +79,24 @@ async def test_non_success_status_raises() -> None:
             messages=[ChatMessage(role="user", content="hi")],
         )
         with pytest.raises(OpenRouterAuthenticationError):
+            await client.create_chat_completion(req)
+
+
+@pytest.mark.asyncio
+async def test_invalid_request_status_raises() -> None:
+    async def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            HTTPStatus.BAD_REQUEST,
+            json={"error": {"message": "nope"}},
+        )
+
+    transport = MockTransport(handler)
+    async with OpenRouterAsyncClient(api_key="k", transport=transport) as client:
+        req = ChatCompletionRequest(
+            model="openai/gpt-3.5-turbo",
+            messages=[ChatMessage(role="user", content="hi")],
+        )
+        with pytest.raises(OpenRouterInvalidRequestError):
             await client.create_chat_completion(req)
 
 
@@ -187,9 +206,7 @@ async def test_create_chat_completion_ignores_stream_true() -> None:
         "object": "chat.completion",
         "created": 1,
         "model": "m",
-        "choices": [
-            {"index": 0, "message": {"role": "assistant", "content": "ok"}}
-        ],
+        "choices": [{"index": 0, "message": {"role": "assistant", "content": "ok"}}],
     }
 
     async def handler(request: httpx.Request) -> httpx.Response:

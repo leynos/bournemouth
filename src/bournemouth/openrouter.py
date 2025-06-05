@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import contextlib
 import typing
+from http import HTTPStatus
 
 if typing.TYPE_CHECKING:  # pragma: no cover - imports for type checking
     import collections.abc as cabc
@@ -233,13 +234,22 @@ class OpenRouterInvalidRequestError(OpenRouterAPIError):
 
 
 def _map_status_to_error(status: int) -> type[OpenRouterAPIError]:
-    if status == 401:
-        return OpenRouterAuthenticationError
-    if status == 429:
-        return OpenRouterRateLimitError
-    if status == 400:
-        return OpenRouterInvalidRequestError
-    return OpenRouterAPIError
+    """Map an HTTP status to a client error type."""
+
+    try:
+        status_enum = HTTPStatus(status)
+    except ValueError:
+        return OpenRouterAPIError
+
+    match status_enum:
+        case HTTPStatus.UNAUTHORIZED:
+            return OpenRouterAuthenticationError
+        case HTTPStatus.TOO_MANY_REQUESTS:
+            return OpenRouterRateLimitError
+        case HTTPStatus.BAD_REQUEST:
+            return OpenRouterInvalidRequestError
+        case _:
+            return OpenRouterAPIError
 
 
 class OpenRouterAsyncClient:
@@ -362,7 +372,6 @@ class OpenRouterAsyncClient:
                 if resp.status_code >= 400:
                     data = await resp.aread()
                     try:
-                        err = self._ERR_DECODER.decode(data).error
                     except msgspec.DecodeError:
                         err = None
                     exc_cls = _map_status_to_error(resp.status_code)
