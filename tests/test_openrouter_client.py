@@ -54,7 +54,9 @@ def add_chat_callback(httpx_mock: HTTPXMock) -> typing.Any:
 
 
 @pytest.mark.asyncio
-async def test_create_chat_completion_success(httpx_mock: HTTPXMock) -> None:
+async def test_create_chat_completion_success(
+    httpx_mock: HTTPXMock, add_chat_callback: cabc.Callable[..., None]
+) -> None:
     content = {
         "id": "1",
         "object": "chat.completion",
@@ -70,7 +72,7 @@ async def test_create_chat_completion_success(httpx_mock: HTTPXMock) -> None:
         assert body["model"] == "openai/gpt-3.5-turbo"
         return httpx.Response(200, json=content)
 
-    typing.cast("cabc.Callable[..., None]", add_chat_callback)(handler)
+    add_chat_callback(handler)
 
     async with OpenRouterAsyncClient(
         api_key="k",
@@ -86,8 +88,10 @@ async def test_create_chat_completion_success(httpx_mock: HTTPXMock) -> None:
 
 
 @pytest.mark.asyncio
-async def test_non_success_status_raises(httpx_mock: HTTPXMock) -> None:
-    typing.cast("cabc.Callable[..., None]", add_chat_response)(
+async def test_non_success_status_raises(
+    httpx_mock: HTTPXMock, add_chat_response: cabc.Callable[..., None]
+) -> None:
+    add_chat_response(
         status_code=HTTPStatus.UNAUTHORIZED,
         json={"error": {"message": "bad", "code": "invalid_key"}},
     )
@@ -102,8 +106,10 @@ async def test_non_success_status_raises(httpx_mock: HTTPXMock) -> None:
 
 
 @pytest.mark.asyncio
-async def test_invalid_request_status_raises(httpx_mock: HTTPXMock) -> None:
-    typing.cast("cabc.Callable[..., None]", add_chat_response)(
+async def test_invalid_request_status_raises(
+    httpx_mock: HTTPXMock, add_chat_response: cabc.Callable[..., None]
+) -> None:
+    add_chat_response(
         status_code=HTTPStatus.BAD_REQUEST,
         json={"error": {"message": "nope"}},
     )
@@ -118,14 +124,16 @@ async def test_invalid_request_status_raises(httpx_mock: HTTPXMock) -> None:
 
 
 @pytest.mark.asyncio
-async def test_streaming_yields_chunks(httpx_mock: HTTPXMock) -> None:
+async def test_streaming_yields_chunks(
+    httpx_mock: HTTPXMock, add_chat_response: cabc.Callable[..., None]
+) -> None:
     content = (
         b'data: {"id": "1", "object": "chat.completion.chunk", "created": 1,'
         b' "model": "m", "choices": [{"index": 0, "delta": {"content": "hi"}}]}\n'
         b"data: \n"
     )
 
-    typing.cast("cabc.Callable[..., None]", add_chat_response)(
+    add_chat_response(
         headers={"Content-Type": "text/event-stream"},
         content=content,
     )
@@ -141,8 +149,10 @@ async def test_streaming_yields_chunks(httpx_mock: HTTPXMock) -> None:
 
 
 @pytest.mark.asyncio
-async def test_streaming_error_status(httpx_mock: HTTPXMock) -> None:
-    typing.cast("cabc.Callable[..., None]", add_chat_response)(
+async def test_streaming_error_status(
+    httpx_mock: HTTPXMock, add_chat_response: cabc.Callable[..., None]
+) -> None:
+    add_chat_response(
         status_code=HTTPStatus.TOO_MANY_REQUESTS,
         json={"error": {"message": "slow down"}},
     )
@@ -159,8 +169,10 @@ async def test_streaming_error_status(httpx_mock: HTTPXMock) -> None:
 
 
 @pytest.mark.asyncio
-async def test_client_closes_on_exit(httpx_mock: HTTPXMock) -> None:
-    typing.cast("cabc.Callable[..., None]", add_chat_response)(
+async def test_client_closes_on_exit(
+    httpx_mock: HTTPXMock, add_chat_response: cabc.Callable[..., None]
+) -> None:
+    add_chat_response(
         json={
             "id": "1",
             "object": "chat.completion",
@@ -223,7 +235,7 @@ async def test_timeout_error_maps_to_timeout_exception(httpx_mock: HTTPXMock) ->
 
 @pytest.mark.asyncio
 async def test_create_chat_completion_ignores_stream_true(
-    httpx_mock: HTTPXMock,
+    httpx_mock: HTTPXMock, add_chat_callback: cabc.Callable[..., None]
 ) -> None:
     content = {
         "id": "1",
@@ -238,7 +250,7 @@ async def test_create_chat_completion_ignores_stream_true(
         assert body["stream"] is False
         return httpx.Response(200, json=content)
 
-    typing.cast("cabc.Callable[..., None]", add_chat_callback)(handler)
+    add_chat_callback(handler)
 
     async with OpenRouterAsyncClient(api_key="k") as client:
         req = ChatCompletionRequest(
@@ -251,7 +263,9 @@ async def test_create_chat_completion_ignores_stream_true(
 
 
 @pytest.mark.asyncio
-async def test_stream_chat_completion_sets_stream_true(httpx_mock: HTTPXMock) -> None:
+async def test_stream_chat_completion_sets_stream_true(
+    httpx_mock: HTTPXMock, add_chat_callback: cabc.Callable[..., None]
+) -> None:
     content = (
         b'data: {"id": "1", "object": "chat.completion.chunk", "created": 1, '
         b'"model": "m", "choices": [{"index": 0, "delta": {"content": "hi"}}]}\n'
@@ -267,7 +281,7 @@ async def test_stream_chat_completion_sets_stream_true(httpx_mock: HTTPXMock) ->
             headers={"Content-Type": "text/event-stream"},
         )
 
-    typing.cast("cabc.Callable[..., None]", add_chat_callback)(handler)
+    add_chat_callback(handler)
 
     async with OpenRouterAsyncClient(api_key="k") as client:
         req = ChatCompletionRequest(
@@ -280,8 +294,10 @@ async def test_stream_chat_completion_sets_stream_true(httpx_mock: HTTPXMock) ->
 
 
 @pytest.mark.asyncio
-async def test_insufficient_credits_error(httpx_mock: HTTPXMock) -> None:
-    typing.cast("cabc.Callable[..., None]", add_chat_response)(
+async def test_insufficient_credits_error(
+    httpx_mock: HTTPXMock, add_chat_response: cabc.Callable[..., None]
+) -> None:
+    add_chat_response(
         status_code=HTTPStatus.PAYMENT_REQUIRED,
         json={"error": {"message": "pay up"}},
     )
@@ -296,8 +312,10 @@ async def test_insufficient_credits_error(httpx_mock: HTTPXMock) -> None:
 
 
 @pytest.mark.asyncio
-async def test_permission_error(httpx_mock: HTTPXMock) -> None:
-    typing.cast("cabc.Callable[..., None]", add_chat_response)(
+async def test_permission_error(
+    httpx_mock: HTTPXMock, add_chat_response: cabc.Callable[..., None]
+) -> None:
+    add_chat_response(
         status_code=HTTPStatus.FORBIDDEN,
         json={"error": {"message": "no"}},
     )
@@ -312,8 +330,10 @@ async def test_permission_error(httpx_mock: HTTPXMock) -> None:
 
 
 @pytest.mark.asyncio
-async def test_server_error(httpx_mock: HTTPXMock) -> None:
-    typing.cast("cabc.Callable[..., None]", add_chat_response)(
+async def test_server_error(
+    httpx_mock: HTTPXMock, add_chat_response: cabc.Callable[..., None]
+) -> None:
+    add_chat_response(
         status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
         json={"error": {"message": "boom"}},
     )
@@ -328,8 +348,10 @@ async def test_server_error(httpx_mock: HTTPXMock) -> None:
 
 
 @pytest.mark.asyncio
-async def test_invalid_json_raises_validation_error(httpx_mock: HTTPXMock) -> None:
-    typing.cast("cabc.Callable[..., None]", add_chat_response)(content=b"{bad json}")
+async def test_invalid_json_raises_validation_error(
+    httpx_mock: HTTPXMock, add_chat_response: cabc.Callable[..., None]
+) -> None:
+    add_chat_response(content=b"{bad json}")
 
     async with OpenRouterAsyncClient(api_key="k") as client:
         req = ChatCompletionRequest(
@@ -342,11 +364,11 @@ async def test_invalid_json_raises_validation_error(httpx_mock: HTTPXMock) -> No
 
 @pytest.mark.asyncio
 async def test_stream_invalid_chunk_raises_validation_error(
-    httpx_mock: HTTPXMock,
+    httpx_mock: HTTPXMock, add_chat_response: cabc.Callable[..., None]
 ) -> None:
     content = b"data: {bad json}\n"
 
-    typing.cast("cabc.Callable[..., None]", add_chat_response)(
+    add_chat_response(
         headers={"Content-Type": "text/event-stream"},
         content=content,
     )
