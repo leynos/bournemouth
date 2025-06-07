@@ -323,7 +323,7 @@ class OpenRouterAsyncClient:
         tb: typing.Any,
     ) -> None:
         if not self._client:
-            raise RuntimeError("client not initialized")
+            return
         await self._client.aclose()
         self._client = None
 
