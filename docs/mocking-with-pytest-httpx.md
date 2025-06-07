@@ -9,10 +9,11 @@ Fixtures are functions that pytest runs before (and sometimes after) test functi
 The pytest-httpx library leverages this fixture system by providing the httpx_mock fixture. This fixture, once included as an argument in a test function, automatically intercepts all HTTP requests made by the httpx library during that test's execution. This seamless integration means developers do not need to manually patch httpx functions or manage the lifecycle of mock objects; pytest and pytest-httpx handle this transparently. This approach significantly simplifies the test setup process compared to manual patching techniques (e.g., using unittest.mock.patch or pytest-mock's mocker.patch.object ), reducing boilerplate code and minimizing the risk of errors associated with incorrect patch management, such as patches not being applied correctly or persisting beyond the intended test scope. The fixture mechanism ensures that mocking is active only during the test and is properly cleaned up afterward, contributing to test isolation.
 3. Setting Up pytest-httpx
 3.1. Installation
-To begin using pytest-httpx, it must be installed in the Python environment alongside pytest and httpx. Use `uv` to add it to the `dev` dependency group:
+To begin using pytest-httpx, it must be installed in the Python environment alongside pytest and httpx. Use `uv` to add it to the `dev` dependency group and install the dependencies:
 
 ```bash
 uv add --group dev pytest-httpx
+uv venv
 uv pip install --group dev -e .
 ```
 
