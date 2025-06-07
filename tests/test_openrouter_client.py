@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-import typing
 from http import HTTPStatus
 
 import httpx
 import msgspec
 import pytest
+from pytest_httpx import HTTPXMock
 
 from bournemouth import (
     ChatCompletionRequest,
@@ -24,42 +24,33 @@ from bournemouth import (
 from bournemouth.openrouter import TextContentPart
 
 
-class MockTransport(httpx.AsyncBaseTransport):
-    def __init__(
-        self,
-        handler: typing.Callable[[httpx.Request], typing.Awaitable[httpx.Response]],
-    ):
-        self._handler = handler
-
-    async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
-        return await self._handler(request)
-
-
 @pytest.mark.asyncio
-async def test_create_chat_completion_success() -> None:
+async def test_create_chat_completion_success(httpx_mock: HTTPXMock) -> None:
+    content = {
+        "id": "1",
+        "object": "chat.completion",
+        "created": 1,
+        "model": "openai/gpt-3.5-turbo",
+        "choices": [{"index": 0, "message": {"role": "assistant", "content": "hi"}}],
+    }
+
     async def handler(request: httpx.Request) -> httpx.Response:
         assert request.method == "POST"
         assert request.headers["Authorization"] == "Bearer k"
-        data = await request.aread()
-        body = msgspec.json.decode(data)
+        body = msgspec.json.decode(await request.aread())
         assert body["model"] == "openai/gpt-3.5-turbo"
-        content = {
-            "id": "1",
-            "object": "chat.completion",
-            "created": 1,
-            "model": "openai/gpt-3.5-turbo",
-            "choices": [
-                {"index": 0, "message": {"role": "assistant", "content": "hi"}}
-            ],
-        }
         return httpx.Response(200, json=content)
 
-    transport = MockTransport(handler)
+    httpx_mock.add_callback(
+        handler,
+        method="POST",
+        url="https://openrouter.ai/api/v1/chat/completions",
+    )
+
     async with OpenRouterAsyncClient(
         api_key="k",
         default_headers={},
         timeout_config=None,
-        transport=transport,
     ) as client:
         req = ChatCompletionRequest(
             model="openai/gpt-3.5-turbo",
@@ -70,15 +61,15 @@ async def test_create_chat_completion_success() -> None:
 
 
 @pytest.mark.asyncio
-async def test_non_success_status_raises() -> None:
-    async def handler(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(
-            HTTPStatus.UNAUTHORIZED,
-            json={"error": {"message": "bad", "code": "invalid_key"}},
-        )
+async def test_non_success_status_raises(httpx_mock: HTTPXMock) -> None:
+    httpx_mock.add_response(
+        method="POST",
+        url="https://openrouter.ai/api/v1/chat/completions",
+        status_code=HTTPStatus.UNAUTHORIZED,
+        json={"error": {"message": "bad", "code": "invalid_key"}},
+    )
 
-    transport = MockTransport(handler)
-    async with OpenRouterAsyncClient(api_key="k", transport=transport) as client:
+    async with OpenRouterAsyncClient(api_key="k") as client:
         req = ChatCompletionRequest(
             model="openai/gpt-3.5-turbo",
             messages=[ChatMessage(role="user", content="hi")],
@@ -88,15 +79,15 @@ async def test_non_success_status_raises() -> None:
 
 
 @pytest.mark.asyncio
-async def test_invalid_request_status_raises() -> None:
-    async def handler(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(
-            HTTPStatus.BAD_REQUEST,
-            json={"error": {"message": "nope"}},
-        )
+async def test_invalid_request_status_raises(httpx_mock: HTTPXMock) -> None:
+    httpx_mock.add_response(
+        method="POST",
+        url="https://openrouter.ai/api/v1/chat/completions",
+        status_code=HTTPStatus.BAD_REQUEST,
+        json={"error": {"message": "nope"}},
+    )
 
-    transport = MockTransport(handler)
-    async with OpenRouterAsyncClient(api_key="k", transport=transport) as client:
+    async with OpenRouterAsyncClient(api_key="k") as client:
         req = ChatCompletionRequest(
             model="openai/gpt-3.5-turbo",
             messages=[ChatMessage(role="user", content="hi")],
@@ -106,19 +97,21 @@ async def test_invalid_request_status_raises() -> None:
 
 
 @pytest.mark.asyncio
-async def test_streaming_yields_chunks() -> None:
-    async def handler(request: httpx.Request) -> httpx.Response:
-        content = (
-            b'data: {"id": "1", "object": "chat.completion.chunk", "created": 1,'
-            b' "model": "m", "choices": [{"index": 0, "delta": {"content": "hi"}}]}\n'
-            b"data: \n"
-        )
-        return httpx.Response(
-            200, content=content, headers={"Content-Type": "text/event-stream"}
-        )
+async def test_streaming_yields_chunks(httpx_mock: HTTPXMock) -> None:
+    content = (
+        b'data: {"id": "1", "object": "chat.completion.chunk", "created": 1,'
+        b' "model": "m", "choices": [{"index": 0, "delta": {"content": "hi"}}]}\n'
+        b"data: \n"
+    )
 
-    transport = MockTransport(handler)
-    async with OpenRouterAsyncClient(api_key="k", transport=transport) as client:
+    httpx_mock.add_response(
+        method="POST",
+        url="https://openrouter.ai/api/v1/chat/completions",
+        headers={"Content-Type": "text/event-stream"},
+        content=content,
+    )
+
+    async with OpenRouterAsyncClient(api_key="k") as client:
         req = ChatCompletionRequest(
             model="m",
             messages=[ChatMessage(role="user", content="hi")],
@@ -129,15 +122,15 @@ async def test_streaming_yields_chunks() -> None:
 
 
 @pytest.mark.asyncio
-async def test_streaming_error_status() -> None:
-    async def handler(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(
-            HTTPStatus.TOO_MANY_REQUESTS,
-            json={"error": {"message": "slow down"}},
-        )
+async def test_streaming_error_status(httpx_mock: HTTPXMock) -> None:
+    httpx_mock.add_response(
+        method="POST",
+        url="https://openrouter.ai/api/v1/chat/completions",
+        status_code=HTTPStatus.TOO_MANY_REQUESTS,
+        json={"error": {"message": "slow down"}},
+    )
 
-    transport = MockTransport(handler)
-    async with OpenRouterAsyncClient(api_key="k", transport=transport) as client:
+    async with OpenRouterAsyncClient(api_key="k") as client:
         req = ChatCompletionRequest(
             model="m",
             messages=[ChatMessage(role="user", content="hi")],
@@ -149,9 +142,11 @@ async def test_streaming_error_status() -> None:
 
 
 @pytest.mark.asyncio
-async def test_client_closes_on_exit() -> None:
-    async def handler(request: httpx.Request) -> httpx.Response:
-        content = {
+async def test_client_closes_on_exit(httpx_mock: HTTPXMock) -> None:
+    httpx_mock.add_response(
+        method="POST",
+        url="https://openrouter.ai/api/v1/chat/completions",
+        json={
             "id": "1",
             "object": "chat.completion",
             "created": 1,
@@ -159,11 +154,10 @@ async def test_client_closes_on_exit() -> None:
             "choices": [
                 {"index": 0, "message": {"role": "assistant", "content": "hi"}}
             ],
-        }
-        return httpx.Response(200, json=content)
+        },
+    )
 
-    transport = MockTransport(handler)
-    client = OpenRouterAsyncClient(api_key="k", transport=transport)
+    client = OpenRouterAsyncClient(api_key="k")
     async with client as c:
         req = ChatCompletionRequest(
             model="m",
@@ -175,12 +169,16 @@ async def test_client_closes_on_exit() -> None:
 
 
 @pytest.mark.asyncio
-async def test_network_error_maps_to_client_error() -> None:
-    async def handler(request: httpx.Request) -> httpx.Response:
-        raise httpx.ConnectError("boom", request=request)
+async def test_network_error_maps_to_client_error(httpx_mock: HTTPXMock) -> None:
+    httpx_mock.add_exception(
+        method="POST",
+        url="https://openrouter.ai/api/v1/chat/completions",
+        exception=httpx.ConnectError(
+            "boom", request=httpx.Request("POST", "https://openrouter.ai")
+        ),
+    )
 
-    transport = MockTransport(handler)
-    async with OpenRouterAsyncClient(api_key="k", transport=transport) as client:
+    async with OpenRouterAsyncClient(api_key="k") as client:
         req = ChatCompletionRequest(
             model="m",
             messages=[ChatMessage(role="user", content="hi")],
@@ -190,12 +188,16 @@ async def test_network_error_maps_to_client_error() -> None:
 
 
 @pytest.mark.asyncio
-async def test_timeout_error_maps_to_timeout_exception() -> None:
-    async def handler(request: httpx.Request) -> httpx.Response:
-        raise httpx.TimeoutException("slow", request=request)
+async def test_timeout_error_maps_to_timeout_exception(httpx_mock: HTTPXMock) -> None:
+    httpx_mock.add_exception(
+        method="POST",
+        url="https://openrouter.ai/api/v1/chat/completions",
+        exception=httpx.TimeoutException(
+            "slow", request=httpx.Request("POST", "https://openrouter.ai")
+        ),
+    )
 
-    transport = MockTransport(handler)
-    async with OpenRouterAsyncClient(api_key="k", transport=transport) as client:
+    async with OpenRouterAsyncClient(api_key="k") as client:
         req = ChatCompletionRequest(
             model="m",
             messages=[ChatMessage(role="user", content="hi")],
@@ -205,7 +207,9 @@ async def test_timeout_error_maps_to_timeout_exception() -> None:
 
 
 @pytest.mark.asyncio
-async def test_create_chat_completion_ignores_stream_true() -> None:
+async def test_create_chat_completion_ignores_stream_true(
+    httpx_mock: HTTPXMock,
+) -> None:
     content = {
         "id": "1",
         "object": "chat.completion",
@@ -215,13 +219,17 @@ async def test_create_chat_completion_ignores_stream_true() -> None:
     }
 
     async def handler(request: httpx.Request) -> httpx.Response:
-        data = await request.aread()
-        body = msgspec.json.decode(data)
+        body = msgspec.json.decode(await request.aread())
         assert body["stream"] is False
         return httpx.Response(200, json=content)
 
-    transport = MockTransport(handler)
-    async with OpenRouterAsyncClient(api_key="k", transport=transport) as client:
+    httpx_mock.add_callback(
+        handler,
+        method="POST",
+        url="https://openrouter.ai/api/v1/chat/completions",
+    )
+
+    async with OpenRouterAsyncClient(api_key="k") as client:
         req = ChatCompletionRequest(
             model="m",
             messages=[ChatMessage(role="user", content="hi")],
@@ -232,7 +240,7 @@ async def test_create_chat_completion_ignores_stream_true() -> None:
 
 
 @pytest.mark.asyncio
-async def test_stream_chat_completion_sets_stream_true() -> None:
+async def test_stream_chat_completion_sets_stream_true(httpx_mock: HTTPXMock) -> None:
     content = (
         b'data: {"id": "1", "object": "chat.completion.chunk", "created": 1, '
         b'"model": "m", "choices": [{"index": 0, "delta": {"content": "hi"}}]}\n'
@@ -240,8 +248,7 @@ async def test_stream_chat_completion_sets_stream_true() -> None:
     )
 
     async def handler(request: httpx.Request) -> httpx.Response:
-        data = await request.aread()
-        body = msgspec.json.decode(data)
+        body = msgspec.json.decode(await request.aread())
         assert body["stream"] is True
         return httpx.Response(
             200,
@@ -249,8 +256,13 @@ async def test_stream_chat_completion_sets_stream_true() -> None:
             headers={"Content-Type": "text/event-stream"},
         )
 
-    transport = MockTransport(handler)
-    async with OpenRouterAsyncClient(api_key="k", transport=transport) as client:
+    httpx_mock.add_callback(
+        handler,
+        method="POST",
+        url="https://openrouter.ai/api/v1/chat/completions",
+    )
+
+    async with OpenRouterAsyncClient(api_key="k") as client:
         req = ChatCompletionRequest(
             model="m",
             messages=[ChatMessage(role="user", content="hi")],
@@ -261,15 +273,15 @@ async def test_stream_chat_completion_sets_stream_true() -> None:
 
 
 @pytest.mark.asyncio
-async def test_insufficient_credits_error() -> None:
-    async def handler(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(
-            HTTPStatus.PAYMENT_REQUIRED,
-            json={"error": {"message": "pay up"}},
-        )
+async def test_insufficient_credits_error(httpx_mock: HTTPXMock) -> None:
+    httpx_mock.add_response(
+        method="POST",
+        url="https://openrouter.ai/api/v1/chat/completions",
+        status_code=HTTPStatus.PAYMENT_REQUIRED,
+        json={"error": {"message": "pay up"}},
+    )
 
-    transport = MockTransport(handler)
-    async with OpenRouterAsyncClient(api_key="k", transport=transport) as client:
+    async with OpenRouterAsyncClient(api_key="k") as client:
         req = ChatCompletionRequest(
             model="m",
             messages=[ChatMessage(role="user", content="hi")],
@@ -279,15 +291,15 @@ async def test_insufficient_credits_error() -> None:
 
 
 @pytest.mark.asyncio
-async def test_permission_error() -> None:
-    async def handler(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(
-            HTTPStatus.FORBIDDEN,
-            json={"error": {"message": "no"}},
-        )
+async def test_permission_error(httpx_mock: HTTPXMock) -> None:
+    httpx_mock.add_response(
+        method="POST",
+        url="https://openrouter.ai/api/v1/chat/completions",
+        status_code=HTTPStatus.FORBIDDEN,
+        json={"error": {"message": "no"}},
+    )
 
-    transport = MockTransport(handler)
-    async with OpenRouterAsyncClient(api_key="k", transport=transport) as client:
+    async with OpenRouterAsyncClient(api_key="k") as client:
         req = ChatCompletionRequest(
             model="m",
             messages=[ChatMessage(role="user", content="hi")],
@@ -297,15 +309,15 @@ async def test_permission_error() -> None:
 
 
 @pytest.mark.asyncio
-async def test_server_error() -> None:
-    async def handler(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(
-            HTTPStatus.INTERNAL_SERVER_ERROR,
-            json={"error": {"message": "boom"}},
-        )
+async def test_server_error(httpx_mock: HTTPXMock) -> None:
+    httpx_mock.add_response(
+        method="POST",
+        url="https://openrouter.ai/api/v1/chat/completions",
+        status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+        json={"error": {"message": "boom"}},
+    )
 
-    transport = MockTransport(handler)
-    async with OpenRouterAsyncClient(api_key="k", transport=transport) as client:
+    async with OpenRouterAsyncClient(api_key="k") as client:
         req = ChatCompletionRequest(
             model="m",
             messages=[ChatMessage(role="user", content="hi")],
@@ -315,12 +327,14 @@ async def test_server_error() -> None:
 
 
 @pytest.mark.asyncio
-async def test_invalid_json_raises_validation_error() -> None:
-    async def handler(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(200, content=b"{bad json}")
+async def test_invalid_json_raises_validation_error(httpx_mock: HTTPXMock) -> None:
+    httpx_mock.add_response(
+        method="POST",
+        url="https://openrouter.ai/api/v1/chat/completions",
+        content=b"{bad json}",
+    )
 
-    transport = MockTransport(handler)
-    async with OpenRouterAsyncClient(api_key="k", transport=transport) as client:
+    async with OpenRouterAsyncClient(api_key="k") as client:
         req = ChatCompletionRequest(
             model="m",
             messages=[ChatMessage(role="user", content="hi")],
@@ -330,17 +344,19 @@ async def test_invalid_json_raises_validation_error() -> None:
 
 
 @pytest.mark.asyncio
-async def test_stream_invalid_chunk_raises_validation_error() -> None:
-    async def handler(request: httpx.Request) -> httpx.Response:
-        content = b"data: {bad json}\n"
-        return httpx.Response(
-            200,
-            content=content,
-            headers={"Content-Type": "text/event-stream"},
-        )
+async def test_stream_invalid_chunk_raises_validation_error(
+    httpx_mock: HTTPXMock,
+) -> None:
+    content = b"data: {bad json}\n"
 
-    transport = MockTransport(handler)
-    async with OpenRouterAsyncClient(api_key="k", transport=transport) as client:
+    httpx_mock.add_response(
+        method="POST",
+        url="https://openrouter.ai/api/v1/chat/completions",
+        headers={"Content-Type": "text/event-stream"},
+        content=content,
+    )
+
+    async with OpenRouterAsyncClient(api_key="k") as client:
         req = ChatCompletionRequest(
             model="m",
             messages=[ChatMessage(role="user", content="hi")],
