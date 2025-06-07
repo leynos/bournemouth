@@ -26,11 +26,15 @@ from bournemouth import (
     OpenRouterServerError,
     OpenRouterTimeoutError,
 )
-from bournemouth.openrouter import TextContentPart
+from bournemouth.openrouter import (
+    CHAT_COMPLETIONS_PATH,
+    DEFAULT_BASE_URL,
+    TextContentPart,
+)
 
 pytest_plugins = ["pytest_httpx"]
 
-CHAT_COMPLETIONS_URL = "https://openrouter.ai/api/v1/chat/completions"
+CHAT_COMPLETIONS_URL = f"{DEFAULT_BASE_URL.rstrip('/')}{CHAT_COMPLETIONS_PATH}"
 
 
 @pytest.fixture

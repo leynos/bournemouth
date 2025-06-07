@@ -14,6 +14,8 @@ if typing.TYPE_CHECKING:  # pragma: no cover - imports for type checking
     import collections.abc as cabc
 
 __all__ = [
+    "CHAT_COMPLETIONS_PATH",
+    "DEFAULT_BASE_URL",
     "ChatCompletionRequest",
     "ChatCompletionResponse",
     "ChatMessage",
@@ -34,6 +36,10 @@ __all__ = [
     "StreamChunk",
     "TextContentPart",
 ]
+
+
+DEFAULT_BASE_URL = "https://openrouter.ai/api/v1/"
+CHAT_COMPLETIONS_PATH = "/chat/completions"
 
 
 class ImageUrl(msgspec.Struct, array_like=True):
@@ -300,7 +306,7 @@ class OpenRouterAsyncClient:
         transport: httpx.AsyncBaseTransport | None = None,
     ) -> None:
         self.api_key = api_key
-        self.base_url = base_url or "https://openrouter.ai/api/v1/"
+        self.base_url = base_url or DEFAULT_BASE_URL
         self.timeout = timeout_config
         self._user_headers = default_headers or {}
         self._client: httpx.AsyncClient | None = None
@@ -390,7 +396,7 @@ class OpenRouterAsyncClient:
             payload = self._ENCODER.encode(request)
         except (msgspec.ValidationError, msgspec.EncodeError) as e:
             raise OpenRouterRequestDataValidationError(str(e)) from e
-        resp = await self._post("/chat/completions", content=payload)
+        resp = await self._post(CHAT_COMPLETIONS_PATH, content=payload)
         return await self._decode_response(resp)
 
     async def stream_chat_completion(
@@ -404,7 +410,7 @@ class OpenRouterAsyncClient:
             payload = self._ENCODER.encode(request)
         except (msgspec.ValidationError, msgspec.EncodeError) as e:
             raise OpenRouterRequestDataValidationError(str(e)) from e
-        async with self._stream_post("/chat/completions", content=payload) as resp:
+        async with self._stream_post(CHAT_COMPLETIONS_PATH, content=payload) as resp:
             await self._raise_for_status(resp)
             async for line in resp.aiter_lines():
                 if not line or line.startswith(":"):
