@@ -306,7 +306,7 @@ class OpenRouterAsyncClient:
         self._client: httpx.AsyncClient | None = None
         self._transport = transport
 
-    async def __aenter__(self) -> "OpenRouterAsyncClient":
+    async def __aenter__(self) -> typing.Self:
         headers = {"Authorization": f"Bearer {self.api_key}"} | self._user_headers
         self._client = httpx.AsyncClient(
             base_url=self.base_url,
@@ -322,7 +322,8 @@ class OpenRouterAsyncClient:
         exc: BaseException | None,
         tb: typing.Any,
     ) -> None:
-        assert self._client is not None
+        if not self._client:
+            raise RuntimeError("client not initialized")
         await self._client.aclose()
         self._client = None
 
@@ -418,3 +419,6 @@ class OpenRouterAsyncClient:
                         raise OpenRouterResponseDataValidationError(
                             f"failed to decode stream chunk: {payload_str}"
                         ) from e
+
+            # end for
+        # end async with

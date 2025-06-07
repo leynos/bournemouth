@@ -1,11 +1,16 @@
 from __future__ import annotations
 
+import typing
 from http import HTTPStatus
 
 import httpx
 import msgspec
 import pytest
-from pytest_httpx import HTTPXMock
+
+if typing.TYPE_CHECKING:  # pragma: no cover - fixtures only
+    import collections.abc as cabc
+
+    from pytest_httpx import HTTPXMock
 
 from bournemouth import (
     ChatCompletionRequest,
@@ -22,6 +27,30 @@ from bournemouth import (
     OpenRouterTimeoutError,
 )
 from bournemouth.openrouter import TextContentPart
+
+pytest_plugins = ["pytest_httpx"]
+
+CHAT_COMPLETIONS_URL = "https://openrouter.ai/api/v1/chat/completions"
+
+
+@pytest.fixture
+def add_chat_response(httpx_mock: HTTPXMock) -> typing.Any:
+    def _add_response(**kwargs: typing.Any) -> None:
+        httpx_mock.add_response(method="POST", url=CHAT_COMPLETIONS_URL, **kwargs)
+
+    return _add_response
+
+
+@pytest.fixture
+def add_chat_callback(httpx_mock: HTTPXMock) -> typing.Any:
+    def _add_callback(
+        handler: cabc.Callable[[httpx.Request], httpx.Response], **kwargs: typing.Any
+    ) -> None:
+        httpx_mock.add_callback(
+            handler, method="POST", url=CHAT_COMPLETIONS_URL, **kwargs
+        )
+
+    return _add_callback
 
 
 @pytest.mark.asyncio
@@ -41,11 +70,7 @@ async def test_create_chat_completion_success(httpx_mock: HTTPXMock) -> None:
         assert body["model"] == "openai/gpt-3.5-turbo"
         return httpx.Response(200, json=content)
 
-    httpx_mock.add_callback(
-        handler,
-        method="POST",
-        url="https://openrouter.ai/api/v1/chat/completions",
-    )
+    typing.cast("cabc.Callable[..., None]", add_chat_callback)(handler)
 
     async with OpenRouterAsyncClient(
         api_key="k",
@@ -62,9 +87,7 @@ async def test_create_chat_completion_success(httpx_mock: HTTPXMock) -> None:
 
 @pytest.mark.asyncio
 async def test_non_success_status_raises(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(
-        method="POST",
-        url="https://openrouter.ai/api/v1/chat/completions",
+    typing.cast("cabc.Callable[..., None]", add_chat_response)(
         status_code=HTTPStatus.UNAUTHORIZED,
         json={"error": {"message": "bad", "code": "invalid_key"}},
     )
@@ -80,9 +103,7 @@ async def test_non_success_status_raises(httpx_mock: HTTPXMock) -> None:
 
 @pytest.mark.asyncio
 async def test_invalid_request_status_raises(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(
-        method="POST",
-        url="https://openrouter.ai/api/v1/chat/completions",
+    typing.cast("cabc.Callable[..., None]", add_chat_response)(
         status_code=HTTPStatus.BAD_REQUEST,
         json={"error": {"message": "nope"}},
     )
@@ -104,9 +125,7 @@ async def test_streaming_yields_chunks(httpx_mock: HTTPXMock) -> None:
         b"data: \n"
     )
 
-    httpx_mock.add_response(
-        method="POST",
-        url="https://openrouter.ai/api/v1/chat/completions",
+    typing.cast("cabc.Callable[..., None]", add_chat_response)(
         headers={"Content-Type": "text/event-stream"},
         content=content,
     )
@@ -123,9 +142,7 @@ async def test_streaming_yields_chunks(httpx_mock: HTTPXMock) -> None:
 
 @pytest.mark.asyncio
 async def test_streaming_error_status(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(
-        method="POST",
-        url="https://openrouter.ai/api/v1/chat/completions",
+    typing.cast("cabc.Callable[..., None]", add_chat_response)(
         status_code=HTTPStatus.TOO_MANY_REQUESTS,
         json={"error": {"message": "slow down"}},
     )
@@ -143,9 +160,7 @@ async def test_streaming_error_status(httpx_mock: HTTPXMock) -> None:
 
 @pytest.mark.asyncio
 async def test_client_closes_on_exit(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(
-        method="POST",
-        url="https://openrouter.ai/api/v1/chat/completions",
+    typing.cast("cabc.Callable[..., None]", add_chat_response)(
         json={
             "id": "1",
             "object": "chat.completion",
@@ -172,7 +187,7 @@ async def test_client_closes_on_exit(httpx_mock: HTTPXMock) -> None:
 async def test_network_error_maps_to_client_error(httpx_mock: HTTPXMock) -> None:
     httpx_mock.add_exception(
         method="POST",
-        url="https://openrouter.ai/api/v1/chat/completions",
+        url=CHAT_COMPLETIONS_URL,
         exception=httpx.ConnectError(
             "boom", request=httpx.Request("POST", "https://openrouter.ai")
         ),
@@ -191,7 +206,7 @@ async def test_network_error_maps_to_client_error(httpx_mock: HTTPXMock) -> None
 async def test_timeout_error_maps_to_timeout_exception(httpx_mock: HTTPXMock) -> None:
     httpx_mock.add_exception(
         method="POST",
-        url="https://openrouter.ai/api/v1/chat/completions",
+        url=CHAT_COMPLETIONS_URL,
         exception=httpx.TimeoutException(
             "slow", request=httpx.Request("POST", "https://openrouter.ai")
         ),
@@ -223,11 +238,7 @@ async def test_create_chat_completion_ignores_stream_true(
         assert body["stream"] is False
         return httpx.Response(200, json=content)
 
-    httpx_mock.add_callback(
-        handler,
-        method="POST",
-        url="https://openrouter.ai/api/v1/chat/completions",
-    )
+    typing.cast("cabc.Callable[..., None]", add_chat_callback)(handler)
 
     async with OpenRouterAsyncClient(api_key="k") as client:
         req = ChatCompletionRequest(
@@ -256,11 +267,7 @@ async def test_stream_chat_completion_sets_stream_true(httpx_mock: HTTPXMock) ->
             headers={"Content-Type": "text/event-stream"},
         )
 
-    httpx_mock.add_callback(
-        handler,
-        method="POST",
-        url="https://openrouter.ai/api/v1/chat/completions",
-    )
+    typing.cast("cabc.Callable[..., None]", add_chat_callback)(handler)
 
     async with OpenRouterAsyncClient(api_key="k") as client:
         req = ChatCompletionRequest(
@@ -274,9 +281,7 @@ async def test_stream_chat_completion_sets_stream_true(httpx_mock: HTTPXMock) ->
 
 @pytest.mark.asyncio
 async def test_insufficient_credits_error(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(
-        method="POST",
-        url="https://openrouter.ai/api/v1/chat/completions",
+    typing.cast("cabc.Callable[..., None]", add_chat_response)(
         status_code=HTTPStatus.PAYMENT_REQUIRED,
         json={"error": {"message": "pay up"}},
     )
@@ -292,9 +297,7 @@ async def test_insufficient_credits_error(httpx_mock: HTTPXMock) -> None:
 
 @pytest.mark.asyncio
 async def test_permission_error(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(
-        method="POST",
-        url="https://openrouter.ai/api/v1/chat/completions",
+    typing.cast("cabc.Callable[..., None]", add_chat_response)(
         status_code=HTTPStatus.FORBIDDEN,
         json={"error": {"message": "no"}},
     )
@@ -310,9 +313,7 @@ async def test_permission_error(httpx_mock: HTTPXMock) -> None:
 
 @pytest.mark.asyncio
 async def test_server_error(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(
-        method="POST",
-        url="https://openrouter.ai/api/v1/chat/completions",
+    typing.cast("cabc.Callable[..., None]", add_chat_response)(
         status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
         json={"error": {"message": "boom"}},
     )
@@ -328,11 +329,7 @@ async def test_server_error(httpx_mock: HTTPXMock) -> None:
 
 @pytest.mark.asyncio
 async def test_invalid_json_raises_validation_error(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(
-        method="POST",
-        url="https://openrouter.ai/api/v1/chat/completions",
-        content=b"{bad json}",
-    )
+    typing.cast("cabc.Callable[..., None]", add_chat_response)(content=b"{bad json}")
 
     async with OpenRouterAsyncClient(api_key="k") as client:
         req = ChatCompletionRequest(
@@ -349,9 +346,7 @@ async def test_stream_invalid_chunk_raises_validation_error(
 ) -> None:
     content = b"data: {bad json}\n"
 
-    httpx_mock.add_response(
-        method="POST",
-        url="https://openrouter.ai/api/v1/chat/completions",
+    typing.cast("cabc.Callable[..., None]", add_chat_response)(
         headers={"Content-Type": "text/event-stream"},
         content=content,
     )
