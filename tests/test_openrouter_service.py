@@ -86,3 +86,44 @@ async def test_aclose_waits(monkeypatch: pytest.MonkeyPatch) -> None:
     finish.set()
     await task
     await close_task
+
+
+@pytest.mark.asyncio
+async def test_can_reuse_after_aclose(monkeypatch: pytest.MonkeyPatch) -> None:
+    DummyClient.creations = 0
+    monkeypatch.setattr(
+        "bournemouth.openrouter_service.OpenRouterAsyncClient", DummyClient
+    )
+    service = OpenRouterService()
+    msg = [ChatMessage(role="user", content="hi")]
+    await service.chat_completion("k", msg)
+    await service.aclose()
+    await service.chat_completion("k", msg)
+    assert DummyClient.creations == 2
+
+
+@pytest.mark.asyncio
+async def test_remove_client(monkeypatch: pytest.MonkeyPatch) -> None:
+    class ClosingClient(DummyClient):
+        async def __aexit__(
+            self,
+            exc_type: type[BaseException] | None,
+            exc: BaseException | None,
+            tb: typing.Any,
+        ) -> None:
+            ClosingClient.closes += 1
+            await super().__aexit__(exc_type, exc, tb)
+
+    DummyClient.creations = 0
+    ClosingClient.closes = 0
+    monkeypatch.setattr(
+        "bournemouth.openrouter_service.OpenRouterAsyncClient", ClosingClient
+    )
+    service = OpenRouterService()
+    msg = [ChatMessage(role="user", content="hi")]
+    await service.chat_completion("k1", msg)
+    await service.chat_completion("k2", msg)
+    await service.remove_client("k1")
+    assert ClosingClient.closes == 1
+    await service.chat_completion("k1", msg)
+    assert DummyClient.creations == 3
