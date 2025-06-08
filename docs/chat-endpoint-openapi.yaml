@@ -1,0 +1,54 @@
+openapi: 3.1.0
+info:
+  title: Bournemouth Chat API
+  version: '0.1'
+paths:
+  /chat:
+    post:
+      summary: Chat with an assistant model
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatRequest'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  answer:
+                    type: string
+                required:
+                  - answer
+        '400':
+          description: Bad request
+components:
+  schemas:
+    ChatRequest:
+      type: object
+      properties:
+        message:
+          type: string
+        model:
+          type: string
+        history:
+          type: array
+          items:
+            $ref: '#/components/schemas/Message'
+      required:
+        - message
+    Message:
+      type: object
+      properties:
+        role:
+          type: string
+          enum: [system, user, assistant, tool]
+        content:
+          type: string
+      required:
+        - role
+        - content

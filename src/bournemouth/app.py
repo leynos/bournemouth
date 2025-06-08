@@ -4,8 +4,12 @@ from __future__ import annotations
 
 import base64
 import os
+import typing
 
 from falcon import asgi
+
+if typing.TYPE_CHECKING:  # pragma: no cover - for type checking only
+    from sqlalchemy.orm import Session
 
 from .auth import AuthMiddleware, LoginResource
 from .openrouter_service import OpenRouterService
@@ -20,6 +24,7 @@ def create_app(
     login_user: str | None = None,
     login_password: str | None = None,
     openrouter_service: OpenRouterService | None = None,
+    db_session_factory: typing.Callable[[], Session] | None = None,
 ) -> asgi.App:
     """Configure and return the Falcon ASGI app.
 
@@ -36,6 +41,9 @@ def create_app(
     login_password:
         Expected Basic Auth password. Defaults to ``LOGIN_PASSWORD`` or
         ``adminpass``.
+    db_session_factory:
+        Callable that returns a SQLAlchemy ``Session``. Required for database
+        access.
     """
     secret = session_secret or os.getenv("SESSION_SECRET")
     if secret is None:
@@ -48,7 +56,9 @@ def create_app(
     middleware = [AuthMiddleware(session)]
     app = asgi.App(middleware=middleware)
     service = openrouter_service or OpenRouterService.from_env()
-    app.add_route("/chat", ChatResource(service))
+    if db_session_factory is None:
+        raise ValueError("db_session_factory is required")
+    app.add_route("/chat", ChatResource(service, db_session_factory))
     app.add_route("/auth/openrouter-token", OpenRouterTokenResource())
     app.add_route("/health", HealthResource())
     app.add_route("/login", LoginResource(session, user, password))

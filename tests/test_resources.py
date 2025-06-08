@@ -13,13 +13,32 @@ if typing.TYPE_CHECKING:
 
 import base64
 
+import sqlalchemy as sa
+from sqlalchemy.orm import Session, sessionmaker
+
 from bournemouth.app import create_app
+from bournemouth.models import Base, UserAccount
 
 
 @pytest.fixture()
-def app(monkeypatch: pytest.MonkeyPatch) -> asgi.App:
-    monkeypatch.setenv("OPENROUTER_API_KEY", "k")
-    return create_app()
+def db_session_factory() -> typing.Callable[[], Session]:
+    engine = sa.create_engine("sqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    factory = sessionmaker(bind=engine)
+    with factory() as session:
+        user = UserAccount(
+            google_sub="admin",
+            email="admin@example.com",
+            openrouter_token_enc=b"k",
+        )
+        session.add(user)
+        session.commit()
+    return lambda: factory()
+
+
+@pytest.fixture()
+def app(db_session_factory: typing.Callable[[], Session]) -> asgi.App:
+    return create_app(db_session_factory=db_session_factory)
 
 
 async def _login(client: AsyncClient) -> None:
@@ -36,9 +55,8 @@ pytest_plugins = ["pytest_httpx"]
 
 @pytest.mark.asyncio
 async def test_chat_returns_answer(
-    app: asgi.App, httpx_mock: HTTPXMock, monkeypatch: pytest.MonkeyPatch
+    app: asgi.App, httpx_mock: HTTPXMock
 ) -> None:
-    monkeypatch.setenv("OPENROUTER_API_KEY", "k")
     httpx_mock.add_response(
         method="POST",
         url="https://openrouter.ai/api/v1/chat/completions",

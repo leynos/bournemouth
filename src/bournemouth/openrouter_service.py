@@ -24,23 +24,21 @@ DEFAULT_MODEL = "deepseek/deepseek-chat-v3-0324:free"
 
 @dataclasses.dataclass(slots=True)
 class OpenRouterService:
-    """Wrapper around :class:`OpenRouterAsyncClient`."""
+    """Wrapper around :class:`OpenRouterAsyncClient` configuration."""
 
-    api_key: str
     default_model: str = DEFAULT_MODEL
     base_url: str = DEFAULT_BASE_URL
     timeout_config: httpx.Timeout | None = None
 
     @classmethod
     def from_env(cls) -> OpenRouterService:
-        api_key = os.getenv("OPENROUTER_API_KEY")
-        if not api_key:
-            raise ValueError("OpenRouter API key not configured")
         model = os.getenv("OPENROUTER_MODEL") or DEFAULT_MODEL
-        return cls(api_key=api_key, default_model=model)
+        base_url = os.getenv("OPENROUTER_BASE_URL") or DEFAULT_BASE_URL
+        return cls(default_model=model, base_url=base_url)
 
     async def chat_completion(
         self,
+        api_key: str,
         messages: list[ChatMessage],
         *,
         model: str | None = None,
@@ -50,7 +48,7 @@ class OpenRouterService:
             messages=messages,
         )
         async with OpenRouterAsyncClient(
-            api_key=self.api_key,
+            api_key=api_key,
             base_url=self.base_url,
             timeout_config=self.timeout_config,
         ) as client:
@@ -70,10 +68,14 @@ class OpenRouterServiceBadGatewayError(OpenRouterServiceError):
 
 
 async def chat_with_service(
-    service: OpenRouterService, messages: list[ChatMessage], *, model: str | None = None
+    service: OpenRouterService,
+    api_key: str,
+    messages: list[ChatMessage],
+    *,
+    model: str | None = None,
 ) -> ChatCompletionResponse:
     try:
-        return await service.chat_completion(messages, model=model)
+        return await service.chat_completion(api_key, messages, model=model)
     except OpenRouterTimeoutError as exc:
         raise OpenRouterServiceTimeoutError(str(exc)) from None
     except (OpenRouterNetworkError, OpenRouterServerError, OpenRouterAPIError) as exc:

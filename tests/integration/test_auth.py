@@ -13,17 +13,36 @@ if typing.TYPE_CHECKING:
     from pytest_httpx import HTTPXMock
 
 
+import sqlalchemy as sa
+from sqlalchemy.orm import Session, sessionmaker
+
 from bournemouth.app import create_app
+from bournemouth.models import Base, UserAccount
+
+type SessionFactory = typing.Callable[[], Session]
 
 
-@pytest.fixture(autouse=True)
-def openrouter_env(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("OPENROUTER_API_KEY", "k")
+@pytest.fixture()
+def db_session_factory() -> SessionFactory:
+    engine = sa.create_engine("sqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    factory = sessionmaker(bind=engine)
+    with factory() as session:
+        user = UserAccount(
+            google_sub="admin",
+            email="admin@example.com",
+            openrouter_token_enc=b"k",
+        )
+        session.add(user)
+        session.commit()
+    return lambda: factory()
 
 
 @pytest.mark.asyncio
-async def test_login_sets_cookie() -> None:
-    app = create_app()
+async def test_login_sets_cookie(
+    db_session_factory: SessionFactory,
+) -> None:
+    app = create_app(db_session_factory=db_session_factory)
     credentials = base64.b64encode(b"admin:adminpass").decode()
     async with AsyncClient(
         transport=ASGITransport(app=typing.cast("typing.Any", app)),  # pyright: ignore[reportUnknownArgumentType]
@@ -37,8 +56,10 @@ async def test_login_sets_cookie() -> None:
 
 
 @pytest.mark.asyncio
-async def test_login_rejects_bad_credentials() -> None:
-    app = create_app()
+async def test_login_rejects_bad_credentials(
+    db_session_factory: SessionFactory,
+) -> None:
+    app = create_app(db_session_factory=db_session_factory)
     credentials = base64.b64encode(b"admin:wrong").decode()
     async with AsyncClient(
         transport=ASGITransport(app=typing.cast("typing.Any", app)),  # pyright: ignore[reportUnknownArgumentType]
@@ -51,8 +72,10 @@ async def test_login_rejects_bad_credentials() -> None:
 
 
 @pytest.mark.asyncio
-async def test_protected_endpoint_requires_cookie() -> None:
-    app = create_app()
+async def test_protected_endpoint_requires_cookie(
+    db_session_factory: SessionFactory,
+) -> None:
+    app = create_app(db_session_factory=db_session_factory)
     async with AsyncClient(
         transport=ASGITransport(app=typing.cast("typing.Any", app)),  # pyright: ignore[reportUnknownArgumentType]
         base_url="https://test",
@@ -62,8 +85,10 @@ async def test_protected_endpoint_requires_cookie() -> None:
 
 
 @pytest.mark.asyncio
-async def test_empty_session_cookie_rejected() -> None:
-    app = create_app()
+async def test_empty_session_cookie_rejected(
+    db_session_factory: SessionFactory,
+) -> None:
+    app = create_app(db_session_factory=db_session_factory)
     async with AsyncClient(
         transport=ASGITransport(app=typing.cast("typing.Any", app)),
         base_url="https://test",
@@ -75,11 +100,11 @@ async def test_empty_session_cookie_rejected() -> None:
 
 @pytest.mark.asyncio
 async def test_chat_with_valid_session(
-    httpx_mock: HTTPXMock, monkeypatch: pytest.MonkeyPatch
+    httpx_mock: HTTPXMock,
+    db_session_factory: SessionFactory,
 ) -> None:
-    app = create_app()
+    app = create_app(db_session_factory=db_session_factory)
     credentials = base64.b64encode(b"admin:adminpass").decode()
-    monkeypatch.setenv("OPENROUTER_API_KEY", "k")
     httpx_mock.add_response(
         method="POST",
         url="https://openrouter.ai/api/v1/chat/completions",
@@ -107,8 +132,10 @@ async def test_chat_with_valid_session(
 
 
 @pytest.mark.asyncio
-async def test_health_does_not_require_auth() -> None:
-    app = create_app()
+async def test_health_does_not_require_auth(
+    db_session_factory: SessionFactory,
+) -> None:
+    app = create_app(db_session_factory=db_session_factory)
     async with AsyncClient(
         transport=ASGITransport(app=typing.cast("typing.Any", app)),  # pyright: ignore[reportUnknownArgumentType]
         base_url="https://test",
@@ -118,9 +145,11 @@ async def test_health_does_not_require_auth() -> None:
 
 
 @pytest.mark.asyncio
-async def test_expired_session_cookie_rejected() -> None:
+async def test_expired_session_cookie_rejected(
+    db_session_factory: SessionFactory,
+) -> None:
     """Requests with expired session cookies should return 401."""
-    app = create_app(session_timeout=1)
+    app = create_app(session_timeout=1, db_session_factory=db_session_factory)
     credentials = base64.b64encode(b"admin:adminpass").decode()
     async with AsyncClient(
         transport=ASGITransport(app=typing.cast("typing.Any", app)),  # pyright: ignore[reportUnknownArgumentType]

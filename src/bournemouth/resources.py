@@ -2,12 +2,17 @@
 
 from __future__ import annotations
 
-import dataclasses
 import typing
 
 import falcon
+import msgspec
+from sqlalchemy import select
 
-from .openrouter import ChatMessage
+if typing.TYPE_CHECKING:  # pragma: no cover
+    from sqlalchemy.orm import Session
+
+from .models import UserAccount
+from .openrouter import ChatMessage, Role
 from .openrouter_service import (
     OpenRouterService,
     OpenRouterServiceBadGatewayError,
@@ -16,8 +21,7 @@ from .openrouter_service import (
 )
 
 
-@dataclasses.dataclass(slots=True)
-class ChatRequest:
+class ChatRequest(msgspec.Struct):
     """Request body for the chat endpoint."""
 
     message: str
@@ -28,36 +32,58 @@ class ChatRequest:
 class ChatResource:
     """Handle chat requests."""
 
-    def __init__(self, service: OpenRouterService) -> None:
+    def __init__(
+        self, service: OpenRouterService, session_factory: typing.Callable[[], Session]
+    ) -> None:
         self._service = service
+        self._session_factory = session_factory
 
     async def on_post(self, req: falcon.Request, resp: falcon.Response) -> None:
-        data = await req.get_media()
-        if not data or "message" not in data:
-            raise falcon.HTTPBadRequest(description="`message` field required")
+        raw = await typing.cast(typing.Awaitable[bytes], req.bounded_stream.read())
+        try:
+            data = msgspec.json.decode(raw)
+        except msgspec.DecodeError:
+            raise falcon.HTTPBadRequest(description="invalid JSON") from None
 
-        msg = str(data["message"])
+        match data:
+            case {"message": str(msg), **extra}:
+                pass
+            case _:
+                raise falcon.HTTPBadRequest(description="`message` field required")
         history: list[ChatMessage] = []
-        if isinstance(data.get("history"), list):
-            for item in data["history"]:
-                try:
-                    role = typing.cast(
-                        "typing.Literal['system', 'user', 'assistant', 'tool']",
-                        item["role"],
-                    )
-                    content = str(item["content"])
-                except (KeyError, TypeError):
-                    raise falcon.HTTPBadRequest(
-                        description="invalid history item"
-                    ) from None
-                history.append(ChatMessage(role=role, content=content))
+        if isinstance(extra.get("history"), list):
+            valid_roles = typing.get_args(Role)
+            for item in extra["history"]:
+                match item:
+                    case {"role": role, "content": str(content)} if role in valid_roles:
+                        history.append(ChatMessage(role=typing.cast(Role, role), content=content))
+                    case _:
+                        raise falcon.HTTPBadRequest(description="invalid history item")
 
         history.append(ChatMessage(role="user", content=msg))
 
-        model = typing.cast("str | None", data.get("model"))
+        model = typing.cast("str | None", extra.get("model"))
+
+        with self._session_factory() as session:
+            stmt = select(UserAccount.openrouter_token_enc).where(
+                UserAccount.google_sub == typing.cast("str", req.context["user"])
+            )
+            token = typing.cast(bytes | str | None, session.scalar(stmt))
+        if not token:
+            raise falcon.HTTPBadRequest(description="missing OpenRouter token")
+
+        if isinstance(token, bytes):
+            api_key = token.decode()
+        else:
+            api_key = token
 
         try:
-            completion = await chat_with_service(self._service, history, model=model)
+            completion = await chat_with_service(
+                self._service,
+                api_key,
+                history,
+                model=model,
+            )
         except OpenRouterServiceTimeoutError:
             raise falcon.HTTPGatewayTimeout() from None
         except OpenRouterServiceBadGatewayError as exc:
