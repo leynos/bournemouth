@@ -121,7 +121,10 @@ class OpenRouterTokenResource:
                 )
                 .values(openrouter_token_enc=api_key.encode())
             )
-            await session.execute(stmt)
+            result = await session.execute(stmt)
+            if result.rowcount == 0:
+                resp.status = falcon.HTTP_404
+                return
             await session.commit()
         resp.status = falcon.HTTP_NO_CONTENT
 
