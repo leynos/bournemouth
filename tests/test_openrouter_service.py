@@ -59,3 +59,30 @@ async def test_concurrent_reuse(monkeypatch: pytest.MonkeyPatch) -> None:
         service.chat_completion("k", msg),
     )
     assert DummyClient.creations == 1
+
+
+@pytest.mark.asyncio
+async def test_aclose_waits(monkeypatch: pytest.MonkeyPatch) -> None:
+    started = asyncio.Event()
+    finish = asyncio.Event()
+
+    class SlowClient(DummyClient):
+        async def create_chat_completion(self, request: typing.Any) -> str:
+            started.set()
+            await finish.wait()
+            return await super().create_chat_completion(request)
+
+    monkeypatch.setattr(
+        "bournemouth.openrouter_service.OpenRouterAsyncClient", SlowClient
+    )
+    service = OpenRouterService()
+    msg = [ChatMessage(role="user", content="hi")]
+
+    task = asyncio.create_task(service.chat_completion("k", msg))
+    await started.wait()
+    close_task = asyncio.create_task(service.aclose())
+    await asyncio.sleep(0)
+    assert not close_task.done()
+    finish.set()
+    await task
+    await close_task

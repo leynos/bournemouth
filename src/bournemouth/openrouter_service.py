@@ -36,6 +36,23 @@ class OpenRouterService:
     _locks: dict[str, asyncio.Lock] = dataclasses.field(
         default_factory=dict, init=False, repr=False
     )
+    _inflight: int = dataclasses.field(default=0, init=False, repr=False)
+    _inflight_lock: asyncio.Lock = dataclasses.field(
+        default_factory=asyncio.Lock, init=False, repr=False
+    )
+
+    @staticmethod
+    def _make_set_event() -> asyncio.Event:
+        event = asyncio.Event()
+        event.set()
+        return event
+
+    _no_inflight: asyncio.Event = dataclasses.field(
+        default_factory=_make_set_event,
+        init=False,
+        repr=False,
+    )
+    _closing: bool = dataclasses.field(default=False, init=False, repr=False)
 
     @classmethod
     def from_env(cls) -> OpenRouterService:
@@ -45,7 +62,10 @@ class OpenRouterService:
 
     async def _get_client(self, api_key: str) -> OpenRouterAsyncClient:
         """Return a cached client, instantiating it once per API key."""
-        lock = self._locks.setdefault(api_key, asyncio.Lock())
+        lock = self._locks.get(api_key)
+        if lock is None:
+            lock = asyncio.Lock()
+            lock = self._locks.setdefault(api_key, lock)
         async with lock:
             client = self._clients.get(api_key)
             if client is None:
@@ -59,6 +79,14 @@ class OpenRouterService:
             return client
 
     async def aclose(self) -> None:
+        if self._closing:
+            await self._no_inflight.wait()
+            return
+        async with self._inflight_lock:
+            self._closing = True
+            if self._inflight == 0:
+                self._no_inflight.set()
+        await self._no_inflight.wait()
         for client in self._clients.values():
             await client.__aexit__(None, None, None)
         self._clients.clear()
@@ -75,8 +103,19 @@ class OpenRouterService:
             model=model or self.default_model,
             messages=messages,
         )
-        client = await self._get_client(api_key)
-        return await client.create_chat_completion(request)
+        async with self._inflight_lock:
+            if self._closing:
+                raise RuntimeError("service is closing")
+            self._inflight += 1
+            self._no_inflight.clear()
+        try:
+            client = await self._get_client(api_key)
+            return await client.create_chat_completion(request)
+        finally:
+            async with self._inflight_lock:
+                self._inflight -= 1
+                if self._inflight == 0:
+                    self._no_inflight.set()
 
 
 class OpenRouterServiceError(Exception):
