@@ -62,7 +62,7 @@ async def test_concurrent_reuse(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @pytest.mark.asyncio
-async def test_aclose_waits(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_aclose_nonblocking(monkeypatch: pytest.MonkeyPatch) -> None:
     started = asyncio.Event()
     finish = asyncio.Event()
 
@@ -82,7 +82,7 @@ async def test_aclose_waits(monkeypatch: pytest.MonkeyPatch) -> None:
     await started.wait()
     close_task = asyncio.create_task(service.aclose())
     await asyncio.sleep(0)
-    assert not close_task.done()
+    assert close_task.done()
     finish.set()
     await task
     await close_task
