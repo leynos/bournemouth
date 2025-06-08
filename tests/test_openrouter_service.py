@@ -32,6 +32,7 @@ DummyClient.creations = 0
 
 @pytest.mark.asyncio
 async def test_reuses_client(monkeypatch: pytest.MonkeyPatch) -> None:
+    DummyClient.creations = 0
     monkeypatch.setattr(
         "bournemouth.openrouter_service.OpenRouterAsyncClient", DummyClient
     )
