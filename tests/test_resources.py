@@ -34,9 +34,6 @@ async def _login(client: AsyncClient) -> None:
     assert "session" in resp.cookies
 
 
-pytest_plugins = ["pytest_httpx"]
-
-
 @pytest.mark.asyncio
 async def test_chat_returns_answer(app: asgi.App, httpx_mock: HTTPXMock) -> None:
     httpx_mock.add_response(
