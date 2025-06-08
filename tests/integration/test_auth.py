@@ -6,6 +6,7 @@ import typing
 from http import HTTPStatus
 
 import pytest
+import pytest_asyncio
 from freezegun import freeze_time
 from httpx import ASGITransport, AsyncClient
 
@@ -13,29 +14,38 @@ if typing.TYPE_CHECKING:
     from pytest_httpx import HTTPXMock
 
 
-import sqlalchemy as sa
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.ext.asyncio import (
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 
 from bournemouth.app import create_app
 from bournemouth.models import Base, UserAccount
 
-type SessionFactory = typing.Callable[[], Session]
+type SessionFactory = typing.Callable[[], AsyncSession]
 
 
-@pytest.fixture()
-def db_session_factory() -> SessionFactory:
-    engine = sa.create_engine("sqlite:///:memory:")
-    Base.metadata.create_all(engine)
-    factory = sessionmaker(bind=engine)
-    with factory() as session:
-        user = UserAccount(
-            google_sub="admin",
-            email="admin@example.com",
-            openrouter_token_enc=b"k",
-        )
-        session.add(user)
-        session.commit()
-    return lambda: factory()
+@pytest_asyncio.fixture()
+async def db_session_factory() -> typing.AsyncIterator[SessionFactory]:
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+    async_session_factory = async_sessionmaker(engine, expire_on_commit=False)
+    async with engine.begin() as conn, async_session_factory() as session:
+        await conn.run_sync(Base.metadata.create_all)
+        async with session.begin():
+            session.add(
+                UserAccount(
+                    google_sub="admin",
+                    email="admin@example.com",
+                    openrouter_token_enc=b"k",
+                )
+            )
+
+    def factory() -> AsyncSession:
+        return async_session_factory()
+
+    yield factory
+    await engine.dispose()
 
 
 @pytest.mark.asyncio

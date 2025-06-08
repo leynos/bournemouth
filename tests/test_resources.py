@@ -4,6 +4,7 @@ import typing
 from http import HTTPStatus
 
 import pytest
+import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 
 if typing.TYPE_CHECKING:
@@ -13,31 +14,43 @@ if typing.TYPE_CHECKING:
 
 import base64
 
-import sqlalchemy as sa
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import (
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 
 from bournemouth.app import create_app
 from bournemouth.models import Base, UserAccount
 
 
-@pytest.fixture()
-def db_session_factory() -> typing.Callable[[], Session]:
-    engine = sa.create_engine("sqlite:///:memory:")
-    Base.metadata.create_all(engine)
-    factory = sessionmaker(bind=engine)
-    with factory() as session:
-        user = UserAccount(
-            google_sub="admin",
-            email="admin@example.com",
-            openrouter_token_enc=b"k",
-        )
-        session.add(user)
-        session.commit()
-    return lambda: factory()
+@pytest_asyncio.fixture()
+async def db_session_factory() -> typing.AsyncIterator[
+    typing.Callable[[], AsyncSession]
+]:
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+    async_session_factory = async_sessionmaker(engine, expire_on_commit=False)
+    async with engine.begin() as conn, async_session_factory() as session:
+        await conn.run_sync(Base.metadata.create_all)
+        async with session.begin():
+            session.add(
+                UserAccount(
+                    google_sub="admin",
+                    email="admin@example.com",
+                    openrouter_token_enc=b"k",
+                )
+            )
+
+    def factory() -> AsyncSession:
+        return async_session_factory()
+
+    yield factory
+    await engine.dispose()
 
 
 @pytest.fixture()
-def app(db_session_factory: typing.Callable[[], Session]) -> asgi.App:
+def app(db_session_factory: typing.Callable[[], AsyncSession]) -> asgi.App:
     return create_app(db_session_factory=db_session_factory)
 
 
@@ -54,9 +67,7 @@ pytest_plugins = ["pytest_httpx"]
 
 
 @pytest.mark.asyncio
-async def test_chat_returns_answer(
-    app: asgi.App, httpx_mock: HTTPXMock
-) -> None:
+async def test_chat_returns_answer(app: asgi.App, httpx_mock: HTTPXMock) -> None:
     httpx_mock.add_response(
         method="POST",
         url="https://openrouter.ai/api/v1/chat/completions",
@@ -93,7 +104,9 @@ async def test_chat_missing_message(app: asgi.App) -> None:
 
 
 @pytest.mark.asyncio
-async def test_store_token_not_implemented(app: asgi.App) -> None:
+async def test_store_token(
+    app: asgi.App, db_session_factory: typing.Callable[[], AsyncSession]
+) -> None:
     async with AsyncClient(
         transport=ASGITransport(app=typing.cast("typing.Any", app)),
         base_url="https://test",
@@ -103,11 +116,15 @@ async def test_store_token_not_implemented(app: asgi.App) -> None:
             "/auth/openrouter-token",
             json={"api_key": "xyz"},
         )
-    assert resp.status_code == HTTPStatus.NOT_IMPLEMENTED
-    assert (
-        resp.json()["title"]
-        == f"{HTTPStatus.NOT_IMPLEMENTED.value} {HTTPStatus.NOT_IMPLEMENTED.phrase}"
-    )
+    assert resp.status_code == HTTPStatus.NO_CONTENT
+    async with db_session_factory() as session:
+        result = await session.execute(
+            select(UserAccount.openrouter_token_enc).where(
+                UserAccount.google_sub == "admin"
+            )
+        )
+        stored = result.scalar_one()
+        assert stored == b"xyz"
 
 
 @pytest.mark.asyncio

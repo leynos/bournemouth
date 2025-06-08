@@ -25,9 +25,37 @@ paths:
                 required:
                   - answer
         '400':
-          description: Bad request
+          $ref: '#/components/responses/Problem'
+  /auth/openrouter-token:
+    post:
+      summary: Store the user's OpenRouter API key
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                api_key:
+                  type: string
+              required:
+                - api_key
+      responses:
+        '204':
+          description: Stored
+        '400':
+          $ref: '#/components/responses/Problem'
 components:
   schemas:
+    ProblemDetails:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+      required:
+        - title
     ChatRequest:
       type: object
       properties:
@@ -52,3 +80,10 @@ components:
       required:
         - role
         - content
+  responses:
+    Problem:
+      description: Problem details
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
