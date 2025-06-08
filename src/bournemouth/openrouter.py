@@ -33,6 +33,7 @@ __all__ = [
     "OpenRouterResponseDataValidationError",
     "OpenRouterServerError",
     "OpenRouterTimeoutError",
+    "Role",
     "StreamChunk",
     "TextContentPart",
 ]
@@ -40,6 +41,9 @@ __all__ = [
 
 DEFAULT_BASE_URL = "https://openrouter.ai/api/v1/"
 CHAT_COMPLETIONS_PATH = "/chat/completions"
+
+# Reusable annotation for message roles used by OpenRouter
+Role = typing.Literal["system", "user", "assistant", "tool"]
 
 
 class ImageUrl(msgspec.Struct, array_like=True):
@@ -61,7 +65,7 @@ ContentPart = TextContentPart | ImageContentPart
 
 
 class ChatMessage(msgspec.Struct):
-    role: typing.Literal["system", "user", "assistant", "tool"]
+    role: Role
     content: str | list[ContentPart]
     name: str | None = None
     tool_call_id: str | None = None

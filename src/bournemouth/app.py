@@ -4,10 +4,17 @@ from __future__ import annotations
 
 import base64
 import os
+import typing
 
+import falcon
 from falcon import asgi
 
+if typing.TYPE_CHECKING:  # pragma: no cover - for type checking only
+    from sqlalchemy.ext.asyncio import AsyncSession
+
 from .auth import AuthMiddleware, LoginResource
+from .errors import handle_http_error, handle_unexpected_error
+from .openrouter_service import OpenRouterService
 from .resources import ChatResource, HealthResource, OpenRouterTokenResource
 from .session import SessionManager
 
@@ -18,6 +25,8 @@ def create_app(
     session_timeout: int | None = None,
     login_user: str | None = None,
     login_password: str | None = None,
+    openrouter_service: OpenRouterService | None = None,
+    db_session_factory: typing.Callable[[], AsyncSession] | None = None,
 ) -> asgi.App:
     """Configure and return the Falcon ASGI app.
 
@@ -34,6 +43,8 @@ def create_app(
     login_password:
         Expected Basic Auth password. Defaults to ``LOGIN_PASSWORD`` or
         ``adminpass``.
+    db_session_factory:
+        Callable that returns an ``AsyncSession``. Required for database access.
     """
     secret = session_secret or os.getenv("SESSION_SECRET")
     if secret is None:
@@ -45,8 +56,13 @@ def create_app(
     session = SessionManager(secret, timeout)
     middleware = [AuthMiddleware(session)]
     app = asgi.App(middleware=middleware)
-    app.add_route("/chat", ChatResource())
-    app.add_route("/auth/openrouter-token", OpenRouterTokenResource())
+    app.add_error_handler(falcon.HTTPError, handle_http_error)
+    app.add_error_handler(Exception, handle_unexpected_error)
+    service = openrouter_service or OpenRouterService.from_env()
+    if db_session_factory is None:
+        raise ValueError("db_session_factory is required")
+    app.add_route("/chat", ChatResource(service, db_session_factory))
+    app.add_route("/auth/openrouter-token", OpenRouterTokenResource(db_session_factory))
     app.add_route("/health", HealthResource())
     app.add_route("/login", LoginResource(session, user, password))
     return app

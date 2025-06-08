@@ -1,0 +1,89 @@
+openapi: 3.1.0
+info:
+  title: Bournemouth Chat API
+  version: '0.1'
+paths:
+  /chat:
+    post:
+      summary: Chat with an assistant model
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatRequest'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  answer:
+                    type: string
+                required:
+                  - answer
+        '400':
+          $ref: '#/components/responses/Problem'
+  /auth/openrouter-token:
+    post:
+      summary: Store the user's OpenRouter API key
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                api_key:
+                  type: string
+              required:
+                - api_key
+      responses:
+        '204':
+          description: Stored
+        '400':
+          $ref: '#/components/responses/Problem'
+components:
+  schemas:
+    ProblemDetails:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+      required:
+        - title
+    ChatRequest:
+      type: object
+      properties:
+        message:
+          type: string
+        model:
+          type: string
+        history:
+          type: array
+          items:
+            $ref: '#/components/schemas/Message'
+      required:
+        - message
+    Message:
+      type: object
+      properties:
+        role:
+          type: string
+          enum: [system, user, assistant, tool]
+        content:
+          type: string
+      required:
+        - role
+        - content
+  responses:
+    Problem:
+      description: Problem details
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
