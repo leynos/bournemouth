@@ -27,6 +27,8 @@ def _msgspec_loads_json_robust(content: bytes | str) -> typing.Any:
 
 
 def _dumps(obj: typing.Any) -> str:
+    """Encode ``obj`` as JSON using msgspec's encoder."""
+
     return _ENCODER.encode(obj).decode("utf-8")
 
 

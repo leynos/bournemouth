@@ -52,6 +52,8 @@ class OpenRouterService:
         return cls(default_model=model, base_url=base_url)
 
     async def _ensure_stack(self) -> None:
+        """Enter the exit stack once in a thread-safe manner."""
+
         async with self._lock:
             if not self._entered:
                 await self._stack.__aenter__()
