@@ -58,3 +58,5 @@ Testing strategies and additional guides live in the `docs/` directory, includin
   for asynchronous database access.
 - [`docs/embedding-with-hf-tei.md`](docs/embedding-with-hf-tei.md)
   for generating embeddings with Hugging Face TEI.
+- [`docs/websocket-chat-api-asyncapi.yaml`](docs/websocket-chat-api-asyncapi.yaml)
+  for the WebSocket chat API specification.
