@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import asyncio
-from collections import OrderedDict
-from contextlib import AsyncExitStack
 import os
 import typing
+from collections import OrderedDict
+from contextlib import AsyncExitStack
 
 if typing.TYPE_CHECKING:  # pragma: no cover - only for type checking
     import httpx
@@ -32,7 +32,7 @@ class OpenRouterService:
         *,
         default_model: str = DEFAULT_MODEL,
         base_url: str = DEFAULT_BASE_URL,
-        timeout_config: "httpx.Timeout | None" = None,
+        timeout_config: httpx.Timeout | None = None,
         max_clients: int = 10,
     ) -> None:
         self.default_model = default_model
@@ -46,17 +46,18 @@ class OpenRouterService:
         self._clients: OrderedDict[str, OpenRouterAsyncClient] = OrderedDict()
 
     @classmethod
-    def from_env(cls) -> "OpenRouterService":
+    def from_env(cls) -> OpenRouterService:
         model = os.getenv("OPENROUTER_MODEL") or DEFAULT_MODEL
         base_url = os.getenv("OPENROUTER_BASE_URL") or DEFAULT_BASE_URL
         return cls(default_model=model, base_url=base_url)
 
     async def _ensure_stack(self) -> None:
-        if not self._entered:
-            await self._stack.__aenter__()
-            self._entered = True
+        async with self._lock:
+            if not self._entered:
+                await self._stack.__aenter__()
+                self._entered = True
 
-    async def __aenter__(self) -> "OpenRouterService":
+    async def __aenter__(self) -> OpenRouterService:
         await self._ensure_stack()
         return self
 
