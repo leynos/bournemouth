@@ -7,6 +7,7 @@ import os
 import typing
 
 import falcon
+import msgspec
 from falcon import asgi
 
 if typing.TYPE_CHECKING:  # pragma: no cover - for type checking only
@@ -14,6 +15,11 @@ if typing.TYPE_CHECKING:  # pragma: no cover - for type checking only
 
 from .auth import AuthMiddleware, LoginResource
 from .errors import handle_http_error, handle_unexpected_error
+from .msgspec_support import (
+    AsyncMsgspecMiddleware,
+    handle_msgspec_validation_error,
+    json_handler,
+)
 from .openrouter_service import OpenRouterService
 from .resources import ChatResource, HealthResource, OpenRouterTokenResource
 from .session import SessionManager
@@ -54,10 +60,13 @@ def create_app(
     user = login_user or os.getenv("LOGIN_USER", "admin")
     password = login_password or os.getenv("LOGIN_PASSWORD", "adminpass")
     session = SessionManager(secret, timeout)
-    middleware = [AuthMiddleware(session)]
+    middleware = [AuthMiddleware(session), AsyncMsgspecMiddleware()]
     app = asgi.App(middleware=middleware)
     app.add_error_handler(falcon.HTTPError, handle_http_error)
     app.add_error_handler(Exception, handle_unexpected_error)
+    app.add_error_handler(msgspec.ValidationError, handle_msgspec_validation_error)
+    app.req_options.media_handlers["application/json"] = json_handler
+    app.resp_options.media_handlers["application/json"] = json_handler
     service = openrouter_service or OpenRouterService.from_env()
     if db_session_factory is None:
         raise ValueError("db_session_factory is required")

@@ -68,7 +68,7 @@ async def test_chat_missing_message(app: asgi.App) -> None:
     ) as client:
         await _login(client)
         resp = await client.post("/chat", json={})
-    assert resp.status_code == HTTPStatus.BAD_REQUEST
+    assert resp.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
 
 
 @pytest.mark.asyncio
@@ -103,7 +103,7 @@ async def test_store_token_missing_key(app: asgi.App) -> None:
     ) as client:
         await _login(client)
         resp = await client.post("/auth/openrouter-token", json={})
-    assert resp.status_code == HTTPStatus.BAD_REQUEST
+    assert resp.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
 
 
 @pytest.mark.asyncio
@@ -114,7 +114,7 @@ async def test_store_token_non_string(app: asgi.App) -> None:
     ) as client:
         await _login(client)
         resp = await client.post("/auth/openrouter-token", json={"api_key": 1})
-    assert resp.status_code == HTTPStatus.BAD_REQUEST
+    assert resp.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
 
 
 @pytest.mark.asyncio
