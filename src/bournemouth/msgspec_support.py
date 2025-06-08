@@ -15,11 +15,12 @@ _ENCODER = msgspec.json.Encoder()
 _DECODER = msgspec.json.Decoder()
 
 
-def _msgspec_loads_json_robust(content: typing.Any) -> typing.Any:
+def _msgspec_loads_json_robust(content: bytes | str) -> typing.Any:
     try:
         return _DECODER.decode(content)
     except msgspec.DecodeError as ex:  # pragma: no cover - integration tested
         raise falcon.MediaMalformedError(
+            falcon.MEDIA_JSON,
             title="Invalid JSON",
             description=f"The JSON payload is malformed: {ex!s}",
         ) from ex
@@ -47,7 +48,7 @@ class AsyncMsgspecMiddleware:
             return
         media_data = await req.get_media()
         validated = msgspec.convert(media_data, schema, strict=True)
-        params[schema.__name__.lower()] = validated
+        params["body"] = validated
 
 
 async def handle_msgspec_validation_error(

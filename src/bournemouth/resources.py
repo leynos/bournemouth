@@ -21,7 +21,7 @@ from .openrouter_service import (
 )
 
 
-class SimpleMessage(msgspec.Struct):
+class HttpMessage(msgspec.Struct):
     role: Role
     content: str
 
@@ -30,7 +30,7 @@ class ChatRequest(msgspec.Struct):
     """Request body for the chat endpoint."""
 
     message: str
-    history: list[SimpleMessage] | None = None
+    history: list[HttpMessage] | None = None
     model: str | None = None
 
 
@@ -56,17 +56,14 @@ class ChatResource:
         req: falcon.Request,
         resp: falcon.Response,
         *,
-        chatrequest: ChatRequest,
+        body: ChatRequest,
     ) -> None:
-        match chatrequest:
-            case ChatRequest(message=msg, history=hist, model=model):
-                history = [
-                    ChatMessage(role=m.role, content=m.content)
-                    for m in (hist or [])
-                ]
-            case _:
-                raise falcon.HTTPBadRequest(description="invalid payload")
+        msg = body.message
+        history = [
+            ChatMessage(role=m.role, content=m.content) for m in (body.history or [])
+        ]
         history.append(ChatMessage(role="user", content=msg))
+        model = body.model
 
         async with self._session_factory() as session:
             stmt = select(UserAccount.openrouter_token_enc).where(
@@ -111,9 +108,9 @@ class OpenRouterTokenResource:
         req: falcon.Request,
         resp: falcon.Response,
         *,
-        tokenrequest: TokenRequest,
+        body: TokenRequest,
     ) -> None:
-        api_key = tokenrequest.api_key
+        api_key = body.api_key
 
         async with self._session_factory() as session:
             stmt = (
