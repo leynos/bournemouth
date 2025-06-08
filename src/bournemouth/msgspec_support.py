@@ -26,8 +26,12 @@ def _msgspec_loads_json_robust(content: bytes | str) -> typing.Any:
         ) from ex
 
 
+def _dumps(obj: typing.Any) -> str:
+    return _ENCODER.encode(obj).decode("utf-8")
+
+
 json_handler = falcon.media.JSONHandler(
-    dumps=lambda obj: _ENCODER.encode(obj).decode("utf-8"),
+    dumps=_dumps,
     loads=_msgspec_loads_json_robust,
 )
 
