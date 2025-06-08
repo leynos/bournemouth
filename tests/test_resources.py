@@ -17,7 +17,8 @@ from bournemouth.app import create_app
 
 
 @pytest.fixture()
-def app() -> asgi.App:
+def app(monkeypatch: pytest.MonkeyPatch) -> asgi.App:
+    monkeypatch.setenv("OPENROUTER_API_KEY", "k")
     return create_app()
 
 

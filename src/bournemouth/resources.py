@@ -3,22 +3,17 @@
 from __future__ import annotations
 
 import dataclasses
-import os
 import typing
 
 import falcon
 
-from .openrouter import (
-    ChatCompletionRequest,
-    ChatMessage,
-    OpenRouterAPIError,
-    OpenRouterAsyncClient,
-    OpenRouterNetworkError,
-    OpenRouterServerError,
-    OpenRouterTimeoutError,
+from .openrouter import ChatMessage
+from .openrouter_service import (
+    OpenRouterService,
+    OpenRouterServiceBadGatewayError,
+    OpenRouterServiceTimeoutError,
+    chat_with_service,
 )
-
-DEFAULT_MODEL = "deepseek/deepseek-chat-v3-0324:free"
 
 
 @dataclasses.dataclass(slots=True)
@@ -32,6 +27,9 @@ class ChatRequest:
 
 class ChatResource:
     """Handle chat requests."""
+
+    def __init__(self, service: OpenRouterService) -> None:
+        self._service = service
 
     async def on_post(self, req: falcon.Request, resp: falcon.Response) -> None:
         data = await req.get_media()
@@ -56,28 +54,14 @@ class ChatResource:
 
         history.append(ChatMessage(role="user", content=msg))
 
-        model = (
-            typing.cast("str | None", data.get("model"))
-            or os.getenv("OPENROUTER_MODEL")
-            or DEFAULT_MODEL
-        )
-        api_key = os.getenv("OPENROUTER_API_KEY")
-        if not api_key:
-            raise falcon.HTTPBadRequest(description="OpenRouter API key not configured")
-
-        request_model = ChatCompletionRequest(model=model, messages=history)
+        model = typing.cast("str | None", data.get("model"))
 
         try:
-            async with OpenRouterAsyncClient(api_key=api_key) as client:
-                completion = await client.create_chat_completion(request_model)
-        except OpenRouterTimeoutError:
+            completion = await chat_with_service(self._service, history, model=model)
+        except OpenRouterServiceTimeoutError:
             raise falcon.HTTPGatewayTimeout() from None
-        except (
-            OpenRouterNetworkError,
-            OpenRouterServerError,
-            OpenRouterAPIError,
-        ) as exc:
-            raise falcon.HTTPBadGateway(description=str(exc)) from None
+        except OpenRouterServiceBadGatewayError as exc:
+            raise falcon.HTTPBadGateway(description=str(exc)) from None  # pyright: ignore[reportUnknownArgumentType]
 
         answer = completion.choices[0].message.content or ""
         resp.media = {"answer": answer}

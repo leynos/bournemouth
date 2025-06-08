@@ -1,0 +1,80 @@
+from __future__ import annotations
+
+import dataclasses
+import os
+import typing
+
+if typing.TYPE_CHECKING:
+    import httpx
+
+from .openrouter import (
+    DEFAULT_BASE_URL,
+    ChatCompletionRequest,
+    ChatCompletionResponse,
+    ChatMessage,
+    OpenRouterAPIError,
+    OpenRouterAsyncClient,
+    OpenRouterNetworkError,
+    OpenRouterServerError,
+    OpenRouterTimeoutError,
+)
+
+DEFAULT_MODEL = "deepseek/deepseek-chat-v3-0324:free"
+
+
+@dataclasses.dataclass(slots=True)
+class OpenRouterService:
+    """Wrapper around :class:`OpenRouterAsyncClient`."""
+
+    api_key: str
+    default_model: str = DEFAULT_MODEL
+    base_url: str = DEFAULT_BASE_URL
+    timeout_config: httpx.Timeout | None = None
+
+    @classmethod
+    def from_env(cls) -> OpenRouterService:
+        api_key = os.getenv("OPENROUTER_API_KEY")
+        if not api_key:
+            raise ValueError("OpenRouter API key not configured")
+        model = os.getenv("OPENROUTER_MODEL") or DEFAULT_MODEL
+        return cls(api_key=api_key, default_model=model)
+
+    async def chat_completion(
+        self,
+        messages: list[ChatMessage],
+        *,
+        model: str | None = None,
+    ) -> ChatCompletionResponse:
+        request = ChatCompletionRequest(
+            model=model or self.default_model,
+            messages=messages,
+        )
+        async with OpenRouterAsyncClient(
+            api_key=self.api_key,
+            base_url=self.base_url,
+            timeout_config=self.timeout_config,
+        ) as client:
+            return await client.create_chat_completion(request)
+
+
+class OpenRouterServiceError(Exception):
+    """Raised when the OpenRouter service fails."""
+
+
+class OpenRouterServiceTimeoutError(OpenRouterServiceError):
+    pass
+
+
+class OpenRouterServiceBadGatewayError(OpenRouterServiceError):
+    pass
+
+
+async def chat_with_service(
+    service: OpenRouterService, messages: list[ChatMessage], *, model: str | None = None
+) -> ChatCompletionResponse:
+    try:
+        return await service.chat_completion(messages, model=model)
+    except OpenRouterTimeoutError as exc:
+        raise OpenRouterServiceTimeoutError(str(exc)) from None
+    except (OpenRouterNetworkError, OpenRouterServerError, OpenRouterAPIError) as exc:
+        raise OpenRouterServiceBadGatewayError(str(exc)) from None

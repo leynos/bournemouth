@@ -8,6 +8,7 @@ import os
 from falcon import asgi
 
 from .auth import AuthMiddleware, LoginResource
+from .openrouter_service import OpenRouterService
 from .resources import ChatResource, HealthResource, OpenRouterTokenResource
 from .session import SessionManager
 
@@ -18,6 +19,7 @@ def create_app(
     session_timeout: int | None = None,
     login_user: str | None = None,
     login_password: str | None = None,
+    openrouter_service: OpenRouterService | None = None,
 ) -> asgi.App:
     """Configure and return the Falcon ASGI app.
 
@@ -45,7 +47,8 @@ def create_app(
     session = SessionManager(secret, timeout)
     middleware = [AuthMiddleware(session)]
     app = asgi.App(middleware=middleware)
-    app.add_route("/chat", ChatResource())
+    service = openrouter_service or OpenRouterService.from_env()
+    app.add_route("/chat", ChatResource(service))
     app.add_route("/auth/openrouter-token", OpenRouterTokenResource())
     app.add_route("/health", HealthResource())
     app.add_route("/login", LoginResource(session, user, password))

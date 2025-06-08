@@ -16,6 +16,11 @@ if typing.TYPE_CHECKING:
 from bournemouth.app import create_app
 
 
+@pytest.fixture(autouse=True)
+def openrouter_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("OPENROUTER_API_KEY", "k")
+
+
 @pytest.mark.asyncio
 async def test_login_sets_cookie() -> None:
     app = create_app()
