@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import dataclasses
 import os
 import typing
@@ -32,6 +33,9 @@ class OpenRouterService:
     _clients: dict[str, OpenRouterAsyncClient] = dataclasses.field(
         default_factory=dict, init=False, repr=False
     )
+    _locks: dict[str, asyncio.Lock] = dataclasses.field(
+        default_factory=dict, init=False, repr=False
+    )
 
     @classmethod
     def from_env(cls) -> OpenRouterService:
@@ -40,21 +44,25 @@ class OpenRouterService:
         return cls(default_model=model, base_url=base_url)
 
     async def _get_client(self, api_key: str) -> OpenRouterAsyncClient:
-        client = self._clients.get(api_key)
-        if client is None:
-            client = OpenRouterAsyncClient(
-                api_key=api_key,
-                base_url=self.base_url,
-                timeout_config=self.timeout_config,
-            )
-            await client.__aenter__()
-            self._clients[api_key] = client
-        return client
+        """Return a cached client, instantiating it once per API key."""
+        lock = self._locks.setdefault(api_key, asyncio.Lock())
+        async with lock:
+            client = self._clients.get(api_key)
+            if client is None:
+                client = OpenRouterAsyncClient(
+                    api_key=api_key,
+                    base_url=self.base_url,
+                    timeout_config=self.timeout_config,
+                )
+                await client.__aenter__()
+                self._clients[api_key] = client
+            return client
 
     async def aclose(self) -> None:
         for client in self._clients.values():
             await client.__aexit__(None, None, None)
         self._clients.clear()
+        self._locks.clear()
 
     async def chat_completion(
         self,

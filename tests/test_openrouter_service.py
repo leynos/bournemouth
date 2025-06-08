@@ -1,3 +1,4 @@
+import asyncio
 import typing
 
 import pytest
@@ -24,6 +25,7 @@ class DummyClient:
         return
 
     async def create_chat_completion(self, request: typing.Any) -> str:
+        await asyncio.sleep(0)
         return "ok"
 
 
@@ -40,4 +42,20 @@ async def test_reuses_client(monkeypatch: pytest.MonkeyPatch) -> None:
     msg = [ChatMessage(role="user", content="hi")]
     await service.chat_completion("k", msg)
     await service.chat_completion("k", msg)
+    assert DummyClient.creations == 1
+
+
+@pytest.mark.asyncio
+async def test_concurrent_reuse(monkeypatch: pytest.MonkeyPatch) -> None:
+    DummyClient.creations = 0
+    monkeypatch.setattr(
+        "bournemouth.openrouter_service.OpenRouterAsyncClient", DummyClient
+    )
+    service = OpenRouterService()
+    msg = [ChatMessage(role="user", content="hi")]
+
+    await asyncio.gather(
+        service.chat_completion("k", msg),
+        service.chat_completion("k", msg),
+    )
     assert DummyClient.creations == 1
