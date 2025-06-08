@@ -17,7 +17,9 @@ pytest_plugins = ["pytest_httpx"]
 
 
 @pytest_asyncio.fixture()
-async def db_session_factory() -> typing.AsyncIterator[typing.Callable[[], AsyncSession]]:
+async def db_session_factory() -> typing.AsyncIterator[
+    typing.Callable[[], AsyncSession]
+]:
     engine = create_async_engine("sqlite+aiosqlite:///:memory:")
     async_session_factory = async_sessionmaker(engine, expire_on_commit=False)
     async with engine.begin() as conn, async_session_factory() as session:

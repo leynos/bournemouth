@@ -21,16 +21,27 @@ from .openrouter_service import (
 )
 
 
+class SimpleMessage(msgspec.Struct):
+    role: Role
+    content: str
+
+
 class ChatRequest(msgspec.Struct):
     """Request body for the chat endpoint."""
 
     message: str
-    history: list[dict[str, typing.Any]] | None = None
+    history: list[SimpleMessage] | None = None
     model: str | None = None
+
+
+class TokenRequest(msgspec.Struct):
+    api_key: str
 
 
 class ChatResource:
     """Handle chat requests."""
+
+    POST_SCHEMA = ChatRequest
 
     def __init__(
         self,
@@ -40,36 +51,22 @@ class ChatResource:
         self._service = service
         self._session_factory = session_factory
 
-    async def on_post(self, req: falcon.Request, resp: falcon.Response) -> None:
-        raw = await typing.cast("typing.Awaitable[bytes]", req.bounded_stream.read())
-        try:
-            data = msgspec.json.decode(raw)
-        except msgspec.DecodeError:
-            raise falcon.HTTPBadRequest(description="invalid JSON") from None
-
-        match data:
-            case {"message": str(msg), **extra}:
-                pass
+    async def on_post(
+        self,
+        req: falcon.Request,
+        resp: falcon.Response,
+        *,
+        chatrequest: ChatRequest,
+    ) -> None:
+        match chatrequest:
+            case ChatRequest(message=msg, history=hist, model=model):
+                history = [
+                    ChatMessage(role=m.role, content=m.content)
+                    for m in (hist or [])
+                ]
             case _:
-                raise falcon.HTTPBadRequest(description="`message` field required")
-        history: list[ChatMessage] = []
-        if isinstance(extra.get("history"), list):
-            valid_roles = typing.get_args(Role)
-            for item in extra["history"]:
-                match item:
-                    case {"role": role, "content": str(content)} if role in valid_roles:
-                        history.append(
-                            ChatMessage(
-                                role=typing.cast("Role", role),
-                                content=content,
-                            )
-                        )
-                    case _:
-                        raise falcon.HTTPBadRequest(description="invalid history item")
-
+                raise falcon.HTTPBadRequest(description="invalid payload")
         history.append(ChatMessage(role="user", content=msg))
-
-        model = typing.cast("str | None", extra.get("model"))
 
         async with self._session_factory() as session:
             stmt = select(UserAccount.openrouter_token_enc).where(
@@ -104,14 +101,19 @@ class ChatResource:
 class OpenRouterTokenResource:
     """Store user's OpenRouter API token."""
 
+    POST_SCHEMA = TokenRequest
+
     def __init__(self, session_factory: typing.Callable[[], AsyncSession]) -> None:
         self._session_factory = session_factory
 
-    async def on_post(self, req: falcon.Request, resp: falcon.Response) -> None:
-        data = await req.get_media()
-        api_key = data.get("api_key") if isinstance(data, dict) else None
-        if not isinstance(api_key, str):
-            raise falcon.HTTPBadRequest(description="`api_key` field required")
+    async def on_post(
+        self,
+        req: falcon.Request,
+        resp: falcon.Response,
+        *,
+        tokenrequest: TokenRequest,
+    ) -> None:
+        api_key = tokenrequest.api_key
 
         async with self._session_factory() as session:
             stmt = (
