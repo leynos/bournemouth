@@ -9,6 +9,10 @@ import pytest
 from freezegun import freeze_time
 from httpx import ASGITransport, AsyncClient
 
+if typing.TYPE_CHECKING:
+    from pytest_httpx import HTTPXMock
+
+
 from bournemouth.app import create_app
 
 
@@ -65,9 +69,26 @@ async def test_empty_session_cookie_rejected() -> None:
 
 
 @pytest.mark.asyncio
-async def test_chat_with_valid_session() -> None:
+async def test_chat_with_valid_session(
+    httpx_mock: HTTPXMock, monkeypatch: pytest.MonkeyPatch
+) -> None:
     app = create_app()
     credentials = base64.b64encode(b"admin:adminpass").decode()
+    monkeypatch.setenv("OPENROUTER_API_KEY", "k")
+    httpx_mock.add_response(
+        method="POST",
+        url="https://openrouter.ai/api/v1/chat/completions",
+        json={
+            "id": "1",
+            "object": "chat.completion",
+            "created": 1,
+            "model": "deepseek/deepseek-chat-v3-0324:free",
+            "choices": [
+                {"index": 0, "message": {"role": "assistant", "content": "hi"}}
+            ],
+        },
+    )
+
     async with AsyncClient(
         transport=ASGITransport(app=typing.cast("typing.Any", app)),  # pyright: ignore[reportUnknownArgumentType]
         base_url="https://test",
@@ -77,7 +98,7 @@ async def test_chat_with_valid_session() -> None:
         )
         assert "session" in login_resp.cookies
         chat_resp = await ac.post("/chat", json={"message": "hi"})
-    assert chat_resp.status_code == HTTPStatus.NOT_IMPLEMENTED
+    assert chat_resp.status_code == HTTPStatus.OK
 
 
 @pytest.mark.asyncio
