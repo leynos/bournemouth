@@ -94,7 +94,7 @@ class ChatResource:
         self,
         ws: falcon.asgi.WebSocket,
         encoder: msgspec.json.Encoder,
-        send_lock: asyncio.Lock,
+        send_lock: asyncio.Lock,]
         transaction_id: str,
         api_key: str,
         history: list[ChatMessage],
