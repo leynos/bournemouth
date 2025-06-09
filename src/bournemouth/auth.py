@@ -35,6 +35,22 @@ class AuthMiddleware:
 
         req.context["user"] = user
 
+    async def process_request_ws(
+        self, req: falcon.Request, ws: falcon.asgi.WebSocket
+    ) -> None:
+        if req.path in {"/health", "/login"}:
+            return
+
+        cookie = req.cookies.get("session")
+        if not cookie:
+            raise falcon.HTTPUnauthorized()
+
+        user = self._session.verify_cookie(cookie)
+        if user is None:
+            raise falcon.HTTPUnauthorized()
+
+        req.context["user"] = user
+
 
 class LoginResource:
     """Authenticate via Basic Auth and set a signed session cookie."""

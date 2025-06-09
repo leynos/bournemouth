@@ -17,6 +17,7 @@ from .auth import AuthMiddleware, LoginResource
 from .errors import handle_http_error, handle_unexpected_error
 from .msgspec_support import (
     AsyncMsgspecMiddleware,
+    MsgspecWebSocketMiddleware,
     handle_msgspec_validation_error,
     json_handler,
 )
@@ -60,7 +61,11 @@ def create_app(
     user = login_user or os.getenv("LOGIN_USER", "admin")
     password = login_password or os.getenv("LOGIN_PASSWORD", "adminpass")
     session = SessionManager(secret, timeout)
-    middleware = [AuthMiddleware(session), AsyncMsgspecMiddleware()]
+    middleware = [
+        AuthMiddleware(session),
+        AsyncMsgspecMiddleware(),
+        MsgspecWebSocketMiddleware(),
+    ]
     app = asgi.App(middleware=middleware)
     app.add_error_handler(falcon.HTTPError, handle_http_error)
     app.add_error_handler(Exception, handle_unexpected_error)
