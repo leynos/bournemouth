@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import typing
 
 import falcon
@@ -187,6 +188,11 @@ class ChatResource:
         send_lock = asyncio.Lock()
         tasks: set[asyncio.Task[None]] = set()
 
+        def _finalize_task(task: asyncio.Task[None]) -> None:
+            tasks.discard(task)
+            with contextlib.suppress(Exception):
+                task.result()
+
         async def handle(request: ChatWsRequest) -> None:
             history = self._build_history(request)
             user = typing.cast("str", req.context["user"])
@@ -223,7 +229,7 @@ class ChatResource:
                 )
                 task = asyncio.create_task(handle(request))
                 tasks.add(task)
-                task.add_done_callback(tasks.discard)
+                task.add_done_callback(_finalize_task)
         except falcon.WebSocketDisconnected:
             pass
         finally:
