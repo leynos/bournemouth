@@ -130,14 +130,6 @@ async def _get_or_create_conversation(
         if conv is None or conv.user_id != user_id:
             raise falcon.HTTPNotFound()
     if conv is None:
-        stmt = (
-            select(Conversation)
-            .where(Conversation.user_id == user_id)
-            .with_for_update()
-        )
-        result = await session.execute(stmt)
-        conv = result.scalar_one_or_none()
-    if conv is None:
         conv = Conversation(id=uuid7(), user_id=user_id)
         session.add(conv)
         await session.flush()
