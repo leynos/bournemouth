@@ -263,7 +263,7 @@ class MsgspecWebSocketMiddleware:
         # If middleware handles accept: await ws.accept(subprotocol=subprotocol)
 ```
 
-This middleware structure provides a clear separation. The `MsgspecWebSocketMiddleware` sets up protocol-specific encoders and decoders so the `on_websocket` handler can work with typed structs directly. Error handling for `msgspec.ValidationError` is designed to propagate the exception, allowing the main handler to decide on the response (e.g., sending an `ErrorMessageStruct`). `falcon.WebSocketDisconnected` is handled implicitly as it's raised by Falcon's `ws.receive_*` methods.6
+This middleware structure provides a clear separation. The `MsgspecWebSocketMiddleware` sets up protocol-specific encoders and decoders so the `on_websocket` handler can work with typed structs directly. Error handling for `msgspec.ValidationError` is designed to propagate the exception, allowing the main handler to decide on the response (e.g., sending an `ErrorMessageStruct`). `falcon.WebSocketDisconnected` is handled implicitly as it's raised by Falcon's `ws.receive_*` methods.
 
 ### C. Configuring and Using the Middleware in a Falcon App
 
