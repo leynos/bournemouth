@@ -78,12 +78,9 @@ An alternative, more integrated Falcon feature for handling typed media is the u
 
 With the middleware having prepared the `req.context`, the `on_websocket` responder in the resource becomes significantly cleaner. It can focus on the application's business logic, operating on deserialized `msgspec.Struct` objects and sending `msgspec.Struct` objects, with the actual encoding/decoding handled by the tools provided via `req.context`.
 
-For instance, the middleware might add a `MsgspecProcessor` object to `req.context.msgspec_processor`. This processor would offer methods like:
+For instance, the middleware might add `msgspec_encoder` and `msgspec_decoder` attributes to `req.context`. Handlers can decode incoming messages with `decoder = req.context.msgspec_decoder(MyStruct)` and encode responses via `req.context.msgspec_encoder`.
 
-- `async def receive_struct(ws: falcon.asgi.WebSocket, expected_type: type) -> msgspec.Struct`
-- `async def send_struct(ws: falcon.asgi.WebSocket, message: msgspec.Struct) -> None`
-
-The `on_websocket` handler would then use these methods:
+The `on_websocket` handler would then use these tools directly:
 
 Python
 
@@ -95,20 +92,21 @@ import msgspec
 
 class ExampleResource:
     async def on_websocket(self, req: falcon.asgi.Request, ws: falcon.asgi.WebSocket):
-        await ws.accept() # Or accept could be handled by middleware
+        await ws.accept()  # Or accept could be handled by middleware
 
-        msg_processor = req.context.msgspec_processor # Setup by middleware
+        encoder = req.context.msgspec_encoder
+        decoder = req.context.msgspec_decoder(MyEventStruct)
 
         try:
             while True:
                 # expected_type could be determined dynamically or from AsyncAPI
-                incoming_event: MyEventStruct = await msg_processor.receive_struct(ws, MyEventStruct)
+                incoming_event: MyEventStruct = decoder.decode(await ws.receive_text())
                 
                 #... process incoming_event...
                 # Example: business_logic_result = self.handle_event(incoming_event)
                 
                 response_event = MyResponseStruct(data="Processed: " + str(incoming_event.some_field))
-                await msg_processor.send_struct(ws, response_event)
+                await ws.send_text(encoder.encode(response_event).decode())
 
         except falcon.WebSocketDisconnected:
             # Handle client disconnection gracefully
@@ -118,7 +116,7 @@ class ExampleResource:
             print(f"Validation error: {e}")
             error_response = ErrorStruct(message=str(e), fields=e.fields)
             try:
-                await msg_processor.send_struct(ws, error_response)
+                await ws.send_text(encoder.encode(error_response).decode())
             except falcon.WebSocketDisconnected:
                 pass # Client may have already disconnected after sending bad data
             await ws.close(code=4001) # Custom close code for application-level validation error
@@ -128,7 +126,7 @@ class ExampleResource:
             await ws.close(code=1011) # Internal server error
 ```
 
-This structure clearly separates the concerns of WebSocket communication mechanics and `msgspec` handling (managed by the middleware and its provided processor) from the application-specific logic within the resource.
+This structure clearly separates the concerns of WebSocket communication mechanics and `msgspec` handling (managed by the middleware's encoder/decoder) from the application-specific logic within the resource.
 
 ## IV. Implementation Guide & Worked Example (using AsyncAPI)
 
@@ -234,41 +232,13 @@ class ErrorMessageStruct(msgspec.Struct):
     message: str
     details: Optional[Any] = None
 
-class MsgspecProcessor:
-    def __init__(self, encoder: msgspec.json.Encoder, decoder_factory: Callable], msgspec.json.Decoder]):
-        self._encoder = encoder
-        self._decoder_factory = decoder_factory
-
-    async def receive_struct(self, ws: falcon.asgi.WebSocket, expected_type: Type) -> T:
-        # Assuming text-based messages (JSON) for this example
-        # For binary (e.g., MessagePack), use ws.receive_data() and msgspec.msgpack
-        raw_data = await ws.receive_text()
-        decoder = self._decoder_factory(expected_type)
-        try:
-            message_struct = decoder.decode(raw_data)
-            return message_struct
-        except msgspec.ValidationError as e:
-            # Re-raise to be handled by the on_websocket handler or a global error handler
-            raise
-        # WebSocketDisconnected will be raised by ws.receive_text() if connection is lost
-
-    async def send_struct(self, ws: falcon.asgi.WebSocket, message: msgspec.Struct) -> None:
-        raw_response = self._encoder.encode(message)
-        # Assuming text-based messages (JSON)
-        await ws.send_text(raw_response.decode('utf-8')) # msgspec.json.encode returns bytes
-
 class MsgspecWebSocketMiddleware:
     def __init__(self, protocol: str = 'json'):
-        if protocol == 'json':
-            self._encoder = msgspec.json.Encoder()
-            # Decoder needs the type, so we use a factory
-            self._decoder_factory = lambda t: msgspec.json.Decoder(t)
-            self._error_struct_type = ErrorMessageStruct
-        # elif protocol == 'msgpack':
-        #     self._encoder = msgspec.msgpack.Encoder()
-        #     self._decoder_factory = lambda t: msgspec.msgpack.Decoder(t)
-        else:
+        if protocol != 'json':
             raise ValueError(f"Unsupported msgspec protocol: {protocol}")
+        self.encoder = msgspec.json.Encoder()
+        self.decoder_cls = msgspec.json.Decoder
+        self.error_struct_type = ErrorMessageStruct
 
     async def process_request_ws(self, req: falcon.asgi.Request, ws: falcon.asgi.WebSocket):
         # This hook is called before routing.
@@ -284,16 +254,16 @@ class MsgspecWebSocketMiddleware:
     async def process_resource_ws(self, req: falcon.asgi.Request, ws: falcon.asgi.WebSocket, resource: object, params: dict):
         # This hook is called after routing, before the on_websocket handler.
         # This is a good place to set up context items.
-        processor = MsgspecProcessor(self._encoder, self._decoder_factory)
-        req.context.msgspec_processor = processor
-        req.context.msgspec_error_struct = self._error_struct_type
+        req.context.msgspec_encoder = self.encoder
+        req.context.msgspec_decoder = self.decoder_cls
+        req.context.msgspec_error_struct = self.error_struct_type
 
         # Example: If subprotocol was negotiated in process_request_ws
         # subprotocol = req.context.get('websocket_subprotocol')
         # If middleware handles accept: await ws.accept(subprotocol=subprotocol)
 ```
 
-This middleware structure provides a clear separation. The `MsgspecWebSocketMiddleware` handles the setup of protocol-specific encoders and decoders. The `MsgspecProcessor` encapsulates the actual send/receive logic using these tools, making the `on_websocket` handler cleaner. Error handling for `msgspec.ValidationError` is designed to propagate the exception, allowing the main handler to decide on the response (e.g., sending an `ErrorMessageStruct`). `falcon.WebSocketDisconnected` is handled implicitly as it's raised by Falcon's `ws.receive_*` methods.6
+This middleware structure provides a clear separation. The `MsgspecWebSocketMiddleware` sets up protocol-specific encoders and decoders so the `on_websocket` handler can work with typed structs directly. Error handling for `msgspec.ValidationError` is designed to propagate the exception, allowing the main handler to decide on the response (e.g., sending an `ErrorMessageStruct`). `falcon.WebSocketDisconnected` is handled implicitly as it's raised by Falcon's `ws.receive_*` methods.6
 
 ### C. Configuring and Using the Middleware in a Falcon App
 
@@ -329,7 +299,7 @@ class ChatResource:
         await ws.accept(subprotocol=req.context.get('websocket_subprotocol'))
         try:
             while True:
-                data = await ws.receive_text() # Raw receive, to be replaced by processor
+                data = await ws.receive_text()  # Raw receive, to be replaced by decoder
                 await ws.send_text(f"Received raw: {data}")
         except falcon.WebSocketDisconnected:
             print("Client disconnected during placeholder.")
@@ -346,7 +316,7 @@ This setup ensures that for any WebSocket route, the `MsgspecWebSocketMiddleware
 
 ### D. Example `on_websocket` Resource Utilizing the Middleware
 
-This section demonstrates a `ChatResource` that uses the `msgspec_processor` provided by the middleware. It assumes `UserMessage`, `ServerPong`, `ServerResponse`, and `ErrorMessageStruct` are defined `msgspec.Struct`s, potentially derived from an AsyncAPI specification.
+This section demonstrates a `ChatResource` that relies on the `msgspec_encoder` and `msgspec_decoder` injected by the middleware. It assumes `UserMessage`, `ServerPong`, `ServerResponse`, and `ErrorMessageStruct` are defined `msgspec.Struct`s, potentially derived from an AsyncAPI specification.
 
 Python
 
@@ -377,9 +347,10 @@ class ServerResponse(msgspec.Struct):
 
 class ChatResource:
     async def on_websocket(self, req: falcon.asgi.Request, ws: falcon.asgi.WebSocket):
-        # Retrieve the processor and error struct type from context
+        # Retrieve the encoder/decoder and error struct type from context
         # These are set by the MsgspecWebSocketMiddleware
-        processor: MsgspecProcessor = req.context.msgspec_processor
+        encoder = req.context.msgspec_encoder
+        decoder = req.context.msgspec_decoder(UserMessage)
         error_struct_type: Type = req.context.msgspec_error_struct
         
         # Example: Get authenticated user if an upstream auth middleware set it
@@ -395,14 +366,14 @@ class ChatResource:
 
         try:
             while True:
-                # Use the processor to receive a typed msgspec.Struct
-                incoming_message: UserMessage = await processor.receive_struct(ws, UserMessage)
+                # Decode an incoming typed message
+                incoming_message: UserMessage = decoder.decode(await ws.receive_text())
                 print(f"Received from {incoming_message.sender_id}: {incoming_message.text}")
 
                 if incoming_message.text.lower() == "ping":
                     # Respond with a ServerPong message
                     pong_response = ServerPong(timestamp=datetime.now(timezone.utc))
-                    await processor.send_struct(ws, pong_response)
+                    await ws.send_text(encoder.encode(pong_response).decode())
                 else:
                     # Process the message and send a ServerResponse
                     processed_text = f"Server echoes: {incoming_message.text.upper()}"
@@ -411,7 +382,7 @@ class ChatResource:
                         processed_text=processed_text,
                         is_echo=True
                     )
-                    await processor.send_struct(ws, response)
+                    await ws.send_text(encoder.encode(response).decode())
 
         except falcon.WebSocketDisconnected:
             print(f"User {user_id} disconnected from {req.path}.")
@@ -426,7 +397,7 @@ class ChatResource:
                 details={"fields": e.fields} # e.fields provides detailed error locations
             )
             try:
-                await processor.send_struct(ws, error_response)
+                await ws.send_text(encoder.encode(error_response).decode())
             except falcon.WebSocketDisconnected:
                 # Client might have disconnected after sending invalid data
                 print("Client disconnected before validation error could be sent.")
@@ -443,14 +414,14 @@ class ChatResource:
                 message="An unexpected error occurred on the server."
             )
             try:
-                await processor.send_struct(ws, error_response)
+                await ws.send_text(encoder.encode(error_response).decode())
             except falcon.WebSocketDisconnected:
                 pass # Client likely gone
             # Close with a server error code (1011 indicates internal error)
             await ws.close(code=1011)
 ```
 
-This example illustrates how the `on_websocket` handler is simplified. It works with Python objects (`UserMessage`, `ServerResponse`, etc.) and delegates the complexities of serialization, deserialization, and basic error propagation to the `MsgspecProcessor` provided by the middleware. The handler focuses on the core logic of message processing, responding to pings, and echoing messages, while also demonstrating robust error handling for validation issues and disconnections.
+This example illustrates how the `on_websocket` handler is simplified. It works with Python objects (`UserMessage`, `ServerResponse`, etc.) and delegates serialization and deserialization to the encoder and decoder supplied by the middleware. The handler focuses on the core logic of message processing, responding to pings, and echoing messages, while also demonstrating robust error handling for validation issues and disconnections.
 
 ## V. Advanced Considerations & Best Practices
 
@@ -489,7 +460,7 @@ Testing WebSocket handlers integrated with middleware requires careful setup. Fa
 2. **Middleware Integration in Tests**:
    - When testing the full stack, ensure the `MsgspecWebSocketMiddleware` (and any other relevant middleware) is included in the `falcon.asgi.App` instance used for testing. This ensures `req.context` is populated correctly.
    - `simulate_ws()` sends and receives raw strings or bytes. Test code will need to manually encode outgoing messages (if simulating a client sending `msgspec` data) and decode incoming messages using the appropriate `msgspec` encoder/decoder to verify the server's responses.
-3. **Mocking** `req.context`: For more isolated unit tests of the `on_websocket` handler itself (without the full middleware stack), `req.context` might need to be mocked or manually populated with the `msgspec_processor` and other expected attributes.
+3. **Mocking** `req.context`: For more isolated unit tests of the `on_websocket` handler itself (without the full middleware stack), `req.context` might need to be mocked or manually populated with the `msgspec_encoder` and `msgspec_decoder` attributes expected by the handler.
 
    Python
 
@@ -531,7 +502,7 @@ The `MsgspecWebSocketMiddleware` can be designed to be configurable for either p
 - The middleware's `process_request_ws` method can inspect this header (`req.get_header('Sec-WebSocket-Protocol')`).
 - It can then select a mutually supported subprotocol.
 - The chosen subprotocol is passed to `ws.accept(subprotocol=chosen_protocol)`.6
-- The middleware then configures the `msgspec_processor` in `req.context` to use the encoder/decoder for the negotiated subprotocol. This allows a single WebSocket endpoint to flexibly serve clients with different format preferences, enhancing interoperability.
+ - The middleware then populates `req.context` with the negotiated encoder and decoder. This allows a single WebSocket endpoint to flexibly serve clients with different format preferences, enhancing interoperability.
 
 ### E. Handling Message Polymorphism and Dispatch
 
@@ -567,7 +538,7 @@ In many WebSocket applications, a single connection might carry various types of
 2. **Decoding and Dispatch Logic**:
 
    - If using `msgspec`'s tagged union support, the `receive_struct` helper can be passed the `Union` type, and `msgspec` handles the dispatch.
-   - Alternatively, a two-pass decode: first decode into a base struct (like `BaseEvent`) to read the `event_type` field. Then, based on this field's value, use a mapping or conditional logic to decode the full message payload into the specific `msgspec.Struct` type. This logic can reside within the `receive_struct` helper in the `MsgspecProcessor` or directly in the `on_websocket` handler.
+   - Alternatively, a two-pass decode: first decode into a base struct (like `BaseEvent`) to read the `event_type` field. Then, based on this field's value, use a mapping or conditional logic to decode the full message payload into the specific `msgspec.Struct` type. This logic can live in a helper function or directly in the `on_websocket` handler.
 
 Using `msgspec`'s built-in tagged union capabilities is generally the most efficient and cleanest way to handle polymorphic messages, as it integrates seamlessly with its decoding process.
 
