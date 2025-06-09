@@ -11,8 +11,6 @@ from sqlalchemy import select, update
 if typing.TYPE_CHECKING:  # pragma: no cover
     from sqlalchemy.ext.asyncio import AsyncSession
 
-    from .msgspec_support import MsgspecProcessor
-
 from .models import UserAccount
 from .openrouter import ChatMessage, Role, StreamChoice
 from .openrouter_service import (
@@ -95,7 +93,7 @@ class ChatResource:
     async def _stream_chat(
         self,
         ws: falcon.asgi.WebSocket,
-        processor: MsgspecProcessor,
+        encoder: msgspec.json.Encoder,
         transaction_id: str,
         api_key: str,
         history: list[ChatMessage],
@@ -110,22 +108,22 @@ class ChatResource:
             ):
                 choice: StreamChoice = chunk.choices[0]
                 if choice.delta.content:
-                    await processor.send_struct(
-                        ws,  # pyright: ignore[reportUnknownArgumentType]
+                    raw = encoder.encode(
                         ChatWsResponse(
                             transaction_id=transaction_id,
                             fragment=choice.delta.content,
-                        ),
+                        )
                     )
+                    await ws.send_text(raw.decode())
                 if choice.finish_reason is not None:
-                    await processor.send_struct(
-                        ws,  # pyright: ignore[reportUnknownArgumentType]
+                    raw = encoder.encode(
                         ChatWsResponse(
                             transaction_id=transaction_id,
                             fragment="",
                             finished=True,
-                        ),
+                        )
                     )
+                    await ws.send_text(raw.decode())
                     break
         except OpenRouterServiceTimeoutError:
             await ws.close(code=1011)
@@ -178,33 +176,34 @@ class ChatResource:
     async def on_websocket(
         self, req: falcon.asgi.Request, ws: falcon.asgi.WebSocket
     ) -> None:
-        processor = typing.cast("MsgspecProcessor", req.context.msgspec_processor)
+        encoder = typing.cast("msgspec.json.Encoder", req.context.msgspec_encoder)
+        decoder_cls = typing.cast(
+            "type[msgspec.json.Decoder[ChatWsRequest]]",
+            req.context.msgspec_decoder_cls,
+        )
+        decoder = decoder_cls(ChatWsRequest)
         await ws.accept()
         try:
             while True:
-                request = typing.cast(
-                    "ChatWsRequest",
-                    await processor.receive_struct(
-                        ws,  # pyright: ignore[reportUnknownArgumentType]
-                        ChatWsRequest,
-                    ),
-                )
+                raw = await ws.receive_text()
+                raw_bytes: bytes = raw.encode()
+                request = decoder.decode(typing.cast("bytes", raw_bytes))
                 history = self._build_history(request)
                 user = typing.cast("str", req.context["user"])
                 api_key = await self._get_api_key(user)
                 if api_key is None:
-                    await processor.send_struct(
-                        ws,  # pyright: ignore[reportUnknownArgumentType]
+                    raw_resp = encoder.encode(
                         ChatWsResponse(
                             transaction_id=request.transaction_id,
                             fragment="missing OpenRouter token",
                             finished=True,
-                        ),
+                        )
                     )
+                    await ws.send_text(raw_resp.decode())
                     continue
                 await self._stream_chat(
                     ws,  # pyright: ignore[reportUnknownArgumentType]
-                    processor,
+                    encoder,
                     request.transaction_id,
                     api_key,
                     history,

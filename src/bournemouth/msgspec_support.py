@@ -7,7 +7,6 @@ import msgspec
 
 __all__ = [
     "AsyncMsgspecMiddleware",
-    "MsgspecProcessor",
     "MsgspecWebSocketMiddleware",
     "handle_msgspec_validation_error",
     "json_handler",
@@ -71,41 +70,12 @@ async def handle_msgspec_validation_error(
     )
 
 
-class MsgspecProcessor:
-    def __init__(
-        self,
-        encoder: msgspec.json.Encoder,
-        decoder_factory: typing.Callable[
-            [type[typing.Any]], msgspec.json.Decoder[typing.Any]
-        ],
-    ) -> None:
-        self._encoder = encoder
-        self._decoder_factory = decoder_factory
-
-    async def receive_struct(
-        self, ws: falcon.asgi.WebSocket, expected_type: type[typing.Any]
-    ) -> typing.Any:
-        raw_data = await ws.receive_text()
-        decoder = self._decoder_factory(expected_type)
-        return decoder.decode(raw_data)  # pyright: ignore[reportUnknownArgumentType]
-
-    async def send_struct(
-        self, ws: falcon.asgi.WebSocket, message: msgspec.Struct
-    ) -> None:
-        raw = self._encoder.encode(message)
-        await ws.send_text(raw.decode("utf-8"))
-
-
 class MsgspecWebSocketMiddleware:
     def __init__(self, protocol: str = "json") -> None:
         if protocol != "json":
             raise ValueError(f"Unsupported msgspec protocol: {protocol}")
-        self._encoder = msgspec.json.Encoder()
-
-        def factory(t: type[typing.Any]) -> msgspec.json.Decoder[typing.Any]:
-            return msgspec.json.Decoder(t)
-
-        self._decoder_factory = factory
+        self.encoder = msgspec.json.Encoder()
+        self.decoder_cls = msgspec.json.Decoder
 
     async def process_resource_ws(
         self,
@@ -114,5 +84,5 @@ class MsgspecWebSocketMiddleware:
         resource: object,
         params: dict[str, typing.Any],
     ) -> None:
-        processor = MsgspecProcessor(self._encoder, self._decoder_factory)
-        req.context.msgspec_processor = processor
+        req.context.msgspec_encoder = self.encoder
+        req.context.msgspec_decoder_cls = self.decoder_cls
