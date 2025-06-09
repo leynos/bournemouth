@@ -8,6 +8,8 @@ from bournemouth.openrouter_service import OpenRouterService
 
 
 class DummyClient:
+    creations: int = 0
+
     def __init__(
         self, *, api_key: str, base_url: str, timeout_config: typing.Any
     ) -> None:
@@ -27,9 +29,6 @@ class DummyClient:
     async def create_chat_completion(self, request: typing.Any) -> str:
         await asyncio.sleep(0)
         return "ok"
-
-
-DummyClient.creations = 0
 
 
 @pytest.mark.asyncio
@@ -105,6 +104,8 @@ async def test_can_reuse_after_aclose(monkeypatch: pytest.MonkeyPatch) -> None:
 @pytest.mark.asyncio
 async def test_remove_client(monkeypatch: pytest.MonkeyPatch) -> None:
     class ClosingClient(DummyClient):
+        closes: int = 0
+
         async def __aexit__(
             self,
             exc_type: type[BaseException] | None,

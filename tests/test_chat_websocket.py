@@ -2,10 +2,10 @@ import asyncio
 import base64
 import typing
 
-import msgspec
 import pytest
 from falcon import asgi, testing
 from httpx import ASGITransport, AsyncClient
+from msgspec import json as msgspec_json
 from pytest_httpx import HTTPXMock
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -64,10 +64,10 @@ async def test_websocket_streams_chat(
     headers = {"cookie": f"session={cookie}"}
     async with conductor.simulate_ws("/chat", headers=headers) as ws:
         req = ChatWsRequest(transaction_id="t1", message="hi")
-        await ws.send_text(msgspec.json.encode(req).decode())
-        first = msgspec.json.decode(await ws.receive_text(), type=ChatWsResponse)
+        await ws.send_text(msgspec_json.encode(req).decode())
+        first = msgspec_json.decode(await ws.receive_text(), type=ChatWsResponse)
         assert first.fragment == "hi"
-        last = msgspec.json.decode(await ws.receive_text(), type=ChatWsResponse)
+        last = msgspec_json.decode(await ws.receive_text(), type=ChatWsResponse)
         assert last.finished is True
 
 
@@ -144,25 +144,25 @@ async def test_websocket_multiplexes_requests(
     headers = {"cookie": f"session={cookie}"}
     async with conductor.simulate_ws("/chat", headers=headers) as ws:
         await ws.send_text(
-            msgspec.json.encode(
+            msgspec_json.encode(
                 ChatWsRequest(transaction_id="t1", message="a")
             ).decode()
         )
         await ws.send_text(
-            msgspec.json.encode(
+            msgspec_json.encode(
                 ChatWsRequest(transaction_id="t2", message="b")
             ).decode()
         )
-        first = msgspec.json.decode(
+        first = msgspec_json.decode(
             await asyncio.wait_for(ws.receive_text(), 1), type=ChatWsResponse
         )
-        second = msgspec.json.decode(
+        second = msgspec_json.decode(
             await asyncio.wait_for(ws.receive_text(), 1), type=ChatWsResponse
         )
-        third = msgspec.json.decode(
+        third = msgspec_json.decode(
             await asyncio.wait_for(ws.receive_text(), 1), type=ChatWsResponse
         )
-        fourth = msgspec.json.decode(
+        fourth = msgspec_json.decode(
             await asyncio.wait_for(ws.receive_text(), 1), type=ChatWsResponse
         )
 

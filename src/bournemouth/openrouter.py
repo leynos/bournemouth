@@ -9,6 +9,7 @@ from http import HTTPStatus
 
 import httpx
 import msgspec
+from msgspec import json as msgspec_json
 
 if typing.TYPE_CHECKING:  # pragma: no cover - imports for type checking
     import collections.abc as cabc
@@ -295,10 +296,10 @@ def _map_status_to_error(status: int) -> type[OpenRouterAPIError]:
 class OpenRouterAsyncClient:
     """Asynchronous client for OpenRouter's completions API."""
 
-    _ENCODER = msgspec.json.Encoder()
-    _RESP_DECODER = msgspec.json.Decoder(ChatCompletionResponse)
-    _STREAM_DECODER = msgspec.json.Decoder(StreamChunk)
-    _ERR_DECODER = msgspec.json.Decoder(OpenRouterErrorResponse)
+    _ENCODER = msgspec_json.Encoder()
+    _RESP_DECODER = msgspec_json.Decoder(ChatCompletionResponse)
+    _STREAM_DECODER = msgspec_json.Decoder(StreamChunk)
+    _ERR_DECODER = msgspec_json.Decoder(OpenRouterErrorResponse)
 
     def __init__(
         self,

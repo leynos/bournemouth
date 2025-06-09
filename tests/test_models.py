@@ -4,6 +4,7 @@ import uuid
 
 import pytest
 import sqlalchemy as sa
+from sqlalchemy import exc as sa_exc
 from sqlalchemy.orm import Session
 
 from bournemouth.models import (
@@ -59,12 +60,12 @@ def test_unique_constraints() -> None:
         session.commit()
         user2 = UserAccount(google_sub="1", email="b@example.com")
         session.add(user2)
-        with pytest.raises(sa.exc.IntegrityError):  # pyright: ignore[reportUnknownArgumentType]
+        with pytest.raises(sa_exc.IntegrityError):  # pyright: ignore[reportUnknownArgumentType]
             session.commit()
         session.rollback()
         user3 = UserAccount(google_sub="2", email="a@example.com")
         session.add(user3)
-        with pytest.raises(sa.exc.IntegrityError):  # pyright: ignore[reportUnknownArgumentType]
+        with pytest.raises(sa_exc.IntegrityError):  # pyright: ignore[reportUnknownArgumentType]
             session.commit()
 
 
