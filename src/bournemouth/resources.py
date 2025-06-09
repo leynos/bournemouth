@@ -12,7 +12,7 @@ import falcon.asgi
 import msgspec
 from msgspec import json as msgspec_json
 from sqlalchemy import select, update
-from uuid_extensions import uuid7 as uuid7_lib
+from uuid_extensions import uuid7
 
 if typing.TYPE_CHECKING:  # pragma: no cover
     from sqlalchemy.ext.asyncio import AsyncSession
@@ -64,15 +64,6 @@ class ChatStateRequest(msgspec.Struct):
     message: str
     conversation_id: uuid.UUID | None = None
     model: str | None = None
-
-
-def uuid7() -> uuid.UUID:
-    """Return a time-ordered UUIDv7."""
-
-    # ``uuid_extensions.uuid7`` supports returning the UUID in different formats.
-    # Explicitly request a UUID object to keep the return type stable for
-    # callers.
-    return typing.cast("uuid.UUID", uuid7_lib(as_type="uuid"))
 
 
 async def _load_user_and_api_key(
@@ -129,7 +120,9 @@ async def _get_or_create_conversation(
         if conv is None or conv.user_id != user_id:
             raise falcon.HTTPNotFound()
     if conv is None:
-        conv = Conversation(id=uuid7(), user_id=user_id)
+        conv = Conversation(
+            id=typing.cast("uuid.UUID", uuid7(as_type="uuid")), user_id=user_id
+        )
         session.add(conv)
         await session.flush()
     return conv
@@ -298,8 +291,8 @@ class ChatResource:
             while True:
                 raw = await ws.receive_text()
                 raw_bytes: bytes = raw.encode()
-                request = decoder.decode(raw_bytes)
-                task = asyncio.create_task(handle(request))
+                decoded_request = decoder.decode(raw_bytes)
+                task = asyncio.create_task(handle(decoded_request))
                 tasks.add(task)
                 task.add_done_callback(_finalize_task)
         except falcon.WebSocketDisconnected:
@@ -336,54 +329,47 @@ class ChatStateResource:
             raise falcon.HTTPUnauthorized(description="missing OpenRouter token")
 
         async with self._session_factory() as session:
-            if body.conversation_id is not None:
-                conv = await session.get(Conversation, body.conversation_id)
-                if conv is None or conv.user_id != user_id:
-                    raise falcon.HTTPNotFound()
+            async with session.begin():
+                conv = await _get_or_create_conversation(
+                    session, body.conversation_id, user_id
+                )
                 history_rows = await _list_conversation_messages(session, conv.id)
-            else:
-                conv = None
-                history_rows = []
-            last_id = history_rows[-1].id if history_rows else None
+                last_id = history_rows[-1].id if history_rows else None
 
-        messages = [
-            ChatMessage(role=typing.cast("Role", m.role.value), content=m.content)
-            for m in history_rows
-        ]
-        messages.append(ChatMessage(role="user", content=body.message))
+            messages = [
+                ChatMessage(role=typing.cast("Role", m.role.value), content=m.content)
+                for m in history_rows
+            ]
+            messages.append(ChatMessage(role="user", content=body.message))
 
-        answer = await _generate_answer(
-            self._service,
-            api_key,
-            messages,
-            body.model,
-        )
-
-        async with self._session_factory() as session, session.begin():
-            conv = await _get_or_create_conversation(
-                session, body.conversation_id, user_id
+            answer = await _generate_answer(
+                self._service,
+                api_key,
+                messages,
+                body.model,
             )
 
-            user_msg = Message(
-                conversation_id=conv.id,
-                parent_id=last_id,
-                role=MessageRole.USER,
-                content=body.message,
-            )
-            session.add(user_msg)
-            await session.flush()
-            if conv.root_message_id is None:
-                conv.root_message_id = user_msg.id
+            async with session.begin():
+                user_msg = Message(
+                    conversation_id=conv.id,
+                    parent_id=last_id,
+                    role=MessageRole.USER,
+                    content=body.message,
+                )
+                session.add(user_msg)
+                await session.flush()
+                if conv.root_message_id is None:
+                    conv.root_message_id = user_msg.id
 
-            assistant_msg = Message(
-                conversation_id=conv.id,
-                parent_id=user_msg.id,
-                role=MessageRole.ASSISTANT,
-                content=answer,
-            )
-            session.add(assistant_msg)
+                assistant_msg = Message(
+                    conversation_id=conv.id,
+                    parent_id=user_msg.id,
+                    role=MessageRole.ASSISTANT,
+                    content=answer,
+                )
+                session.add(assistant_msg)
 
-        resp.media = {"answer": answer, "conversation_id": str(conv.id)}
+            resp.media = {"answer": answer, "conversation_id": str(conv.id)}
 
 
 class OpenRouterTokenResource:
