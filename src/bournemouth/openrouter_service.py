@@ -19,6 +19,7 @@ from .openrouter import (
     OpenRouterNetworkError,
     OpenRouterServerError,
     OpenRouterTimeoutError,
+    StreamChunk,
 )
 
 DEFAULT_MODEL = "deepseek/deepseek-chat-v3-0324:free"
@@ -118,6 +119,22 @@ class OpenRouterService:
         client = await self._get_client(api_key)
         return await client.create_chat_completion(request)
 
+    async def stream_chat_completion(
+        self,
+        api_key: str,
+        messages: list[ChatMessage],
+        *,
+        model: str | None = None,
+    ) -> typing.AsyncIterator[StreamChunk]:
+        request = ChatCompletionRequest(
+            model=model or self.default_model,
+            messages=messages,
+            stream=True,
+        )
+        client = await self._get_client(api_key)
+        async for chunk in client.stream_chat_completion(request):
+            yield chunk
+
 
 class OpenRouterServiceError(Exception):
     """Raised when the OpenRouter service fails."""
@@ -140,6 +157,24 @@ async def chat_with_service(
 ) -> ChatCompletionResponse:
     try:
         return await service.chat_completion(api_key, messages, model=model)
+    except OpenRouterTimeoutError as exc:
+        raise OpenRouterServiceTimeoutError(str(exc)) from None
+    except (OpenRouterNetworkError, OpenRouterServerError, OpenRouterAPIError) as exc:
+        raise OpenRouterServiceBadGatewayError(str(exc)) from None
+
+
+async def stream_chat_with_service(
+    service: OpenRouterService,
+    api_key: str,
+    messages: list[ChatMessage],
+    *,
+    model: str | None = None,
+) -> typing.AsyncIterator[StreamChunk]:
+    try:
+        async for chunk in service.stream_chat_completion(
+            api_key, messages, model=model
+        ):
+            yield chunk
     except OpenRouterTimeoutError as exc:
         raise OpenRouterServiceTimeoutError(str(exc)) from None
     except (OpenRouterNetworkError, OpenRouterServerError, OpenRouterAPIError) as exc:
