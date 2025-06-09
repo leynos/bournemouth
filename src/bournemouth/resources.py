@@ -7,7 +7,9 @@ import contextlib
 import typing
 
 import falcon
+import falcon.asgi
 import msgspec
+from msgspec import json as msgspec_json
 from sqlalchemy import select, update
 
 if typing.TYPE_CHECKING:  # pragma: no cover
@@ -93,8 +95,8 @@ class ChatResource:
     async def _stream_chat(
         self,
         ws: falcon.asgi.WebSocket,
-        encoder: msgspec.json.Encoder,
-        send_lock: asyncio.Lock,]
+        encoder: msgspec_json.Encoder,
+        send_lock: asyncio.Lock,
         transaction_id: str,
         api_key: str,
         history: list[ChatMessage],
@@ -181,9 +183,9 @@ class ChatResource:
     async def on_websocket(
         self, req: falcon.asgi.Request, ws: falcon.asgi.WebSocket
     ) -> None:
-        encoder = typing.cast("msgspec.json.Encoder", req.context.msgspec_encoder)
+        encoder = typing.cast("msgspec_json.Encoder", req.context.msgspec_encoder)
         decoder_cls = typing.cast(
-            "type[msgspec.json.Decoder[ChatWsRequest]]",
+            "type[msgspec_json.Decoder[ChatWsRequest]]",
             req.context.msgspec_decoder_cls,
         )
         decoder = decoder_cls(ChatWsRequest)

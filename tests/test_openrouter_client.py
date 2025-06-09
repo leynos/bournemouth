@@ -4,8 +4,8 @@ import typing
 from http import HTTPStatus
 
 import httpx
-import msgspec
 import pytest
+from msgspec import json as msgspec_json
 
 if typing.TYPE_CHECKING:  # pragma: no cover - fixtures only
     import collections.abc as cabc
@@ -72,7 +72,7 @@ async def test_create_chat_completion_success(
     async def handler(request: httpx.Request) -> httpx.Response:
         assert request.method == "POST"
         assert request.headers["Authorization"] == "Bearer k"
-        body = msgspec.json.decode(await request.aread())
+        body = msgspec_json.decode(await request.aread())
         assert body["model"] == "openai/gpt-3.5-turbo"
         return httpx.Response(200, json=content)
 
@@ -250,7 +250,7 @@ async def test_create_chat_completion_ignores_stream_true(
     }
 
     async def handler(request: httpx.Request) -> httpx.Response:
-        body = msgspec.json.decode(await request.aread())
+        body = msgspec_json.decode(await request.aread())
         assert body["stream"] is False
         return httpx.Response(200, json=content)
 
@@ -277,7 +277,7 @@ async def test_stream_chat_completion_sets_stream_true(
     )
 
     async def handler(request: httpx.Request) -> httpx.Response:
-        body = msgspec.json.decode(await request.aread())
+        body = msgspec_json.decode(await request.aread())
         assert body["stream"] is True
         return httpx.Response(
             200,

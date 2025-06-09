@@ -8,6 +8,7 @@ import typing
 from http import HTTPStatus
 
 import falcon
+import falcon.asgi
 
 if typing.TYPE_CHECKING:
     from .session import SessionManager

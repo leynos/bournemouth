@@ -3,7 +3,10 @@ from __future__ import annotations
 import typing
 
 import falcon
+import falcon.asgi
+import falcon.media
 import msgspec
+from msgspec import json as msgspec_json
 
 __all__ = [
     "AsyncMsgspecMiddleware",
@@ -12,8 +15,8 @@ __all__ = [
     "json_handler",
 ]
 
-_ENCODER = msgspec.json.Encoder()
-_DECODER = msgspec.json.Decoder()
+_ENCODER = msgspec_json.Encoder()
+_DECODER = msgspec_json.Decoder()
 
 
 def _msgspec_loads_json_robust(content: bytes | str) -> typing.Any:
@@ -74,8 +77,8 @@ class MsgspecWebSocketMiddleware:
     def __init__(self, protocol: str = "json") -> None:
         if protocol != "json":
             raise ValueError(f"Unsupported msgspec protocol: {protocol}")
-        self.encoder = msgspec.json.Encoder()
-        self.decoder_cls = msgspec.json.Decoder
+        self.encoder = msgspec_json.Encoder()
+        self.decoder_cls = msgspec_json.Decoder
 
     async def process_resource_ws(
         self,
