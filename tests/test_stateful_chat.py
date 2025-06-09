@@ -7,11 +7,11 @@ import pytest
 from falcon import asgi
 from httpx import ASGITransport, AsyncClient
 from pytest_httpx import HTTPXMock
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from bournemouth.app import create_app
-from bournemouth.models import Conversation, Message
+from bournemouth.models import Conversation, Message, UserAccount
 
 
 @pytest.fixture()
@@ -134,3 +134,24 @@ async def test_stateful_chat_appends(
         result = await session.execute(stmt)
         roles = [m.role for m in result.scalars().all()]
         assert roles == ["user", "assistant", "user", "assistant"]
+
+
+@pytest.mark.asyncio
+async def test_stateful_chat_missing_token(
+    app: asgi.App, db_session_factory: typing.Callable[[], AsyncSession]
+) -> None:
+    async with db_session_factory() as session:
+        await session.execute(
+            update(UserAccount)
+            .where(UserAccount.google_sub == "admin")
+            .values(openrouter_token_enc=None)
+        )
+        await session.commit()
+
+    async with AsyncClient(
+        transport=ASGITransport(app=typing.cast("typing.Any", app)),
+        base_url="https://test",
+    ) as client:
+        await _login(client)
+        resp = await client.post("/chat/state", json={"message": "hi"})
+    assert resp.status_code == HTTPStatus.UNAUTHORIZED

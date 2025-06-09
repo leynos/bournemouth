@@ -94,6 +94,8 @@ async def _load_user_and_api_key(
         raise falcon.HTTPUnauthorized()
     user_id, token = typing.cast("tuple[uuid.UUID, bytes | str | None]", row)
     api_key = token.decode() if isinstance(token, bytes) else token
+    if api_key is not None and not api_key.strip():
+        api_key = None
     return user_id, api_key
 
 
@@ -134,6 +136,20 @@ async def _get_or_create_conversation(
         session.add(conv)
         await session.flush()
     return conv
+
+
+async def _list_conversation_messages(
+    session: AsyncSession, conv_id: uuid.UUID
+) -> list[Message]:
+    """Return messages for ``conv_id`` ordered by creation time."""
+
+    stmt = (
+        select(Message)
+        .where(Message.conversation_id == conv_id)
+        .order_by(Message.created_at)
+    )
+    result = await session.execute(stmt)
+    return typing.cast("list[Message]", result.scalars().all())
 
 
 class ChatResource:
@@ -228,7 +244,7 @@ class ChatResource:
         user = typing.cast("str", req.context["user"])
         _, api_key = await _load_user_and_api_key(self._session_factory, user)
         if api_key is None:
-            raise falcon.HTTPBadRequest(description="missing OpenRouter token")
+            raise falcon.HTTPUnauthorized(description="missing OpenRouter token")
 
         answer = await _generate_answer(
             self._service,
@@ -320,20 +336,14 @@ class ChatStateResource:
         user_sub = typing.cast("str", req.context["user"])
         user_id, api_key = await _load_user_and_api_key(self._session_factory, user_sub)
         if api_key is None:
-            raise falcon.HTTPBadRequest(description="missing OpenRouter token")
+            raise falcon.HTTPUnauthorized(description="missing OpenRouter token")
 
         async with self._session_factory() as session:
             if body.conversation_id is not None:
                 conv = await session.get(Conversation, body.conversation_id)
                 if conv is None or conv.user_id != user_id:
                     raise falcon.HTTPNotFound()
-                stmt = (
-                    select(Message)
-                    .where(Message.conversation_id == conv.id)
-                    .order_by(Message.created_at)
-                )
-                result = await session.execute(stmt)
-                history_rows = typing.cast("list[Message]", result.scalars().all())
+                history_rows = await _list_conversation_messages(session, conv.id)
             else:
                 conv = None
                 history_rows = []
@@ -394,7 +404,8 @@ class OpenRouterTokenResource:
         *,
         body: TokenRequest,
     ) -> None:
-        api_key = body.api_key
+        api_value = body.api_key.strip()
+        token_bytes = api_value.encode() if api_value else None
 
         async with self._session_factory() as session:
             stmt = (
@@ -402,7 +413,7 @@ class OpenRouterTokenResource:
                 .where(
                     UserAccount.google_sub == typing.cast("str", req.context["user"])
                 )
-                .values(openrouter_token_enc=api_key.encode())
+                .values(openrouter_token_enc=token_bytes)
             )
             result = await session.execute(stmt)
             if result.rowcount == 0:

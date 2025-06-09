@@ -26,6 +26,8 @@ paths:
                   - answer
         '400':
           $ref: '#/components/responses/Problem'
+        '401':
+          $ref: '#/components/responses/Problem'
   /chat/state:
     post:
       summary: Stateful chat with an assistant model
@@ -52,6 +54,8 @@ paths:
                   - conversation_id
                   - answer
         '400':
+          $ref: '#/components/responses/Problem'
+        '401':
           $ref: '#/components/responses/Problem'
         '404':
           $ref: '#/components/responses/Problem'
