@@ -178,7 +178,8 @@ class ChatResource:
     ) -> None:
         encoder = typing.cast("msgspec.json.Encoder", req.context.msgspec_encoder)
         decoder_cls = typing.cast(
-            "type[msgspec.json.Decoder[ChatWsRequest]]", req.context.msgspec_decoder
+            "type[msgspec.json.Decoder[ChatWsRequest]]",
+            req.context.msgspec_decoder_cls,
         )
         decoder = decoder_cls(ChatWsRequest)
         await ws.accept()

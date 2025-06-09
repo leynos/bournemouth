@@ -85,4 +85,4 @@ class MsgspecWebSocketMiddleware:
         params: dict[str, typing.Any],
     ) -> None:
         req.context.msgspec_encoder = self.encoder
-        req.context.msgspec_decoder = self.decoder_cls
+        req.context.msgspec_decoder_cls = self.decoder_cls

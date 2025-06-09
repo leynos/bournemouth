@@ -78,7 +78,7 @@ An alternative, more integrated Falcon feature for handling typed media is the u
 
 With the middleware having prepared the `req.context`, the `on_websocket` responder in the resource becomes significantly cleaner. It can focus on the application's business logic, operating on deserialized `msgspec.Struct` objects and sending `msgspec.Struct` objects, with the actual encoding/decoding handled by the tools provided via `req.context`.
 
-For instance, the middleware might add `msgspec_encoder` and `msgspec_decoder` attributes to `req.context`. Handlers can decode incoming messages with `decoder = req.context.msgspec_decoder(MyStruct)` and encode responses via `req.context.msgspec_encoder`.
+For instance, the middleware might add `msgspec_encoder` and `msgspec_decoder_cls` attributes to `req.context`. Handlers instantiate a decoder with `decoder = req.context.msgspec_decoder_cls(MyStruct)` and encode responses via `req.context.msgspec_encoder`.
 
 The `on_websocket` handler would then use these tools directly:
 
@@ -95,7 +95,7 @@ class ExampleResource:
         await ws.accept()  # Or accept could be handled by middleware
 
         encoder = req.context.msgspec_encoder
-        decoder = req.context.msgspec_decoder(MyEventStruct)
+        decoder = req.context.msgspec_decoder_cls(MyEventStruct)
 
         try:
             while True:
@@ -255,7 +255,7 @@ class MsgspecWebSocketMiddleware:
         # This hook is called after routing, before the on_websocket handler.
         # This is a good place to set up context items.
         req.context.msgspec_encoder = self.encoder
-        req.context.msgspec_decoder = self.decoder_cls
+        req.context.msgspec_decoder_cls = self.decoder_cls
         req.context.msgspec_error_struct = self.error_struct_type
 
         # Example: If subprotocol was negotiated in process_request_ws
@@ -316,7 +316,7 @@ This setup ensures that for any WebSocket route, the `MsgspecWebSocketMiddleware
 
 ### D. Example `on_websocket` Resource Utilizing the Middleware
 
-This section demonstrates a `ChatResource` that relies on the `msgspec_encoder` and `msgspec_decoder` injected by the middleware. It assumes `UserMessage`, `ServerPong`, `ServerResponse`, and `ErrorMessageStruct` are defined `msgspec.Struct`s, potentially derived from an AsyncAPI specification.
+This section demonstrates a `ChatResource` that relies on the `msgspec_encoder` and `msgspec_decoder_cls` injected by the middleware. It assumes `UserMessage`, `ServerPong`, `ServerResponse`, and `ErrorMessageStruct` are defined `msgspec.Struct`s, potentially derived from an AsyncAPI specification.
 
 Python
 
@@ -350,7 +350,7 @@ class ChatResource:
         # Retrieve the encoder/decoder and error struct type from context
         # These are set by the MsgspecWebSocketMiddleware
         encoder = req.context.msgspec_encoder
-        decoder = req.context.msgspec_decoder(UserMessage)
+        decoder = req.context.msgspec_decoder_cls(UserMessage)
         error_struct_type: Type = req.context.msgspec_error_struct
         
         # Example: Get authenticated user if an upstream auth middleware set it
@@ -460,7 +460,7 @@ Testing WebSocket handlers integrated with middleware requires careful setup. Fa
 2. **Middleware Integration in Tests**:
    - When testing the full stack, ensure the `MsgspecWebSocketMiddleware` (and any other relevant middleware) is included in the `falcon.asgi.App` instance used for testing. This ensures `req.context` is populated correctly.
    - `simulate_ws()` sends and receives raw strings or bytes. Test code will need to manually encode outgoing messages (if simulating a client sending `msgspec` data) and decode incoming messages using the appropriate `msgspec` encoder/decoder to verify the server's responses.
-3. **Mocking** `req.context`: For more isolated unit tests of the `on_websocket` handler itself (without the full middleware stack), `req.context` might need to be mocked or manually populated with the `msgspec_encoder` and `msgspec_decoder` attributes expected by the handler.
+3. **Mocking** `req.context`: For more isolated unit tests of the `on_websocket` handler itself (without the full middleware stack), `req.context` might need to be mocked or manually populated with the `msgspec_encoder` and `msgspec_decoder_cls` attributes expected by the handler.
 
    Python
 
