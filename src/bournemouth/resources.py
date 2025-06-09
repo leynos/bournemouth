@@ -4,16 +4,15 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
-import secrets
-import time
 import typing
-import uuid
+import uuid  # noqa: TC003
 
 import falcon
 import falcon.asgi
 import msgspec
 from msgspec import json as msgspec_json
 from sqlalchemy import select, update
+from uuid_extensions import uuid7 as uuid7_lib
 
 if typing.TYPE_CHECKING:  # pragma: no cover
     from sqlalchemy.ext.asyncio import AsyncSession
@@ -70,12 +69,10 @@ class ChatStateRequest(msgspec.Struct):
 def uuid7() -> uuid.UUID:
     """Return a time-ordered UUIDv7."""
 
-    ts_ms = int(time.time_ns() // 1_000_000)
-    rand_a = secrets.randbits(12)
-    rand_b = secrets.randbits(62)
-    hi = (ts_ms << 16) | (0x7000 | rand_a)
-    lo = 0x8000000000000000 | rand_b
-    return uuid.UUID(int=(hi << 64) | lo)
+    # ``uuid_extensions.uuid7`` supports returning the UUID in different formats.
+    # Explicitly request a UUID object to keep the return type stable for
+    # callers.
+    return typing.cast("uuid.UUID", uuid7_lib(as_type="uuid"))
 
 
 async def _load_user_and_api_key(
