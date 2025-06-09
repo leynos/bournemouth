@@ -7,6 +7,7 @@ import msgspec
 
 __all__ = [
     "AsyncMsgspecMiddleware",
+    "MsgspecWebSocketMiddleware",
     "handle_msgspec_validation_error",
     "json_handler",
 ]
@@ -67,3 +68,21 @@ async def handle_msgspec_validation_error(
         title="Validation Error",
         description=str(ex),
     )
+
+
+class MsgspecWebSocketMiddleware:
+    def __init__(self, protocol: str = "json") -> None:
+        if protocol != "json":
+            raise ValueError(f"Unsupported msgspec protocol: {protocol}")
+        self.encoder = msgspec.json.Encoder()
+        self.decoder_cls = msgspec.json.Decoder
+
+    async def process_resource_ws(
+        self,
+        req: falcon.asgi.Request,
+        ws: falcon.asgi.WebSocket,
+        resource: object,
+        params: dict[str, typing.Any],
+    ) -> None:
+        req.context.msgspec_encoder = self.encoder
+        req.context.msgspec_decoder = self.decoder_cls

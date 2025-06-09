@@ -12,12 +12,13 @@ if typing.TYPE_CHECKING:  # pragma: no cover
     from sqlalchemy.ext.asyncio import AsyncSession
 
 from .models import UserAccount
-from .openrouter import ChatMessage, Role
+from .openrouter import ChatMessage, Role, StreamChoice
 from .openrouter_service import (
     OpenRouterService,
     OpenRouterServiceBadGatewayError,
     OpenRouterServiceTimeoutError,
     chat_with_service,
+    stream_chat_with_service,
 )
 
 
@@ -34,12 +35,31 @@ class ChatRequest(msgspec.Struct):
     model: str | None = None
 
 
+class ChatWsRequest(msgspec.Struct):
+    transaction_id: str
+    message: str
+    model: str | None = None
+    history: list[HttpMessage] | None = None
+
+
+class ChatWsResponse(msgspec.Struct):
+    transaction_id: str
+    fragment: str
+    finished: bool = False
+
+
 class TokenRequest(msgspec.Struct):
     api_key: str
 
 
 class ChatResource:
-    """Handle chat requests."""
+    """Handle chat requests.
+
+    The WebSocket API currently processes messages sequentially, meaning
+    only one chat stream is handled at a time. Once the initial workflow is
+    proven, we'll add multiplexing to support concurrent streams over a
+    single connection.
+    """
 
     POST_SCHEMA = ChatRequest
 
@@ -50,6 +70,67 @@ class ChatResource:
     ) -> None:
         self._service = service
         self._session_factory = session_factory
+
+    def _build_history(self, request: ChatWsRequest) -> list[ChatMessage]:
+        hist = request.history or []
+        history = [ChatMessage(role=m.role, content=m.content) for m in hist]
+        history.append(ChatMessage(role="user", content=request.message))
+        return history
+
+    async def _get_api_key(self, user: str) -> str | None:
+        async with self._session_factory() as session:
+            stmt = select(UserAccount.openrouter_token_enc).where(
+                UserAccount.google_sub == user
+            )
+            result = await session.execute(stmt)
+            token: bytes | str | None = typing.cast(
+                "bytes | str | None", result.scalar_one_or_none()
+            )
+        if token is None:
+            return None
+        return token.decode() if isinstance(token, bytes) else token
+
+    async def _stream_chat(
+        self,
+        ws: falcon.asgi.WebSocket,
+        encoder: msgspec.json.Encoder,
+        transaction_id: str,
+        api_key: str,
+        history: list[ChatMessage],
+        model: str | None,
+    ) -> None:
+        try:
+            async for chunk in stream_chat_with_service(
+                self._service,
+                api_key,
+                history,
+                model=model,
+            ):
+                choice: StreamChoice = chunk.choices[0]
+                if choice.delta.content:
+                    await ws.send_text(
+                        encoder.encode(
+                            ChatWsResponse(
+                                transaction_id=transaction_id,
+                                fragment=choice.delta.content,
+                            )
+                        ).decode()
+                    )
+                if choice.finish_reason is not None:
+                    await ws.send_text(
+                        encoder.encode(
+                            ChatWsResponse(
+                                transaction_id=transaction_id,
+                                fragment="",
+                                finished=True,
+                            )
+                        ).decode()
+                    )
+                    break
+        except OpenRouterServiceTimeoutError:
+            await ws.close(code=1011)
+        except OpenRouterServiceBadGatewayError:
+            await ws.close(code=1011)
 
     async def on_post(
         self,
@@ -93,6 +174,46 @@ class ChatResource:
 
         answer = completion.choices[0].message.content or ""
         resp.media = {"answer": answer}
+
+    async def on_websocket(
+        self, req: falcon.asgi.Request, ws: falcon.asgi.WebSocket
+    ) -> None:
+        encoder = typing.cast("msgspec.json.Encoder", req.context.msgspec_encoder)
+        decoder_cls = typing.cast(
+            "type[msgspec.json.Decoder[typing.Any]]", req.context.msgspec_decoder
+        )
+        await ws.accept()
+        try:
+            while True:
+                raw = typing.cast("str", await ws.receive_text())
+                decoder: msgspec.json.Decoder[ChatWsRequest] = decoder_cls(
+                    ChatWsRequest
+                )
+                request = decoder.decode(raw)
+                history = self._build_history(request)
+                user = typing.cast("str", req.context["user"])
+                api_key = await self._get_api_key(user)
+                if api_key is None:
+                    await ws.send_text(
+                        encoder.encode(
+                            ChatWsResponse(
+                                transaction_id=request.transaction_id,
+                                fragment="missing OpenRouter token",
+                                finished=True,
+                            )
+                        ).decode()
+                    )
+                    continue
+                await self._stream_chat(
+                    ws,  # pyright: ignore[reportUnknownArgumentType]
+                    encoder,
+                    request.transaction_id,
+                    api_key,
+                    history,
+                    request.model,
+                )
+        except falcon.WebSocketDisconnected:
+            return
 
 
 class OpenRouterTokenResource:
