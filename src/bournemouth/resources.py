@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
 import typing
 
 import falcon
@@ -55,10 +57,8 @@ class TokenRequest(msgspec.Struct):
 class ChatResource:
     """Handle chat requests.
 
-    The WebSocket API currently processes messages sequentially, meaning
-    only one chat stream is handled at a time. Once the initial workflow is
-    proven, we'll add multiplexing to support concurrent streams over a
-    single connection.
+    The WebSocket API multiplexes chat streams so multiple requests may be
+    processed concurrently over a single connection.
     """
 
     POST_SCHEMA = ChatRequest
@@ -94,11 +94,14 @@ class ChatResource:
         self,
         ws: falcon.asgi.WebSocket,
         encoder: msgspec.json.Encoder,
+        send_lock: asyncio.Lock,]
         transaction_id: str,
         api_key: str,
         history: list[ChatMessage],
         model: str | None,
     ) -> None:
+        """Stream chat completions back to the client."""
+
         try:
             async for chunk in stream_chat_with_service(
                 self._service,
@@ -108,22 +111,24 @@ class ChatResource:
             ):
                 choice: StreamChoice = chunk.choices[0]
                 if choice.delta.content:
-                    raw = encoder.encode(
-                        ChatWsResponse(
-                            transaction_id=transaction_id,
-                            fragment=choice.delta.content,
+                    async with send_lock:
+                        raw = encoder.encode(
+                            ChatWsResponse(
+                                transaction_id=transaction_id,
+                                fragment=choice.delta.content,
+                            )
                         )
-                    )
-                    await ws.send_text(raw.decode())
+                        await ws.send_text(raw.decode())
                 if choice.finish_reason is not None:
-                    raw = encoder.encode(
-                        ChatWsResponse(
-                            transaction_id=transaction_id,
-                            fragment="",
-                            finished=True,
+                    async with send_lock:
+                        raw = encoder.encode(
+                            ChatWsResponse(
+                                transaction_id=transaction_id,
+                                fragment="",
+                                finished=True,
+                            )
                         )
-                    )
-                    await ws.send_text(raw.decode())
+                        await ws.send_text(raw.decode())
                     break
         except OpenRouterServiceTimeoutError:
             await ws.close(code=1011)
@@ -183,34 +188,53 @@ class ChatResource:
         )
         decoder = decoder_cls(ChatWsRequest)
         await ws.accept()
-        try:
-            while True:
-                raw = await ws.receive_text()
-                raw_bytes: bytes = raw.encode()
-                request = decoder.decode(typing.cast("bytes", raw_bytes))
-                history = self._build_history(request)
-                user = typing.cast("str", req.context["user"])
-                api_key = await self._get_api_key(user)
-                if api_key is None:
-                    raw_resp = encoder.encode(
+        send_lock = asyncio.Lock()
+        tasks: set[asyncio.Task[None]] = set()
+
+        def _finalize_task(task: asyncio.Task[None]) -> None:
+            tasks.discard(task)
+            with contextlib.suppress(Exception):
+                task.result()
+
+        async def handle(request: ChatWsRequest) -> None:
+            history = self._build_history(request)
+            user = typing.cast("str", req.context["user"])
+            api_key = await self._get_api_key(user)
+            if api_key is None:
+                async with send_lock:
+                    raw = encoder.encode(
                         ChatWsResponse(
                             transaction_id=request.transaction_id,
                             fragment="missing OpenRouter token",
                             finished=True,
                         )
                     )
-                    await ws.send_text(raw_resp.decode())
-                    continue
-                await self._stream_chat(
-                    ws,  # pyright: ignore[reportUnknownArgumentType]
-                    encoder,
-                    request.transaction_id,
-                    api_key,
-                    history,
-                    request.model,
-                )
+                    await ws.send_text(raw.decode())
+                return
+            await self._stream_chat(
+                ws,  # pyright: ignore[reportUnknownArgumentType]
+                encoder,
+                send_lock,
+                request.transaction_id,
+                api_key,
+                history,
+                request.model,
+            )
+
+        try:
+            while True:
+                raw = await ws.receive_text()
+                raw_bytes: bytes = raw.encode()
+                request = decoder.decode(typing.cast("bytes", raw_bytes))
+                task = asyncio.create_task(handle(request))
+                tasks.add(task)
+                task.add_done_callback(_finalize_task)
         except falcon.WebSocketDisconnected:
-            return
+            pass
+        finally:
+            for task in tasks:
+                task.cancel()
+            await asyncio.gather(*tasks, return_exceptions=True)
 
 
 class OpenRouterTokenResource:

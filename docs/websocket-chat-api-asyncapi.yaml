@@ -9,7 +9,10 @@ servers:
     description: Local development server
 channels:
   chat:
-    description: WebSocket channel for chat messages
+    description: |
+      WebSocket channel for chat messages. Multiple requests may be
+      processed concurrently, with fragments correlated by
+      ``transaction_id``.
     publish:
       summary: Send a chat request
       operationId: sendChat
