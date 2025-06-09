@@ -150,7 +150,7 @@ class ChatResource:
     async def _get_api_key(self, user: str) -> str | None:
         try:
             _, api_key = await _load_user_and_api_key(self._session_factory, user)
-        except falcon.HTTPBadRequest:
+        except falcon.HTTPUnauthorized:
             return None
         return api_key
 
@@ -311,51 +311,58 @@ class ChatStateResource:
             raise falcon.HTTPBadRequest(description="missing OpenRouter token")
 
         async with self._session_factory() as session:
-            async with session.begin():
-                conv = await _get_or_create_conversation(
-                    session, body.conversation_id, user_id
-                )
-
+            if body.conversation_id is not None:
+                conv = await session.get(Conversation, body.conversation_id)
+                if conv is None or conv.user_id != user_id:
+                    raise falcon.HTTPNotFound()
                 stmt = (
                     select(Message)
                     .where(Message.conversation_id == conv.id)
                     .order_by(Message.created_at)
                 )
                 result = await session.execute(stmt)
-                history_rows = result.scalars().all()
-                last_id = history_rows[-1].id if history_rows else None
-                user_msg = Message(
-                    conversation_id=conv.id,
-                    parent_id=last_id,
-                    role=MessageRole.USER,
-                    content=body.message,
-                )
-                session.add(user_msg)
-                await session.flush()
-                if conv.root_message_id is None:
-                    conv.root_message_id = user_msg.id
+                history_rows = typing.cast("list[Message]", result.scalars().all())
+            else:
+                conv = None
+                history_rows = []
+            last_id = history_rows[-1].id if history_rows else None
 
-                messages = [
-                    ChatMessage(role=m.role.value, content=m.content)
-                    for m in history_rows
-                ]
-                messages.append(ChatMessage(role="user", content=body.message))
+        messages = [
+            ChatMessage(role=typing.cast("Role", m.role.value), content=m.content)
+            for m in history_rows
+        ]
+        messages.append(ChatMessage(role="user", content=body.message))
 
-            answer = await _generate_answer(
-                self._service,
-                api_key,
-                messages,
-                body.model,
+        answer = await _generate_answer(
+            self._service,
+            api_key,
+            messages,
+            body.model,
+        )
+
+        async with self._session_factory() as session, session.begin():
+            conv = await _get_or_create_conversation(
+                session, body.conversation_id, user_id
             )
 
-            async with session.begin():
-                assistant_msg = Message(
-                    conversation_id=conv.id,
-                    parent_id=user_msg.id,
-                    role=MessageRole.ASSISTANT,
-                    content=answer,
-                )
-                session.add(assistant_msg)
+            user_msg = Message(
+                conversation_id=conv.id,
+                parent_id=last_id,
+                role=MessageRole.USER,
+                content=body.message,
+            )
+            session.add(user_msg)
+            await session.flush()
+            if conv.root_message_id is None:
+                conv.root_message_id = user_msg.id
+
+            assistant_msg = Message(
+                conversation_id=conv.id,
+                parent_id=user_msg.id,
+                role=MessageRole.ASSISTANT,
+                content=answer,
+            )
+            session.add(assistant_msg)
 
         resp.media = {"answer": answer, "conversation_id": str(conv.id)}
 
