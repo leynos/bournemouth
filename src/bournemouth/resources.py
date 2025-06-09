@@ -4,7 +4,10 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import secrets
+import time
 import typing
+import uuid
 
 import falcon
 import falcon.asgi
@@ -13,8 +16,6 @@ from msgspec import json as msgspec_json
 from sqlalchemy import select, update
 
 if typing.TYPE_CHECKING:  # pragma: no cover
-    import uuid
-
     from sqlalchemy.ext.asyncio import AsyncSession
 
 from .models import Conversation, Message, MessageRole, UserAccount
@@ -64,6 +65,17 @@ class ChatStateRequest(msgspec.Struct):
     message: str
     conversation_id: uuid.UUID | None = None
     model: str | None = None
+
+
+def uuid7() -> uuid.UUID:
+    """Return a time-ordered UUIDv7."""
+
+    ts_ms = int(time.time_ns() // 1_000_000)
+    rand_a = secrets.randbits(12)
+    rand_b = secrets.randbits(62)
+    hi = (ts_ms << 16) | (0x7000 | rand_a)
+    lo = 0x8000000000000000 | rand_b
+    return uuid.UUID(int=(hi << 64) | lo)
 
 
 async def _load_user_and_api_key(
@@ -118,7 +130,15 @@ async def _get_or_create_conversation(
         if conv is None or conv.user_id != user_id:
             raise falcon.HTTPNotFound()
     if conv is None:
-        conv = Conversation(user_id=user_id)
+        stmt = (
+            select(Conversation)
+            .where(Conversation.user_id == user_id)
+            .with_for_update()
+        )
+        result = await session.execute(stmt)
+        conv = result.scalar_one_or_none()
+    if conv is None:
+        conv = Conversation(id=uuid7(), user_id=user_id)
         session.add(conv)
         await session.flush()
     return conv

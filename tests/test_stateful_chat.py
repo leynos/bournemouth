@@ -57,6 +57,7 @@ async def test_stateful_chat_creates_conversation(
     assert resp.status_code == HTTPStatus.OK
     data = resp.json()
     conv_id = uuid.UUID(data["conversation_id"])
+    assert conv_id.version == 7
     assert data["answer"] == "hi"
     async with db_session_factory() as session:
         conv = await session.get(Conversation, conv_id)
