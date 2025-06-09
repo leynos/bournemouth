@@ -104,6 +104,7 @@ components:
         conversation_id:
           type: string
           format: uuid
+          nullable: true
         message:
           type: string
         model:
