@@ -22,7 +22,12 @@ from .msgspec_support import (
     json_handler,
 )
 from .openrouter_service import OpenRouterService
-from .resources import ChatResource, HealthResource, OpenRouterTokenResource
+from .resources import (
+    ChatResource,
+    ChatStateResource,
+    HealthResource,
+    OpenRouterTokenResource,
+)
 from .session import SessionManager
 
 
@@ -76,6 +81,7 @@ def create_app(
     if db_session_factory is None:
         raise ValueError("db_session_factory is required")
     app.add_route("/chat", ChatResource(service, db_session_factory))
+    app.add_route("/chat/state", ChatStateResource(service, db_session_factory))
     app.add_route("/auth/openrouter-token", OpenRouterTokenResource(db_session_factory))
     app.add_route("/health", HealthResource())
     app.add_route("/login", LoginResource(session, user, password))

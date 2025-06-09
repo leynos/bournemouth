@@ -26,6 +26,35 @@ paths:
                   - answer
         '400':
           $ref: '#/components/responses/Problem'
+  /chat/state:
+    post:
+      summary: Stateful chat with an assistant model
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatStateRequest'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  conversation_id:
+                    type: string
+                    format: uuid
+                  answer:
+                    type: string
+                required:
+                  - conversation_id
+                  - answer
+        '400':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
   /auth/openrouter-token:
     post:
       summary: Store the user's OpenRouter API key
@@ -67,6 +96,18 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Message'
+      required:
+        - message
+    ChatStateRequest:
+      type: object
+      properties:
+        conversation_id:
+          type: string
+          format: uuid
+        message:
+          type: string
+        model:
+          type: string
       required:
         - message
     Message:
