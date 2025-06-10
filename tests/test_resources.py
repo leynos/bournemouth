@@ -14,7 +14,7 @@ if typing.TYPE_CHECKING:
 
 import base64
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 
 from bournemouth.app import create_app
 from bournemouth.models import UserAccount
@@ -118,6 +118,30 @@ async def test_store_token_non_string(app: asgi.App) -> None:
 
 
 @pytest.mark.asyncio
+async def test_store_token_empty_string(
+    app: asgi.App, db_session_factory: typing.Callable[[], AsyncSession]
+) -> None:
+    async with AsyncClient(
+        transport=ASGITransport(app=typing.cast("typing.Any", app)),
+        base_url="https://test",
+    ) as client:
+        await _login(client)
+        resp = await client.post(
+            "/auth/openrouter-token",
+            json={"api_key": ""},
+        )
+    assert resp.status_code == HTTPStatus.NO_CONTENT
+    async with db_session_factory() as session:
+        result = await session.execute(
+            select(UserAccount.openrouter_token_enc).where(
+                UserAccount.google_sub == "admin"
+            )
+        )
+        stored = result.scalar_one()
+        assert stored is None
+
+
+@pytest.mark.asyncio
 async def test_chat_empty_choices(app: asgi.App, httpx_mock: HTTPXMock) -> None:
     httpx_mock.add_response(
         method="POST",
@@ -138,3 +162,24 @@ async def test_chat_empty_choices(app: asgi.App, httpx_mock: HTTPXMock) -> None:
         await _login(client)
         resp = await client.post("/chat", json={"message": "hello"})
     assert resp.status_code == HTTPStatus.BAD_GATEWAY
+
+
+@pytest.mark.asyncio
+async def test_chat_missing_token(
+    app: asgi.App, db_session_factory: typing.Callable[[], AsyncSession]
+) -> None:
+    async with db_session_factory() as session:
+        await session.execute(
+            update(UserAccount)
+            .where(UserAccount.google_sub == "admin")
+            .values(openrouter_token_enc=None)
+        )
+        await session.commit()
+
+    async with AsyncClient(
+        transport=ASGITransport(app=typing.cast("typing.Any", app)),
+        base_url="https://test",
+    ) as client:
+        await _login(client)
+        resp = await client.post("/chat", json={"message": "hi"})
+    assert resp.status_code == HTTPStatus.UNAUTHORIZED

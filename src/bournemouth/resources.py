@@ -5,23 +5,29 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import typing
+import uuid  # noqa: TC003
 
 import falcon
 import falcon.asgi
 import msgspec
 from msgspec import json as msgspec_json
-from sqlalchemy import select, update
+from sqlalchemy import update
 
 if typing.TYPE_CHECKING:  # pragma: no cover
     from sqlalchemy.ext.asyncio import AsyncSession
 
-from .models import UserAccount
+from .chat_service import (
+    generate_answer,
+    get_or_create_conversation,
+    list_conversation_messages,
+    load_user_and_api_key,
+)
+from .models import Message, MessageRole, UserAccount
 from .openrouter import ChatMessage, Role, StreamChoice
 from .openrouter_service import (
     OpenRouterService,
     OpenRouterServiceBadGatewayError,
     OpenRouterServiceTimeoutError,
-    chat_with_service,
     stream_chat_with_service,
 )
 
@@ -56,6 +62,14 @@ class TokenRequest(msgspec.Struct):
     api_key: str
 
 
+class ChatStateRequest(msgspec.Struct):
+    """Request body for the stateful chat endpoint."""
+
+    message: str
+    conversation_id: uuid.UUID | None = None
+    model: str | None = None
+
+
 class ChatResource:
     """Handle chat requests.
 
@@ -80,17 +94,11 @@ class ChatResource:
         return history
 
     async def _get_api_key(self, user: str) -> str | None:
-        async with self._session_factory() as session:
-            stmt = select(UserAccount.openrouter_token_enc).where(
-                UserAccount.google_sub == user
-            )
-            result = await session.execute(stmt)
-            token: bytes | str | None = typing.cast(
-                "bytes | str | None", result.scalar_one_or_none()
-            )
-        if token is None:
+        try:
+            _, api_key = await load_user_and_api_key(self._session_factory, user)
+        except falcon.HTTPUnauthorized:
             return None
-        return token.decode() if isinstance(token, bytes) else token
+        return api_key
 
     async def _stream_chat(
         self,
@@ -151,33 +159,17 @@ class ChatResource:
         history.append(ChatMessage(role="user", content=msg))
         model = body.model
 
-        async with self._session_factory() as session:
-            stmt = select(UserAccount.openrouter_token_enc).where(
-                UserAccount.google_sub == typing.cast("str", req.context["user"])
-            )
-            result = await session.execute(stmt)
-            token = typing.cast("bytes | str | None", result.scalar_one_or_none())
-        if not token:
-            raise falcon.HTTPBadRequest(description="missing OpenRouter token")
+        user = typing.cast("str", req.context["user"])
+        api_key = await self._get_api_key(user)
+        if api_key is None:
+            raise falcon.HTTPUnauthorized(description="missing OpenRouter token")
 
-        api_key = token.decode() if isinstance(token, bytes) else token
-
-        try:
-            completion = await chat_with_service(
-                self._service,
-                api_key,
-                history,
-                model=model,
-            )
-        except OpenRouterServiceTimeoutError:
-            raise falcon.HTTPGatewayTimeout() from None
-        except OpenRouterServiceBadGatewayError as exc:
-            raise falcon.HTTPBadGateway(description=str(exc)) from None  # pyright: ignore[reportUnknownArgumentType]
-
-        if not completion.choices:
-            raise falcon.HTTPBadGateway(description="no completion choices")
-
-        answer = completion.choices[0].message.content or ""
+        answer = await generate_answer(
+            self._service,
+            api_key,
+            history,
+            model,
+        )
         resp.media = {"answer": answer}
 
     async def on_websocket(
@@ -227,8 +219,8 @@ class ChatResource:
             while True:
                 raw = await ws.receive_text()
                 raw_bytes: bytes = raw.encode()
-                request = decoder.decode(typing.cast("bytes", raw_bytes))
-                task = asyncio.create_task(handle(request))
+                decoded_request = decoder.decode(raw_bytes)
+                task = asyncio.create_task(handle(decoded_request))
                 tasks.add(task)
                 task.add_done_callback(_finalize_task)
         except falcon.WebSocketDisconnected:
@@ -237,6 +229,80 @@ class ChatResource:
             for task in tasks:
                 task.cancel()
             await asyncio.gather(*tasks, return_exceptions=True)
+
+
+class ChatStateResource:
+    """Handle stateful chat requests."""
+
+    POST_SCHEMA = ChatStateRequest
+
+    def __init__(
+        self,
+        service: OpenRouterService,
+        session_factory: typing.Callable[[], AsyncSession],
+    ) -> None:
+        self._service = service
+        self._session_factory = session_factory
+
+    async def on_post(
+        self,
+        req: falcon.Request,
+        resp: falcon.Response,
+        *,
+        body: ChatStateRequest,
+    ) -> None:
+        user_sub = typing.cast("str", req.context["user"])
+        user_id, api_key = await load_user_and_api_key(self._session_factory, user_sub)
+        if api_key is None:
+            raise falcon.HTTPUnauthorized(description="missing OpenRouter token")
+
+        async with self._session_factory() as session:
+            async with session.begin():
+                conv = await get_or_create_conversation(
+                    session, body.conversation_id, user_id
+                )
+                history_rows = await list_conversation_messages(session, conv.id)
+                last_id = history_rows[-1].id if history_rows else None
+
+                user_msg = Message(
+                    conversation_id=conv.id,
+                    parent_id=last_id,
+                    role=MessageRole.USER,
+                    content=body.message,
+                )
+                session.add(user_msg)
+                await session.flush()
+                if conv.root_message_id is None:
+                    conv.root_message_id = user_msg.id
+
+            role_map: dict[MessageRole, Role] = {
+                MessageRole.USER: "user",
+                MessageRole.ASSISTANT: "assistant",
+                MessageRole.SYSTEM: "system",
+            }
+            messages = [
+                ChatMessage(role=role_map[m.role], content=m.content)
+                for m in history_rows
+            ]
+            messages.append(ChatMessage(role="user", content=body.message))
+
+            answer = await generate_answer(
+                self._service,
+                api_key,
+                messages,
+                body.model,
+            )
+
+            async with session.begin():
+                assistant_msg = Message(
+                    conversation_id=conv.id,
+                    parent_id=user_msg.id,
+                    role=MessageRole.ASSISTANT,
+                    content=answer,
+                )
+                session.add(assistant_msg)
+
+            resp.media = {"answer": answer, "conversation_id": str(conv.id)}
 
 
 class OpenRouterTokenResource:
@@ -254,7 +320,8 @@ class OpenRouterTokenResource:
         *,
         body: TokenRequest,
     ) -> None:
-        api_key = body.api_key
+        api_value = body.api_key.strip()
+        token_bytes = api_value.encode() if api_value else None
 
         async with self._session_factory() as session:
             stmt = (
@@ -262,7 +329,7 @@ class OpenRouterTokenResource:
                 .where(
                     UserAccount.google_sub == typing.cast("str", req.context["user"])
                 )
-                .values(openrouter_token_enc=api_key.encode())
+                .values(openrouter_token_enc=token_bytes)
             )
             result = await session.execute(stmt)
             if result.rowcount == 0:
