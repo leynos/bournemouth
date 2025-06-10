@@ -10,8 +10,9 @@ from pytest_httpx import HTTPXMock
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from bournemouth import chat_service
 from bournemouth.app import create_app
-from bournemouth.models import Conversation, Message, UserAccount
+from bournemouth.models import Conversation, Message, MessageRole, UserAccount
 
 
 @pytest.fixture()
@@ -155,3 +156,33 @@ async def test_stateful_chat_missing_token(
         await _login(client)
         resp = await client.post("/chat/state", json={"message": "hi"})
     assert resp.status_code == HTTPStatus.UNAUTHORIZED
+
+
+@pytest.mark.asyncio
+async def test_stateful_chat_persists_user_message_on_timeout(
+    app: asgi.App,
+    db_session_factory: typing.Callable[[], AsyncSession],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def fail(*args: typing.Any, **kwargs: typing.Any) -> typing.Any:
+        raise chat_service.OpenRouterServiceTimeoutError("boom")
+
+    monkeypatch.setattr(chat_service, "chat_with_service", fail)
+
+    async with AsyncClient(
+        transport=ASGITransport(app=typing.cast("typing.Any", app)),
+        base_url="https://test",
+    ) as client:
+        await _login(client)
+        resp = await client.post("/chat/state", json={"message": "oops"})
+    assert resp.status_code == HTTPStatus.GATEWAY_TIMEOUT
+
+    async with db_session_factory() as session:
+        conv = (await session.execute(select(Conversation))).scalar_one()
+        result = await session.execute(
+            select(Message.role)
+            .where(Message.conversation_id == conv.id)
+            .order_by(Message.created_at)
+        )
+        roles = list(result.scalars().all())
+        assert roles == [MessageRole.USER]

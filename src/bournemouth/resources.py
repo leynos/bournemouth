@@ -11,19 +11,23 @@ import falcon
 import falcon.asgi
 import msgspec
 from msgspec import json as msgspec_json
-from sqlalchemy import select, update
-from uuid_extensions import uuid7
+from sqlalchemy import update
 
 if typing.TYPE_CHECKING:  # pragma: no cover
     from sqlalchemy.ext.asyncio import AsyncSession
 
-from .models import Conversation, Message, MessageRole, UserAccount
+from .chat_service import (
+    generate_answer,
+    get_or_create_conversation,
+    list_conversation_messages,
+    load_user_and_api_key,
+)
+from .models import Message, MessageRole, UserAccount
 from .openrouter import ChatMessage, Role, StreamChoice
 from .openrouter_service import (
     OpenRouterService,
     OpenRouterServiceBadGatewayError,
     OpenRouterServiceTimeoutError,
-    chat_with_service,
     stream_chat_with_service,
 )
 
@@ -66,80 +70,6 @@ class ChatStateRequest(msgspec.Struct):
     model: str | None = None
 
 
-async def _load_user_and_api_key(
-    session_factory: typing.Callable[[], AsyncSession],
-    user_sub: str,
-) -> tuple[uuid.UUID, str | None]:
-    """Return the user's ID and decrypted OpenRouter API key."""
-
-    async with session_factory() as session:
-        stmt = select(UserAccount.id, UserAccount.openrouter_token_enc).where(
-            UserAccount.google_sub == user_sub
-        )
-        result = await session.execute(stmt)
-        row = result.one_or_none()
-    if row is None:
-        raise falcon.HTTPUnauthorized()
-    user_id, token = typing.cast("tuple[uuid.UUID, bytes | str | None]", row)
-    api_key = token.decode() if isinstance(token, bytes) else token
-    if api_key is not None and not api_key.strip():
-        api_key = None
-    return user_id, api_key
-
-
-async def _generate_answer(
-    service: OpenRouterService,
-    api_key: str,
-    messages: list[ChatMessage],
-    model: str | None,
-) -> str:
-    """Call the chat service and return the assistant's reply."""
-
-    try:
-        completion = await chat_with_service(service, api_key, messages, model=model)
-    except OpenRouterServiceTimeoutError:
-        raise falcon.HTTPGatewayTimeout() from None
-    except OpenRouterServiceBadGatewayError as exc:
-        raise falcon.HTTPBadGateway(description=str(exc)) from None
-
-    if not completion.choices:
-        raise falcon.HTTPBadGateway(description="no completion choices")
-    return completion.choices[0].message.content or ""
-
-
-async def _get_or_create_conversation(
-    session: AsyncSession,
-    conv_id: uuid.UUID | None,
-    user_id: uuid.UUID,
-) -> Conversation:
-    """Return an existing conversation or create a new one."""
-
-    conv: Conversation | None = None
-    if conv_id is not None:
-        conv = await session.get(Conversation, conv_id)
-        if conv is None or conv.user_id != user_id:
-            raise falcon.HTTPNotFound()
-    if conv is None:
-        conv = Conversation(
-            id=typing.cast("uuid.UUID", uuid7(as_type="uuid")), user_id=user_id
-        )
-        session.add(conv)
-        await session.flush()
-    return conv
-
-
-async def _list_conversation_messages(
-    session: AsyncSession, conv_id: uuid.UUID
-) -> list[Message]:
-    """Return messages for ``conv_id`` ordered by creation time."""
-
-    stmt = (
-        select(Message)
-        .where(Message.conversation_id == conv_id)
-        .order_by(Message.created_at)
-    )
-    result = await session.execute(stmt)
-    return typing.cast("list[Message]", result.scalars().all())
 
 
 class ChatResource:
@@ -167,7 +97,7 @@ class ChatResource:
 
     async def _get_api_key(self, user: str) -> str | None:
         try:
-            _, api_key = await _load_user_and_api_key(self._session_factory, user)
+            _, api_key = await load_user_and_api_key(self._session_factory, user)
         except falcon.HTTPUnauthorized:
             return None
         return api_key
@@ -232,11 +162,11 @@ class ChatResource:
         model = body.model
 
         user = typing.cast("str", req.context["user"])
-        _, api_key = await _load_user_and_api_key(self._session_factory, user)
+        _, api_key = await load_user_and_api_key(self._session_factory, user)
         if api_key is None:
             raise falcon.HTTPUnauthorized(description="missing OpenRouter token")
 
-        answer = await _generate_answer(
+        answer = await generate_answer(
             self._service,
             api_key,
             history,
@@ -324,32 +254,18 @@ class ChatStateResource:
         body: ChatStateRequest,
     ) -> None:
         user_sub = typing.cast("str", req.context["user"])
-        user_id, api_key = await _load_user_and_api_key(self._session_factory, user_sub)
+        user_id, api_key = await load_user_and_api_key(self._session_factory, user_sub)
         if api_key is None:
             raise falcon.HTTPUnauthorized(description="missing OpenRouter token")
 
         async with self._session_factory() as session:
             async with session.begin():
-                conv = await _get_or_create_conversation(
+                conv = await get_or_create_conversation(
                     session, body.conversation_id, user_id
                 )
-                history_rows = await _list_conversation_messages(session, conv.id)
+                history_rows = await list_conversation_messages(session, conv.id)
                 last_id = history_rows[-1].id if history_rows else None
 
-            messages = [
-                ChatMessage(role=typing.cast("Role", m.role.value), content=m.content)
-                for m in history_rows
-            ]
-            messages.append(ChatMessage(role="user", content=body.message))
-
-            answer = await _generate_answer(
-                self._service,
-                api_key,
-                messages,
-                body.model,
-            )
-
-            async with session.begin():
                 user_msg = Message(
                     conversation_id=conv.id,
                     parent_id=last_id,
@@ -361,6 +277,20 @@ class ChatStateResource:
                 if conv.root_message_id is None:
                     conv.root_message_id = user_msg.id
 
+            messages = [
+                ChatMessage(role=typing.cast("Role", m.role.value), content=m.content)
+                for m in history_rows
+            ]
+            messages.append(ChatMessage(role="user", content=body.message))
+
+            answer = await generate_answer(
+                self._service,
+                api_key,
+                messages,
+                body.model,
+            )
+
+            async with session.begin():
                 assistant_msg = Message(
                     conversation_id=conv.id,
                     parent_id=user_msg.id,
