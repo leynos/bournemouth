@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import contextlib
+import logging
 import typing
 
 import falcon
@@ -14,6 +16,7 @@ from .openrouter_service import (
     OpenRouterServiceBadGatewayError,
     OpenRouterServiceTimeoutError,
     chat_with_service,
+    stream_chat_with_service,
 )
 
 if typing.TYPE_CHECKING:  # pragma: no cover
@@ -21,7 +24,25 @@ if typing.TYPE_CHECKING:  # pragma: no cover
 
     from sqlalchemy.ext.asyncio import AsyncSession
 
-    from .openrouter import ChatMessage
+    from .openrouter import ChatMessage, StreamChunk
+
+
+_logger = logging.getLogger(__name__)
+
+
+@contextlib.asynccontextmanager
+async def _convert_service_errors() -> typing.AsyncIterator[None]:
+    try:
+        yield
+    except OpenRouterServiceTimeoutError as exc:
+        _logger.exception("timeout from OpenRouter", exc_info=exc)
+        raise falcon.HTTPGatewayTimeout() from exc
+    except OpenRouterServiceBadGatewayError as exc:
+        _logger.exception("bad gateway from OpenRouter", exc_info=exc)
+        raise falcon.HTTPBadGateway(description=str(exc)) from exc
+    except Exception as exc:  # pragma: no cover - unexpected failures
+        _logger.exception("unexpected error from OpenRouter", exc_info=exc)
+        raise falcon.HTTPInternalServerError() from exc
 
 
 async def load_user_and_api_key(
@@ -55,16 +76,27 @@ async def generate_answer(
 ) -> str:
     """Call the chat service and return the assistant's reply."""
 
-    try:
+    async with _convert_service_errors():
         completion = await chat_with_service(service, api_key, messages, model=model)
-    except OpenRouterServiceTimeoutError:
-        raise falcon.HTTPGatewayTimeout() from None
-    except OpenRouterServiceBadGatewayError as exc:
-        raise falcon.HTTPBadGateway(description=str(exc)) from None
 
     if not completion.choices:
         raise falcon.HTTPBadGateway(description="no completion choices")
     return completion.choices[0].message.content or ""
+
+
+async def stream_answer(
+    service: OpenRouterService,
+    api_key: str,
+    messages: list[ChatMessage],
+    model: str | None,
+) -> typing.AsyncIterator[StreamChunk]:
+    """Yield streamed chat chunks while mapping service errors to HTTP errors."""
+
+    async with _convert_service_errors():
+        async for chunk in stream_chat_with_service(
+            service, api_key, messages, model=model
+        ):
+            yield chunk
 
 
 async def get_or_create_conversation(

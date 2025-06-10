@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import logging
 import typing
 import uuid  # noqa: TC003
 
@@ -16,20 +17,19 @@ from sqlalchemy import update
 if typing.TYPE_CHECKING:  # pragma: no cover
     from sqlalchemy.ext.asyncio import AsyncSession
 
+    from .openrouter_service import OpenRouterService
+
 from .chat_service import (
     generate_answer,
     get_or_create_conversation,
     list_conversation_messages,
     load_user_and_api_key,
+    stream_answer,
 )
 from .models import Message, MessageRole, UserAccount
 from .openrouter import ChatMessage, Role, StreamChoice
-from .openrouter_service import (
-    OpenRouterService,
-    OpenRouterServiceBadGatewayError,
-    OpenRouterServiceTimeoutError,
-    stream_chat_with_service,
-)
+
+_logger = logging.getLogger(__name__)
 
 
 class HttpMessage(msgspec.Struct):
@@ -113,11 +113,11 @@ class ChatResource:
         """Stream chat completions back to the client."""
 
         try:
-            async for chunk in stream_chat_with_service(
+            async for chunk in stream_answer(
                 self._service,
                 api_key,
                 history,
-                model=model,
+                model,
             ):
                 choice: StreamChoice = chunk.choices[0]
                 if choice.delta.content:
@@ -140,9 +140,8 @@ class ChatResource:
                         )
                         await ws.send_text(raw.decode())
                     break
-        except OpenRouterServiceTimeoutError:
-            await ws.close(code=1011)
-        except OpenRouterServiceBadGatewayError:
+        except (falcon.HTTPGatewayTimeout, falcon.HTTPBadGateway) as exc:
+            _logger.exception("closing websocket due to upstream error", exc_info=exc)
             await ws.close(code=1011)
 
     async def on_post(
