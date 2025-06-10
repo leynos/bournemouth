@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import logging
 import typing
 import uuid  # noqa: TC003
 
@@ -27,6 +28,8 @@ from .chat_service import (
 )
 from .models import Message, MessageRole, UserAccount
 from .openrouter import ChatMessage, Role, StreamChoice
+
+_logger = logging.getLogger(__name__)
 
 
 class HttpMessage(msgspec.Struct):
@@ -137,7 +140,8 @@ class ChatResource:
                         )
                         await ws.send_text(raw.decode())
                     break
-        except (falcon.HTTPGatewayTimeout, falcon.HTTPBadGateway):
+        except (falcon.HTTPGatewayTimeout, falcon.HTTPBadGateway) as exc:
+            _logger.exception("closing websocket due to upstream error", exc_info=exc)
             await ws.close(code=1011)
 
     async def on_post(

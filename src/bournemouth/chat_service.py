@@ -40,6 +40,9 @@ async def _convert_service_errors() -> typing.AsyncIterator[None]:
     except OpenRouterServiceBadGatewayError as exc:
         _logger.exception("bad gateway from OpenRouter", exc_info=exc)
         raise falcon.HTTPBadGateway(description=str(exc)) from exc
+    except Exception as exc:  # pragma: no cover - unexpected failures
+        _logger.exception("unexpected error from OpenRouter", exc_info=exc)
+        raise falcon.HTTPInternalServerError() from exc
 
 
 async def load_user_and_api_key(

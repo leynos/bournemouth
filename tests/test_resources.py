@@ -16,6 +16,7 @@ import base64
 
 from sqlalchemy import select, update
 
+from bournemouth import chat_service
 from bournemouth.app import create_app
 from bournemouth.models import UserAccount
 
@@ -183,3 +184,21 @@ async def test_chat_missing_token(
         await _login(client)
         resp = await client.post("/chat", json={"message": "hi"})
     assert resp.status_code == HTTPStatus.UNAUTHORIZED
+
+
+@pytest.mark.asyncio
+async def test_chat_unexpected_error_returns_500(
+    app: asgi.App, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async def fail(*args: typing.Any, **kwargs: typing.Any) -> typing.Any:
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(chat_service, "chat_with_service", fail)
+
+    async with AsyncClient(
+        transport=ASGITransport(app=typing.cast("typing.Any", app)),
+        base_url="https://test",
+    ) as client:
+        await _login(client)
+        resp = await client.post("/chat", json={"message": "oops"})
+    assert resp.status_code == HTTPStatus.INTERNAL_SERVER_ERROR
