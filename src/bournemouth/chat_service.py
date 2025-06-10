@@ -14,6 +14,7 @@ from .openrouter_service import (
     OpenRouterServiceBadGatewayError,
     OpenRouterServiceTimeoutError,
     chat_with_service,
+    stream_chat_with_service,
 )
 
 if typing.TYPE_CHECKING:  # pragma: no cover
@@ -21,7 +22,7 @@ if typing.TYPE_CHECKING:  # pragma: no cover
 
     from sqlalchemy.ext.asyncio import AsyncSession
 
-    from .openrouter import ChatMessage
+    from .openrouter import ChatMessage, StreamChunk
 
 
 async def load_user_and_api_key(
@@ -65,6 +66,25 @@ async def generate_answer(
     if not completion.choices:
         raise falcon.HTTPBadGateway(description="no completion choices")
     return completion.choices[0].message.content or ""
+
+
+async def stream_answer(
+    service: OpenRouterService,
+    api_key: str,
+    messages: list[ChatMessage],
+    model: str | None,
+) -> typing.AsyncIterator[StreamChunk]:
+    """Yield streamed chat chunks while mapping service errors to HTTP errors."""
+
+    try:
+        async for chunk in stream_chat_with_service(
+            service, api_key, messages, model=model
+        ):
+            yield chunk
+    except OpenRouterServiceTimeoutError:
+        raise falcon.HTTPGatewayTimeout() from None
+    except OpenRouterServiceBadGatewayError as exc:
+        raise falcon.HTTPBadGateway(description=str(exc)) from None
 
 
 async def get_or_create_conversation(
