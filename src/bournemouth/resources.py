@@ -70,8 +70,6 @@ class ChatStateRequest(msgspec.Struct):
     model: str | None = None
 
 
-
-
 class ChatResource:
     """Handle chat requests.
 
@@ -162,7 +160,7 @@ class ChatResource:
         model = body.model
 
         user = typing.cast("str", req.context["user"])
-        _, api_key = await load_user_and_api_key(self._session_factory, user)
+        api_key = await self._get_api_key(user)
         if api_key is None:
             raise falcon.HTTPUnauthorized(description="missing OpenRouter token")
 
@@ -277,8 +275,13 @@ class ChatStateResource:
                 if conv.root_message_id is None:
                     conv.root_message_id = user_msg.id
 
+            role_map: dict[MessageRole, Role] = {
+                MessageRole.USER: "user",
+                MessageRole.ASSISTANT: "assistant",
+                MessageRole.SYSTEM: "system",
+            }
             messages = [
-                ChatMessage(role=typing.cast("Role", m.role.value), content=m.content)
+                ChatMessage(role=role_map[m.role], content=m.content)
                 for m in history_rows
             ]
             messages.append(ChatMessage(role="user", content=body.message))
