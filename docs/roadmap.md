@@ -1,7 +1,7 @@
 # Implementation Roadmap
 
-This roadmap captures the major features planned for Bournemouth.
-Features already implemented are checked off.
+This roadmap captures the major features planned for Bournemouth. Features
+already implemented are checked off.
 
 ## Core API
 
