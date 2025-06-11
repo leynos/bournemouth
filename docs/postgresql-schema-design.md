@@ -1,10 +1,13 @@
 # Chatbot Relational Schema with Forkable Conversations
 
-This document defines the PostgreSQL schema and data model for a multi-user, auditable, forkable chat application designed to integrate with a knowledge graph and external LLM inference providers.
+This document defines the PostgreSQL schema and data model for a multi-user,
+auditable, forkable chat application designed to integrate with a knowledge
+graph and external LLM inference providers.
 
 ## Entity-Relationship Diagram
 
-The following MermaidJS diagram captures the high-level structure of users, audit logs, knowledge graph changes, and conversations/messages:
+The following MermaidJS diagram captures the high-level structure of users,
+audit logs, knowledge graph changes, and conversations/messages:
 
 ```mermaid
 erDiagram
@@ -163,7 +166,10 @@ CREATE INDEX idx_msg_convtime ON message(conversation_id, created_at);
 
 ## Forkable Conversation Design
 
-A conversation consists of a chain of `message` rows linked by `parent_id`. Forking a conversation is done by starting a new `conversation` and pointing it at an existing `message` as its `root_message_id`, and preserving the `forked_from_conv_id` and `forked_from_msg_id` for metadata.
+A conversation consists of a chain of `message` rows linked by `parent_id`.
+Forking a conversation is done by starting a new `conversation` and pointing it
+at an existing `message` as its `root_message_id`, and preserving the
+`forked_from_conv_id` and `forked_from_msg_id` for metadata.
 
 ### **Fork creation:**
 
@@ -210,12 +216,14 @@ WITH RECURSIVE tail(id, role, content) AS (
 SELECT * FROM tail ORDER BY created_at;
 ```
 
-This approach ensures full auditability, lineage tracking, and efficient storage reuse while giving users flexibility to explore alternative continuations of their conversations.
+This approach ensures full auditability, lineage tracking, and efficient storage
+reuse while giving users flexibility to explore alternative continuations of
+their conversations.
 
 ### Garbage-collection & quotas
 
-Because historic messages may be shared by many branches, **never hard-delete** rows.
-Instead:
+Because historic messages may be shared by many branches, **never hard-delete**
+rows. Instead:
 
 Then run a nightly job that removes messages *only* when
 `NOT EXISTS (SELECT 1 FROM conversation WHERE root_message_id = message.id OR parent_id = message.id)`.
@@ -235,14 +243,21 @@ def test_fork_creates_new_branch(pg_session, user_id, base_conv, fork_msg):
     assert base_msgs >= fork_msgs
 ```
 
-Because the schema is pure SQL and every test spins up **postgresql://\:memory:** via **pytest-postgresql**, no external services are needed.
+Because the schema is pure SQL and every test spins up **postgresql://:memory:**
+via **pytest-postgresql**, no external services are needed.
 
 ### Key points
 
-| Design choice Why                            |                                                                                                                                                                                                 |
-| -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Immutable `MESSAGE` rows                     | Once inserted they never change → any message can safely be shared by multiple branches.                                                                                                        |
-| `parent_id` per branch                       | Points to the immediate predecessor *within that conversation*. When you fork, the new head’s `parent_id` is the old message, so the new branch re-uses the same ancestry up to the fork point. |
-| `CONVERSATION.forked_from_*` columns         | Pure metadata: lets the UI show *“Forked from message #n in chat X”* but isn’t needed for traversal (you can always walk back via `parent_id`).                                                 |
-| `root_message_id` shortcut                   | Saves one join when the UI lists threads.                                                                                                                                                       |
-| Shared messages, distinct conversations      | Storage-efficient: historic turns are stored **once**, yet a forked chat has its own `conversation_id`, making per-branch settings (model, temperature, visibility) trivial.                    |
+| Design choice Why | | | -------------------------------------------- |
+\-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+| | Immutable `MESSAGE` rows | Once inserted they never change → any message can
+safely be shared by multiple branches. | | `parent_id` per branch | Points to
+the immediate predecessor *within that conversation*. When you fork, the new
+head’s `parent_id` is the old message, so the new branch re-uses the same
+ancestry up to the fork point. | | `CONVERSATION.forked_from_*` columns | Pure
+metadata: lets the UI show *“Forked from message #n in chat X”* but isn’t needed
+for traversal (you can always walk back via `parent_id`). | | `root_message_id`
+shortcut | Saves one join when the UI lists threads. | | Shared messages,
+distinct conversations | Storage-efficient: historic turns are stored **once**,
+yet a forked chat has its own `conversation_id`, making per-branch settings
+(model, temperature, visibility) trivial. |

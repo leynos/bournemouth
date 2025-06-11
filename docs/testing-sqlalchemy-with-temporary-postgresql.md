@@ -2,23 +2,43 @@
 
 ## **1. Introduction**
 
-SQLAlchemy is a premier SQL toolkit and Object-Relational Mapper (ORM) for Python, frequently paired with PostgreSQL for robust database solutions. Testing the database interaction logic in such applications is critical for reliability. This guide offers a unified approach to testing Python applications using SQLAlchemy with PostgreSQL, covering both synchronous and asynchronous operations.  
-We will focus on pytest-postgresql as the central tool for managing PostgreSQL test instances. This library can interact with a locally installed PostgreSQL server, providing the necessary foundation for both traditional synchronous testing and modern asynchronous testing with SQLAlchemy 2.0's asyncio extensions, the asyncpg driver, and pytest-asyncio. This approach simplifies the testing setup by using a single database management tool across different execution models, ensuring consistency and reducing complexity, especially when Docker is not an option.
+SQLAlchemy is a premier SQL toolkit and Object-Relational Mapper (ORM) for
+Python, frequently paired with PostgreSQL for robust database solutions. Testing
+the database interaction logic in such applications is critical for reliability.
+This guide offers a unified approach to testing Python applications using
+SQLAlchemy with PostgreSQL, covering both synchronous and asynchronous
+operations.\
+We will focus on pytest-postgresql as the central tool for managing PostgreSQL
+test instances. This library can interact with a locally installed PostgreSQL
+server, providing the necessary foundation for both traditional synchronous
+testing and modern asynchronous testing with SQLAlchemy 2.0's asyncio
+extensions, the asyncpg driver, and pytest-asyncio. This approach simplifies the
+testing setup by using a single database management tool across different
+execution models, ensuring consistency and reducing complexity, especially when
+Docker is not an option.
 
 ## **2. Core Concepts: pytest-postgresql for Unified Test Database Management**
 
-pytest-postgresql is a pytest plugin that automates the setup and management of PostgreSQL databases for testing. It can either start a temporary PostgreSQL instance using locally installed binaries or manage databases within an existing PostgreSQL server.
+pytest-postgresql is a pytest plugin that automates the setup and management of
+PostgreSQL databases for testing. It can either start a temporary PostgreSQL
+instance using locally installed binaries or manage databases within an existing
+PostgreSQL server.
 
 ### **2.1. Purpose and Benefits of pytest-postgresql**
 
-* **Unified Database Management:** Provides a consistent way to manage test databases for both synchronous and asynchronous SQLAlchemy operations.  
-* **Real PostgreSQL Backend:** Tests execute against an actual PostgreSQL server, ensuring high fidelity.  
-* **Simplified Test Setup:** Integrates with pytest to provide fixtures that abstract database creation, connection management, and cleanup.  
-* **No Docker Required:** Operates with a local PostgreSQL installation, making it suitable for environments where Docker is unavailable or not preferred.
+- **Unified Database Management:** Provides a consistent way to manage test
+  databases for both synchronous and asynchronous SQLAlchemy operations.
+- **Real PostgreSQL Backend:** Tests execute against an actual PostgreSQL
+  server, ensuring high fidelity.
+- **Simplified Test Setup:** Integrates with pytest to provide fixtures that
+  abstract database creation, connection management, and cleanup.
+- **No Docker Required:** Operates with a local PostgreSQL installation, making
+  it suitable for environments where Docker is unavailable or not preferred.
 
 ### **2.2. Installation and Dependencies**
 
-You'll need pytest, pytest-postgresql, SQLAlchemy, and the relevant database drivers:
+You'll need pytest, pytest-postgresql, SQLAlchemy, and the relevant database
+drivers:
 
 ```Bash
 
@@ -27,31 +47,41 @@ pip install psycopg2-binary # For synchronous SQLAlchemy (or 'psycopg' for psyco
 pip install asyncpg pytest-asyncio # For asynchronous SQLAlchemy
 ```
 
-Ensure your local PostgreSQL server binaries are installed and accessible in your system's `PATH` if you want pytest-postgresql to manage its own temporary instances.
+Ensure your local PostgreSQL server binaries are installed and accessible in
+your system's `PATH` if you want pytest-postgresql to manage its own temporary
+instances.
 
 ### **2.3. How pytest-postgresql Works**
 
-pytest-postgresql typically provides a `postgresql_proc` fixture (among others). This fixture represents the running PostgreSQL process (either one it started or an existing one it's configured to use) and contains essential connection details like host, port, user, password, and a default database name. These details are then used to construct connection URLs for SQLAlchemy.
+pytest-postgresql typically provides a `postgresql_proc` fixture (among others).
+This fixture represents the running PostgreSQL process (either one it started or
+an existing one it's configured to use) and contains essential connection
+details like host, port, user, password, and a default database name. These
+details are then used to construct connection URLs for SQLAlchemy.
 
 ### **2.4. Key pytest-postgresql Fixture: postgresql_proc**
 
-The postgresql_proc fixture is session-scoped by default and provides attributes like:
+The postgresql_proc fixture is session-scoped by default and provides attributes
+like:
 
-* postgresql_proc.host  
-* postgresql_proc.port  
-* postgresql_proc.user  
-* postgresql_proc.password  
-* postgresql_proc.dbname (the name of the default test database it created or connected to)
+- postgresql_proc.host
+- postgresql_proc.port
+- postgresql_proc.user
+- postgresql_proc.password
+- postgresql_proc.dbname (the name of the default test database it created or
+  connected to)
 
 These attributes are crucial for creating SQLAlchemy engine URLs.
 
 ## **3. Setting Up the Testing Environment with pytest-postgresql**
 
-This section outlines how to configure your pytest environment to use pytest-postgresql for both synchronous and asynchronous SQLAlchemy testing.
+This section outlines how to configure your pytest environment to use
+pytest-postgresql for both synchronous and asynchronous SQLAlchemy testing.
 
 ### **3.1. pytest-asyncio Configuration (for Async Tests)**
 
-For asynchronous tests, pytest-asyncio is essential. Configure its mode in `pytest.ini` or `pyproject.toml`. The auto mode is often convenient:
+For asynchronous tests, pytest-asyncio is essential. Configure its mode in
+`pytest.ini` or `pyproject.toml`. The auto mode is often convenient:
 
 ```Ini, TOML
 
@@ -59,11 +89,14 @@ For asynchronous tests, pytest-asyncio is essential. Configure its mode in `pyte
 asyncio_mode = auto
 ```
 
-In auto mode, async def tests and fixtures are automatically recognized without needing explicit `@pytest.mark.asyncio` or `@pytest_asyncio.fixture` decorators (though they can still be used for clarity).
+In auto mode, async def tests and fixtures are automatically recognized without
+needing explicit `@pytest.mark.asyncio` or `@pytest_asyncio.fixture` decorators
+(though they can still be used for clarity).
 
 ### **3.2. Core Fixtures for SQLAlchemy Engines (conftest.py)**
 
-The following fixtures, typically placed in `conftest.py`, demonstrate how to derive synchronous and asynchronous SQLAlchemy engines from pytest-postgresql.
+The following fixtures, typically placed in `conftest.py`, demonstrate how to
+derive synchronous and asynchronous SQLAlchemy engines from pytest-postgresql.
 
 ```Python
 
@@ -126,13 +159,17 @@ def async_engine(async_db_conn_url):
     # await engine.dispose() # Requires asyncio.run if called outside async context
 ```
 
-**Note on Schema Management in Engine Fixtures:** Creating/dropping tables directly in session-scoped engine fixtures can be done, but often schema management is handled per-test or via auto-use fixtures for better control, as shown later.
+**Note on Schema Management in Engine Fixtures:** Creating/dropping tables
+directly in session-scoped engine fixtures can be done, but often schema
+management is handled per-test or via auto-use fixtures for better control, as
+shown later.
 
 ## **4. Synchronous SQLAlchemy Testing**
 
 ### **4.1. Synchronous Session Fixture**
 
-This fixture provides a SQLAlchemy `Session` for synchronous tests, managing schema and transactions.
+This fixture provides a SQLAlchemy `Session` for synchronous tests, managing
+schema and transactions.
 
 ```Python
 
@@ -184,18 +221,24 @@ def test_create_sync_user(sync_session): # sync_session fixture is injected
 
 ## **5. Asynchronous SQLAlchemy Testing (SQLAlchemy 2.0)**
 
-SQLAlchemy 2.0 introduced native asyncio support, typically used with the asyncpg driver for PostgreSQL for high performance.
+SQLAlchemy 2.0 introduced native asyncio support, typically used with the
+asyncpg driver for PostgreSQL for high performance.
 
 ### **5.1. Core Asynchronous SQLAlchemy Components**
 
-* **AsyncEngine**: The entry point for async database interactions, created by `create_async_engine()`.  
-* **AsyncSession**: Manages persistence state for ORM objects in an async context.  
-* **async_sessionmaker**: A factory for creating `AsyncSession` instances.  
-  * Crucially, use `expire_on_commit=False` with `async_sessionmaker` for testing to prevent attributes from being expired after commits, which avoids unexpected lazy loads or MissingGreenlet errors.
+- **AsyncEngine**: The entry point for async database interactions, created by
+  `create_async_engine()`.
+- **AsyncSession**: Manages persistence state for ORM objects in an async
+  context.
+- **async_sessionmaker**: A factory for creating `AsyncSession` instances.
+  - Crucially, use `expire_on_commit=False` with `async_sessionmaker` for
+    testing to prevent attributes from being expired after commits, which avoids
+    unexpected lazy loads or MissingGreenlet errors.
 
 ### **5.2. Asynchronous Session Fixture**
 
-This fixture provides an `AsyncSession`, managing schema and transactions for asynchronous tests.
+This fixture provides an `AsyncSession`, managing schema and transactions for
+asynchronous tests.
 
 ```Python
 
@@ -251,7 +294,10 @@ def dispose_async_engine_at_end_of_session(request, async_engine):
         asyncio.run(dispose())
 ```
 
-This `async_db_session` fixture ensures robust test isolation by rolling back the outer connection-level transaction. Calls to `await session.commit()` within a test will commit to a savepoint, which is then discarded by the final rollback.
+This `async_db_session` fixture ensures robust test isolation by rolling back
+the outer connection-level transaction. Calls to `await session.commit()` within
+a test will commit to a savepoint, which is then discarded by the final
+rollback.
 
 ### **5.3. Writing Asynchronous Tests**
 
@@ -273,20 +319,31 @@ async def test_create_async_user(async_db_session: AsyncSession): # async_db_ses
 
 ## **6. Handling Relationships and Lazy Loading**
 
-Lazy loading (accessing related attributes not yet loaded) triggers implicit I/O. This requires careful handling in both synchronous and especially asynchronous contexts.
+Lazy loading (accessing related attributes not yet loaded) triggers implicit
+I/O. This requires careful handling in both synchronous and especially
+asynchronous contexts.
 
-* **Synchronous Context:** Standard SQLAlchemy practices apply. Eager loading (e.g., joinedload, selectinload) is often used for performance or to avoid N+1 query problems.  
-* **Asynchronous Context:** Implicit I/O from lazy loading can cause MissingGreenlet errors or block the event loop.  
-  * **Eager Loading:** Use loader options like selectinload (often preferred for async) or joinedload in your queries.  
-    ```Python  
+- **Synchronous Context:** Standard SQLAlchemy practices apply. Eager loading
+  (e.g., joinedload, selectinload) is often used for performance or to avoid N+1
+  query problems.
+- **Asynchronous Context:** Implicit I/O from lazy loading can cause
+  MissingGreenlet errors or block the event loop.
+  - **Eager Loading:** Use loader options like selectinload (often preferred for
+    async) or joinedload in your queries.
+
+    ```Python
     from sqlalchemy.orm import selectinload  
     from sqlalchemy import select  
     # stmt = select(User).options(selectinload(User.addresses))  
     # results = await session.execute(stmt)
     ```
 
-  * **AsyncAttrs and awaitable_attrs:** Add the `AsyncAttrs` mixin to your models. Access lazy-loaded attributes via `instance.awaitable_attrs.relationship_name` to make the load explicit and awaitable.  
-    ```Python  
+  - **AsyncAttrs and awaitable_attrs:** Add the `AsyncAttrs` mixin to your
+    models. Access lazy-loaded attributes via
+    `instance.awaitable_attrs.relationship_name` to make the load explicit and
+    awaitable.
+
+    ```Python
     # In models.py:  
     # from sqlalchemy.ext.asyncio import AsyncAttrs  
     # class User(Base, AsyncAttrs):...
@@ -296,34 +353,63 @@ Lazy loading (accessing related attributes not yet loaded) triggers implicit I/O
     # addresses = await user.awaitable_attrs.addresses # Explicitly await load
     ```
 
-  * **`lazy="raise"` or `lazy="noload"`:** Configure relationships with `lazy="raise"` or `lazy="raise_on_sql"` to prevent accidental lazy loads during tests by raising an error, forcing explicit loading.
+  - **`lazy="raise"` or `lazy="noload"`:** Configure relationships with
+    `lazy="raise"` or `lazy="raise_on_sql"` to prevent accidental lazy loads
+    during tests by raising an error, forcing explicit loading.
 
 ## **7. Advanced Scenarios and Best Practices**
 
-* **Overriding Dependencies (Async, e.g., FastAPI):** In integration tests for frameworks like FastAPI, use `app.dependency_overrides` to inject your test-managed `AsyncSession` into request handlers.  
-* **Mocking:**  
-  * Synchronous: Use `unittest.mock.Mock` or pytest-mock's `mocker`.  
-  * Asynchronous: Use `unittest.mock.AsyncMock` (Python 3.8+) or `mocker.patch` with `AsyncMock` for async components.  
-* **Performance:**  
-  * pytest-postgresql typically manages a session-scoped PostgreSQL process or uses an existing one, which is efficient.  
-  * Function-scoped schema creation/deletion (as shown in session fixtures) provides strong isolation but adds overhead. For very large test suites, consider session-scoped schema setup combined with meticulous per-test data cleanup or transaction rollbacks.  
-  * Write efficient SQLAlchemy queries.  
-* **Focus on Application Logic:** Test *your* code, not SQLAlchemy's or PostgreSQL's internal workings. Assume the ORM and database function correctly; test how your application uses them.
+- **Overriding Dependencies (Async, e.g., FastAPI):** In integration tests for
+  frameworks like FastAPI, use `app.dependency_overrides` to inject your
+  test-managed `AsyncSession` into request handlers.
+- **Mocking:**
+  - Synchronous: Use `unittest.mock.Mock` or pytest-mock's `mocker`.
+  - Asynchronous: Use `unittest.mock.AsyncMock` (Python 3.8+) or `mocker.patch`
+    with `AsyncMock` for async components.
+- **Performance:**
+  - pytest-postgresql typically manages a session-scoped PostgreSQL process or
+    uses an existing one, which is efficient.
+  - Function-scoped schema creation/deletion (as shown in session fixtures)
+    provides strong isolation but adds overhead. For very large test suites,
+    consider session-scoped schema setup combined with meticulous per-test data
+    cleanup or transaction rollbacks.
+  - Write efficient SQLAlchemy queries.
+- **Focus on Application Logic:** Test *your* code, not SQLAlchemy's or
+  PostgreSQL's internal workings. Assume the ORM and database function
+  correctly; test how your application uses them.
 
 ## **8. Troubleshooting Common Scenarios**
 
-* **pytest-postgresql Configuration:** Ensure pytest-postgresql can find your PostgreSQL binaries or is correctly configured to use an existing server if that's your setup. Check its documentation for configuration options (e.g., via `pytest.ini`).  
-* **Driver Issues:** Ensure correct drivers (psycopg2-binary or psycopg for sync, asyncpg for async) are installed and specified in connection URLs if necessary. pytest-postgresql itself might install psycopg.  
-* **MissingGreenlet (Async):** Caused by implicit synchronous I/O (often lazy loading) in an async context. Use eager loading or `awaitable_attrs`.  
-* **Data Leakage Between Tests:** Ensure robust transaction rollback for each test (as shown in the session fixtures).  
-* **DetachedInstanceError:** Accessing attributes on an ORM object not associated with an active session. Ensure the session is active; use `expire_on_commit=False` for async tests.
+- **pytest-postgresql Configuration:** Ensure pytest-postgresql can find your
+  PostgreSQL binaries or is correctly configured to use an existing server if
+  that's your setup. Check its documentation for configuration options (e.g.,
+  via `pytest.ini`).
+- **Driver Issues:** Ensure correct drivers (psycopg2-binary or psycopg for
+  sync, asyncpg for async) are installed and specified in connection URLs if
+  necessary. pytest-postgresql itself might install psycopg.
+- **MissingGreenlet (Async):** Caused by implicit synchronous I/O (often lazy
+  loading) in an async context. Use eager loading or `awaitable_attrs`.
+- **Data Leakage Between Tests:** Ensure robust transaction rollback for each
+  test (as shown in the session fixtures).
+- **DetachedInstanceError:** Accessing attributes on an ORM object not
+  associated with an active session. Ensure the session is active; use
+  `expire_on_commit=False` for async tests.
 
 ## **9. Conclusion**
 
-Using pytest-postgresql provides a unified and robust foundation for testing SQLAlchemy applications against a real PostgreSQL database, whether your code is synchronous or asynchronous. By leveraging its instance management capabilities, you can create appropriate SQLAlchemy Engine and AsyncEngine instances. Combining this with pytest-asyncio for asynchronous tests, and employing sound practices for schema management, transaction isolation, and handling ORM features like lazy loading, allows for the development of comprehensive and reliable test suites. This approach, which does not rely on Docker, is particularly valuable for CI environments or local development where a direct PostgreSQL installation is preferred.  
+Using pytest-postgresql provides a unified and robust foundation for testing
+SQLAlchemy applications against a real PostgreSQL database, whether your code is
+synchronous or asynchronous. By leveraging its instance management capabilities,
+you can create appropriate SQLAlchemy Engine and AsyncEngine instances.
+Combining this with pytest-asyncio for asynchronous tests, and employing sound
+practices for schema management, transaction isolation, and handling ORM
+features like lazy loading, allows for the development of comprehensive and
+reliable test suites. This approach, which does not rely on Docker, is
+particularly valuable for CI environments or local development where a direct
+PostgreSQL installation is preferred.\
 **Further Resources:**
 
-* pytest-postgresql Documentation: (Search PyPI or GitHub for the latest)  
-* SQLAlchemy Documentation: https://www.sqlalchemy.org/  
-* asyncpg Documentation/Repository: https://github.com/MagicStack/asyncpg  
-* pytest-asyncio Documentation: https://pytest-asyncio.readthedocs.io/
+- pytest-postgresql Documentation: (Search PyPI or GitHub for the latest)
+- SQLAlchemy Documentation: https://www.sqlalchemy.org/
+- asyncpg Documentation/Repository: https://github.com/MagicStack/asyncpg
+- pytest-asyncio Documentation: https://pytest-asyncio.readthedocs.io/
