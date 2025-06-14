@@ -1,14 +1,17 @@
 from __future__ import annotations
 
+import os
 import typing
 from pathlib import Path
 
 import httpx
 import typer
 from textual.app import App, ComposeResult
-from textual.widgets import Button, Input, Static, TextLog
+from textual.widgets import Button, Input, Log, Static
 
-COOKIE_PATH = Path.home() / ".bournemouth_cookie"
+COOKIE_PATH = Path(
+    os.environ.get("BOURNEMOUTH_COOKIE", str(Path.home() / ".bournemouth_cookie"))
+)
 
 app = typer.Typer(help="Command line interface for Bournemouth chat")
 
@@ -44,10 +47,11 @@ async def perform_login(
 ) -> str:
     cookie = await _login_request(host, username, password)
     cookie_file.write_text(cookie)
+    cookie_file.chmod(0o600)
     return cookie
 
 
-class LoginApp(App):  # pyright: ignore[reportUntypedBaseClass]
+class LoginApp(App):  # pyright: ignore[reportUntypedBaseClass, reportMissingTypeArgument]
     def __init__(self, host: str, cookie_file: Path) -> None:
         super().__init__()
         self.host = host
@@ -62,8 +66,8 @@ class LoginApp(App):  # pyright: ignore[reportUntypedBaseClass]
     async def on_button_pressed(self, event: Button.Pressed) -> None:  # pyright: ignore[reportUnknownArgumentType]
         if event.button.id != "login":
             return
-        username = typing.cast("str", self.query_one("#user", Input).value)
-        password = typing.cast("str", self.query_one("#pass", Input).value)
+        username = typing.cast("str", self.query_one("#user", Input).value)  # pyright: ignore[reportUnnecessaryCast]
+        password = typing.cast("str", self.query_one("#pass", Input).value)  # pyright: ignore[reportUnnecessaryCast]
         status = self.query_one("#status", Static)
         try:
             await perform_login(self.host, username, password, self.cookie_file)
@@ -74,7 +78,7 @@ class LoginApp(App):  # pyright: ignore[reportUntypedBaseClass]
         await self.action_quit()
 
 
-class TokenApp(App):  # pyright: ignore[reportUntypedBaseClass]
+class TokenApp(App):  # pyright: ignore[reportUntypedBaseClass, reportMissingTypeArgument]
     def __init__(self, host: str, cookie: str) -> None:
         super().__init__()
         self.host = host
@@ -88,16 +92,17 @@ class TokenApp(App):  # pyright: ignore[reportUntypedBaseClass]
     async def on_button_pressed(self, event: Button.Pressed) -> None:  # pyright: ignore[reportUnknownArgumentType]
         if event.button.id != "save":
             return
-        token = typing.cast("str", self.query_one("#token", Input).value)
+        token = typing.cast("str", self.query_one("#token", Input).value)  # pyright: ignore[reportUnnecessaryCast]
         status = self.query_one("#status", Static)
         ok = await _token_request(self.host, self.cookie, token)
         if ok:
             status.update("Token saved")
+            await self.action_quit()
         else:
             status.update("Failed to save token")
 
 
-class ChatApp(App):  # pyright: ignore[reportUntypedBaseClass]
+class ChatApp(App):  # pyright: ignore[reportUntypedBaseClass, reportMissingTypeArgument]
     def __init__(self, host: str, cookie: str) -> None:
         super().__init__()
         self.host = host
@@ -105,12 +110,12 @@ class ChatApp(App):  # pyright: ignore[reportUntypedBaseClass]
         self.history: list[dict[str, str]] = []
 
     def compose(self) -> ComposeResult:
-        yield TextLog(id="log")
+        yield Log(id="log")
         yield Input(placeholder="Message", id="input")
 
     async def on_input_submitted(self, event: Input.Submitted) -> None:  # pyright: ignore[reportUnknownArgumentType]
-        text = typing.cast("str", event.value)
-        log = self.query_one("#log", TextLog)
+        text = typing.cast("str", event.value)  # pyright: ignore[reportUnnecessaryCast]
+        log = self.query_one("#log", Log)  # pyright: ignore[reportUnknownArgumentType]
         log.write(f"You: {text}")
         answer = await _chat_request(self.host, self.cookie, text, self.history)
         log.write(f"Assistant: {answer}")

@@ -26,6 +26,7 @@ async def test_login_saves_cookie(httpx_mock: HTTPXMock, tmp_path: Path) -> None
         "http://localhost:8000", "alice", "secret", cookie_file=cookie_file
     )
     assert cookie_file.read_text() == "abc123"
+    assert (cookie_file.stat().st_mode & 0o777) == 0o600
     req = httpx_mock.get_requests()[0]
     assert req.headers["authorization"].startswith("Basic ")
 
