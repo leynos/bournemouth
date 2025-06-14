@@ -40,7 +40,8 @@ async def test_token_posts_correctly(httpx_mock: HTTPXMock) -> None:
         url="http://localhost:8000/auth/openrouter-token",
         status_code=204,
     )
-    ok = await cli._token_request("http://localhost:8000", "abc123", "tok")  # pyright: ignore[reportPrivateUsage]
+    session = cli.Session("http://localhost:8000", "abc123")
+    ok = await cli._token_request(session, "tok")  # pyright: ignore[reportPrivateUsage]
     assert ok
     req = httpx_mock.get_requests()[0]
     assert req.headers["cookie"] == "session=abc123"
@@ -55,7 +56,8 @@ async def test_chat_sends_history(httpx_mock: HTTPXMock) -> None:
         json={"answer": "hi"},
     )
     history = [{"role": "assistant", "content": "hello"}]
-    answer = await cli._chat_request("http://localhost:8000", "abc123", "hi", history)  # pyright: ignore[reportPrivateUsage]
+    session = cli.Session("http://localhost:8000", "abc123")
+    answer = await cli._chat_request(session, "hi", history)  # pyright: ignore[reportPrivateUsage]
     assert answer == "hi"
     req = httpx_mock.get_requests()[0]
     sent = json.loads(req.content.decode())
