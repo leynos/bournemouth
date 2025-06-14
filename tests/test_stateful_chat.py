@@ -73,6 +73,7 @@ async def test_stateful_chat_creates_conversation(
         assert roles == ["user", "assistant"]
 
 
+@pytest.mark.timeout(5)
 @pytest.mark.asyncio
 async def test_stateful_chat_appends(
     app: asgi.App,
@@ -99,6 +100,7 @@ async def test_stateful_chat_appends(
         await _login(client)
         resp1 = await client.post("/chat/state", json={"message": "a"})
         conv_id = resp1.json()["conversation_id"]
+        cookie = client.cookies["session"]
 
     httpx_mock.add_response(
         method="POST",
@@ -117,8 +119,6 @@ async def test_stateful_chat_appends(
         transport=ASGITransport(app=typing.cast("typing.Any", app)),
         base_url="https://test",
     ) as client:
-        cookie = client.cookies["session"]
-        client.cookies.clear()
         client.cookies.set("session", cookie)
         resp2 = await client.post(
             "/chat/state",

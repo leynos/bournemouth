@@ -14,7 +14,7 @@ if typing.TYPE_CHECKING:
     from pytest_httpx import HTTPXMock
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio  # pyright: ignore[reportUntypedFunctionDecorator]
 async def test_login_saves_cookie(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
     cookie_file = tmp_path / "cookie"
     httpx_mock.add_response(
@@ -33,7 +33,7 @@ async def test_login_saves_cookie(httpx_mock: HTTPXMock, tmp_path: Path) -> None
     assert req.headers["authorization"].startswith("Basic ")
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio  # pyright: ignore[reportUntypedFunctionDecorator]
 async def test_token_posts_correctly(httpx_mock: HTTPXMock) -> None:
     httpx_mock.add_response(
         method="POST",
@@ -45,10 +45,13 @@ async def test_token_posts_correctly(httpx_mock: HTTPXMock) -> None:
     assert ok
     req = httpx_mock.get_requests()[0]
     assert req.headers["cookie"] == "session=abc123"
-    assert json.loads(req.content.decode()) == {"api_key": "tok"}
+    assert typing.cast(
+        "dict[str, typing.Any]",
+        json.loads(typing.cast("bytes", req.content).decode()),
+    ) == {"api_key": "tok"}
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio  # pyright: ignore[reportUntypedFunctionDecorator]
 async def test_chat_sends_history(httpx_mock: HTTPXMock) -> None:
     httpx_mock.add_response(
         method="POST",
@@ -60,7 +63,10 @@ async def test_chat_sends_history(httpx_mock: HTTPXMock) -> None:
     answer = await cli.chat_request(session, "hi", history)
     assert answer == "hi"
     req = httpx_mock.get_requests()[0]
-    sent = json.loads(req.content.decode())
+    sent = typing.cast(
+        "dict[str, typing.Any]",
+        json.loads(typing.cast("bytes", req.content).decode()),
+    )
     assert sent["message"] == "hi"
     assert sent["history"] == history
     assert req.headers["cookie"] == "session=abc123"

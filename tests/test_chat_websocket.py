@@ -35,6 +35,7 @@ async def _login(client: AsyncClient) -> str:
     return typing.cast("str", resp.cookies.get("session"))
 
 
+@pytest.mark.timeout(5)
 @pytest.mark.asyncio
 async def test_websocket_streams_chat(
     app: asgi.App, conductor: testing.ASGIConductor, httpx_mock: HTTPXMock
@@ -71,6 +72,7 @@ async def test_websocket_streams_chat(
         assert last.finished is True
 
 
+@pytest.mark.timeout(5)
 @pytest.mark.asyncio
 async def test_websocket_multiplexes_requests(
     app: asgi.App, conductor: testing.ASGIConductor, monkeypatch: pytest.MonkeyPatch
@@ -133,7 +135,7 @@ async def test_websocket_multiplexes_requests(
                 ],
             )
 
-    monkeypatch.setattr("bournemouth.resources.stream_chat_with_service", fake_stream)
+    monkeypatch.setattr("bournemouth.chat_service.stream_answer", fake_stream)
 
     async with AsyncClient(
         transport=ASGITransport(app=typing.cast("typing.Any", app)),
