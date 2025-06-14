@@ -20,8 +20,7 @@ async def _login_request(host: str, username: str, password: str) -> str:
     async with httpx.AsyncClient(base_url=host) as client:
         resp = await client.post("/login", auth=(username, password))
         resp.raise_for_status()
-        cookie = resp.cookies.get("session")
-        if not cookie:
+        if not (cookie := resp.cookies.get("session")):
             raise RuntimeError("missing session cookie")
         return cookie
 
