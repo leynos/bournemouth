@@ -1,7 +1,19 @@
 #!/usr/bin/env sh
-# Start the bournemouth API server using uv and granian.
-# Usage: scripts/start-api.sh [granian options]
-set -e
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+# Start the bournemouth API server.
+#
+# Prerequisites:
+#   - uv CLI must be installed and available on PATH
+#   - granian Python package must be installed
+#
+# Usage:
+#   scripts/start-api.sh [granian options]
+#   scripts/start-api.sh --reload
+#   scripts/start-api.sh --host 0.0.0.0 --port 8000
+#
+# The uv command executes the granian server with the application's factory
+# function. Extra arguments are passed directly to granian.
+
+set -eu
+SCRIPT_DIR="$(cd "$(dirname -- "$0")" && pwd)"
 cd "$SCRIPT_DIR/.."
-uv run granian --factory bournemouth.app:create_app "$@"
+exec uv run granian --factory bournemouth.app:create_app "$@"
