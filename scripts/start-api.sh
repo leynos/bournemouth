@@ -16,4 +16,8 @@
 set -eu
 SCRIPT_DIR="$(cd "$(dirname -- "$0")" && pwd)"
 cd "$SCRIPT_DIR/.."
+command -v uv >/dev/null 2>&1 || {
+    echo "Error: uv CLI not found" >&2
+    exit 1
+}
 exec uv run granian --factory bournemouth.app:create_app "$@"
