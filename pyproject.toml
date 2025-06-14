@@ -26,14 +26,20 @@ dev = [
   "pytest-mock",
   "pytest-httpx>=0.26",
   "freezegun>=1.4",
+  "pytest-timeout>=2.4.0",
 ]
 docs = [
   "sphinx>=5.0",
   "sphinx-rtd-theme"
 ]
 
+cli = [
+  "typer>=0.12",
+  "textual>=0.51",
+]
+
 [project.scripts]
-# placeholder for future CLI entry points
+bournemouth-chat = "bournemouth.cli:app"
 
 [build-system]
 requires = ["setuptools>=61.0", "wheel"]
@@ -92,4 +98,5 @@ banned-from = ["typing", "datetime", "collections.abc", "dataclasses"]
 [tool.pytest.ini_options]
 # Ensure asyncio fixtures create a new event loop for each test
 asyncio_default_fixture_loop_scope = "function"
+timeout = 1
 

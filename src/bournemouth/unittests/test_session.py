@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import time
+from freezegun import freeze_time
 
 from bournemouth.session import SessionManager
 
@@ -12,10 +12,11 @@ def test_cookie_roundtrip() -> None:
 
 
 def test_cookie_expiry() -> None:
-    mgr = SessionManager("secret", 1)
-    cookie = mgr.create_cookie("alice")
-    time.sleep(2)
-    assert mgr.verify_cookie(cookie) is None
+    with freeze_time() as frozen:
+        mgr = SessionManager("secret", 1)
+        cookie = mgr.create_cookie("alice")
+        frozen.tick(2)
+        assert mgr.verify_cookie(cookie) is None
 
 
 def test_cookie_bad_signature_with_different_secret() -> None:
