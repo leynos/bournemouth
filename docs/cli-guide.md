@@ -5,11 +5,11 @@ API. It requires Python 3.13 and the dependencies defined in `pyproject.toml`.
 
 ## Installation
 
-Install the project in editable mode and ensure the CLI dependencies are
-available:
+Install the project in editable mode and include the optional CLI
+dependencies:
 
 ```bash
-uv pip install -e .
+uv pip install -e . --extra cli
 ```
 
 A console script named `bournemouth-chat` will be available after installation.

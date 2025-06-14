@@ -17,8 +17,6 @@ dependencies = [
   "msgspec>=0.19,<0.20",
   "aiosqlite>=0.21.0",
   "uuid7>=0.1",
-  "typer>=0.12",
-  "textual>=0.51",
 ]
 
 [dependency-groups]
@@ -32,6 +30,11 @@ dev = [
 docs = [
   "sphinx>=5.0",
   "sphinx-rtd-theme"
+]
+
+cli = [
+  "typer>=0.12",
+  "textual>=0.51",
 ]
 
 [project.scripts]
