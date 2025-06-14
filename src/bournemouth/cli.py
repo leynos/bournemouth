@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import typing
+from contextlib import suppress
 from pathlib import Path
 
 import httpx
@@ -38,7 +39,9 @@ async def _chat_request(
         resp = await client.post("/chat", json={"message": message, "history": history})
         resp.raise_for_status()
     data = typing.cast("dict[str, typing.Any]", resp.json())
-    return typing.cast("str", data.get("answer"))
+    if "answer" not in data:
+        raise RuntimeError(f"Malformed chat response: missing 'answer' key in {data!r}")
+    return typing.cast("str", data["answer"])
 
 
 async def perform_login(
@@ -46,7 +49,9 @@ async def perform_login(
 ) -> str:
     cookie = await _login_request(host, username, password)
     cookie_file.write_text(cookie)
-    cookie_file.chmod(0o600)
+    if os.name == "posix":
+        with suppress(OSError, PermissionError):
+            cookie_file.chmod(0o600)
     return cookie
 
 
