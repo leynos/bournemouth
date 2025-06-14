@@ -17,6 +17,8 @@ dependencies = [
   "msgspec>=0.19,<0.20",
   "aiosqlite>=0.21.0",
   "uuid7>=0.1",
+  "typer>=0.12",
+  "textual>=0.51",
 ]
 
 [dependency-groups]
@@ -33,7 +35,7 @@ docs = [
 ]
 
 [project.scripts]
-# placeholder for future CLI entry points
+bournemouth-chat = "bournemouth.cli:app"
 
 [build-system]
 requires = ["setuptools>=61.0", "wheel"]
