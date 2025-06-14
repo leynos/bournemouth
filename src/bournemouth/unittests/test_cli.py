@@ -41,7 +41,7 @@ async def test_token_posts_correctly(httpx_mock: HTTPXMock) -> None:
         status_code=204,
     )
     session = cli.Session("http://localhost:8000", "abc123")
-    ok = await cli._token_request(session, "tok")  # pyright: ignore[reportPrivateUsage]
+    ok = await cli.token_request(session, "tok")
     assert ok
     req = httpx_mock.get_requests()[0]
     assert req.headers["cookie"] == "session=abc123"
@@ -57,7 +57,7 @@ async def test_chat_sends_history(httpx_mock: HTTPXMock) -> None:
     )
     history = [{"role": "assistant", "content": "hello"}]
     session = cli.Session("http://localhost:8000", "abc123")
-    answer = await cli._chat_request(session, "hi", history)  # pyright: ignore[reportPrivateUsage]
+    answer = await cli.chat_request(session, "hi", history)
     assert answer == "hi"
     req = httpx_mock.get_requests()[0]
     sent = json.loads(req.content.decode())

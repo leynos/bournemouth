@@ -57,7 +57,7 @@ async def _login_request(session: Session, username: str, password: str) -> str:
     return cookie
 
 
-async def _token_request(session: Session, token: str) -> bool:
+async def token_request(session: Session, token: str) -> bool:
     resp = await _post(
         session,
         "/auth/openrouter-token",
@@ -66,7 +66,7 @@ async def _token_request(session: Session, token: str) -> bool:
     return resp.status_code == 204
 
 
-async def _chat_request(
+async def chat_request(
     session: Session, message: str, history: list[dict[str, str]]
 ) -> str:
     resp = await _post(
@@ -143,7 +143,7 @@ class ChatApp(App):  # pyright: ignore[reportUntypedBaseClass, reportMissingType
         text = typing.cast("str", event.value)  # pyright: ignore[reportUnnecessaryCast]
         log = self.query_one("#log", Log)  # pyright: ignore[reportUnknownArgumentType]
         log.write(f"You: {text}")
-        answer = await _chat_request(self.session, text, self.history)
+        answer = await chat_request(self.session, text, self.history)
         log.write(f"Assistant: {answer}")
         self.history.append({"role": "user", "content": text})
         self.history.append({"role": "assistant", "content": answer})
@@ -174,7 +174,7 @@ def login(
 async def _token_form(session: Session, *, token: str) -> str | None:
     if session.cookie is None:
         raise RuntimeError("missing session cookie")
-    ok = await _token_request(session, token)
+    ok = await token_request(session, token)
     if not ok:
         raise RuntimeError("token save failed")
     return "Token saved"
@@ -215,8 +215,8 @@ def chat(
 
 
 __all__ = [
-    "_chat_request",
-    "_token_request",
     "app",
+    "chat_request",
     "perform_login",
+    "token_request",
 ]
