@@ -82,7 +82,7 @@ interacting services and modules, illustrated below:
   to enable auditability. A versioning scheme in the graph allows tracing how
   knowledge evolved over time.
 
-### Table 1: Major Components and Technology Choices
+### Major Components and Technology Choices
 
 - **Web API Layer:** Falcon (Python 3.13) serves HTTP endpoints with minimal
   overhead.

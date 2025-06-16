@@ -332,8 +332,8 @@ These structs will be used to parse the JSON body of HTTP error responses (e.g.,
 
 ### Table 1: Key `msgspec` Data Models for OpenRouter API
 
-| Struct Name | Key Fields | API Concept | Notes | | --- | --- | --- | --- | |
-`ChatMessage` | `role: Literal["system","user","assistant","tool"]`,
+| Struct Name | Key Fields | API Concept | Notes | | ----------- | ---------- |
+----------- | ----- | `role: Literal["system","user","assistant","tool"]`,
 `content: str | list[ContentPart]`, `name: str | None`,
 `tool_call_id: str | None` | Entry in the `messages` array | Use list form for
 multimodal input; `tool_call_id` only with role="tool" | |
