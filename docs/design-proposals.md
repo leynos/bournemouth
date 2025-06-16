@@ -1,14 +1,5 @@
 # Design Proposal
 
-Thanks, that's exactly the context I needed. I’ll put together a proposed
-architecture for a cloud-deployed, novelty-based knowledge graph memory system
-with retrieval-augmented generation (RAG), tuned for multiple authenticated
-users and eventual consistency. It will emphasise auditability, accuracy, and
-latency, using Python 3.13, Falcon, and open source tools like JAX, Airflow, and
-Argo where relevant.
-
-I’ll let you know as soon as the design is ready for review.
-
 ## Cloud-Deployable Knowledge Graph Memory & RAG System Architecture
 
 ## Introduction
