@@ -51,12 +51,11 @@ parameters:
 - `base_url: Optional[str]`: Defaults to `https://openrouter.ai/api/v1/`.1
   Allows users to override if necessary, for instance, for testing against a
   mock server or if OpenRouter changes its API prefix.
-- `timeout_config: Optional`: An optional `httpx.Timeout` instance. If not
-  provided, `httpx`'s default timeouts will apply (5 seconds for all operations
-  3).
-- `default_headers: Optional]`: Optional custom headers to be included with
-  every request. These will be merged with standard headers like `Authorization`
-  and `Content-Type`.
+- `timeout_config: Optional[httpx.Timeout]`: Optional timeout settings. If not
+  provided, `httpx` defaults (5 seconds for all operations) will apply.
+- `default_headers: Optional[dict[str, str]]`: Optional custom headers to be
+  included with every request. These merge with standard headers like
+  `Authorization` and `Content-Type`.
 
 Upon initialization, these parameters will be stored as instance attributes. The
 internal `httpx.AsyncClient` (`_client`) will be initialized to `None` at this
@@ -165,8 +164,9 @@ API documentation, particularly the detailed TypeScript type definitions.8
     `List[ContentPart]` for user role with multimodal input 8)
   - `name: Optional[str] = None` 8
   - `tool_call_id: Optional[str] = None` (Required if `role` is "tool" 8)
-  - `tool_calls: Optional] = None` (Present if `role` is "assistant" and tool
-    calls were made; `ToolCall` defined under Response Structs 8)
+  - `tool_calls: Optional[List[ToolCall]] = None` (Present if `role` is
+    "assistant" and tool calls were made; `ToolCall` defined under Response
+    Structs)
 - `FunctionDescription(msgspec.Struct)`:
   - `name: str` 8
   - `description: Optional[str] = None` 8
@@ -203,9 +203,9 @@ API documentation, particularly the detailed TypeScript type definitions.8
   - `repetition_penalty: Optional[float] = None` (Range: (0, 2\]) 8
   - `stop: Optional[Union[str, List[str]]] = None` 8
   - `seed: Optional[int] = None` 2
-  - `tools: Optional] = None` 8
-  - `tool_choice: Optional = None` 8
-  - `response_format: Optional = None` 8
+  - `tools: Optional[List[Tool]] = None`
+  - `tool_choice: Optional[ToolChoice] = None`
+  - `response_format: Optional[ResponseFormat] = None`
   - `user: Optional[str] = None` (Identifier for end-users to help detect abuse)
     2
   - OpenRouter-specific parameters:
@@ -215,8 +215,8 @@ API documentation, particularly the detailed TypeScript type definitions.8
     - `route: Optional[Literal["fallback"]] = None` 8
     - `provider: Optional[ProviderPreferences] = None` (Provider routing
       preferences) 2
-    - `usage: Optional] = None` (e.g., `{"include": True}` to include usage in
-      response) 1
+    - `usage: Optional[dict[str, Any]] = None` (for example,
+      `{\"include\": True}` to include usage information in the response)
 
 ### 3.3. Response `Struct`s
 
@@ -234,13 +234,13 @@ These structs will model the data received from the OpenRouter API.
   responses)
   - `role: str` (Typically "assistant" 8)
   - `content: Optional[str] = None` 8
-  - `tool_calls: Optional] = None` 8
+  - `tool_calls: Optional[List[ToolCall]] = None`
 - `ResponseDelta(msgspec.Struct)`: (For the `delta` field in streaming response
   chunks)
   - `role: Optional[str] = None` 8
   - `content: Optional[str] = None` 8
-  - `tool_calls: Optional] = None` (The structure of streamed tool calls needs
-    careful handling as they might be delivered in chunks 8)
+  - `tool_calls: Optional[List[ToolCall]] = None` (The structure of streamed
+    tool calls might be delivered in chunks)
 - `ChatCompletionChoice(msgspec.Struct)`: (For choices in non-streaming
   responses)
   - `index: int` (Typically 0, though the API schema indicates `choices` is an
@@ -301,8 +301,8 @@ These structs will model error responses from the OpenRouter API.
   - `message: str` 8
   - `param: Optional[str] = None`
   - `type: Optional[str] = None` (e.g., "invalid_request_error")
-  - `metadata: Optional] = None` (For additional details like provider errors or
-    moderation flags 8)
+  - `metadata: Optional[dict[str, Any]] = None` (for provider errors or
+    moderation flags)
 - `OpenRouterErrorResponse(msgspec.Struct, forbid_unknown_fields=False)`:
   - `error: OpenRouterAPIErrorDetails` 8
 
@@ -785,10 +785,10 @@ The client should offer flexibility through various configuration options.
     headers will be merged with the standard `Authorization` and `Content-Type`
     headers.
   - For per-request customization, client methods (like
-    `create_chat_completion`) can accept an optional `headers: Optional] = None`
-    parameter. These headers would be merged with (and potentially override)
-    client-level default headers for that specific request. `httpx.Client`
-    methods support this pattern.3
+    `create_chat_completion`) can accept an optional
+    `headers: Optional[dict[str, str]] = None` parameter. These headers would be
+    merged with (and potentially override) client-level default headers for that
+    specific request. `httpx.Client` methods support this pattern.3
   - The documentation should mention OpenRouter-recognized optional headers like
     `HTTP-Referer` (to identify the application on openrouter.ai) and `X-Title`
     (to set/modify the application's title for discovery).8
@@ -806,11 +806,11 @@ The client should offer flexibility through various configuration options.
 Exposing these underlying `httpx` configurations provides necessary flexibility.
 While common options like `api_key` and `timeout_config` can be direct
 parameters of `OpenRouterAsyncClient`, a more general approach for less common
-`httpx` settings could be an optional `httpx_client_options: Optional]`
-parameter. This dictionary would be unpacked and passed to the
-`httpx.AsyncClient` constructor, allowing advanced users to fine-tune aspects
-like HTTP/2 settings, connection limits, or event hooks without cluttering the
-`OpenRouterAsyncClient`'s primary API.
+`httpx` settings could be an optional
+`httpx_client_options: Optional[dict[str, Any]]` parameter. This dictionary
+would be unpacked and passed to the `httpx.AsyncClient` constructor, allowing
+advanced users to fine-tune aspects like HTTP/2 settings, connection limits, or
+event hooks without cluttering the `OpenRouterAsyncClient`'s primary API.
 
 ## 8. Illustrative Usage Examples
 

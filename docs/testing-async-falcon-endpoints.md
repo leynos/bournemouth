@@ -143,9 +143,8 @@ that the test function is a coroutine and should be executed within an event
 loop, allowing the use of the await keyword for calling other coroutines.\
 A fundamental example of an asynchronous test function is:
 
-Python
-
-import pytest\
+```python
+import pytest
 import asyncio
 
 \# Assume my_async_function is an async function to be tested\
@@ -157,6 +156,7 @@ return "expected_value"
 async def test_my_async_function():\
 result = await my_async_function()\
 assert result == "expected_value"
+```
 
 This structure, demonstrated in various forms, forms the basis for all
 asynchronous tests.
@@ -183,20 +183,21 @@ like Uvicorn is explicitly required.\
 The setup for using httpx.AsyncClient with ASGITransport typically looks like
 this:
 
-Python
-
-import pytest\
-from httpx import ASGITransport, AsyncClient\
-\# from my_falcon_app import app # Your Falcon ASGI application instance
+```python
+import pytest
+from httpx import ASGITransport, AsyncClient
+# from my_falcon_app import app  # Your Falcon ASGI application instance
 
 @pytest.mark.asyncio\
 async def test_root_endpoint(app): # Assuming 'app' is provided by a fixture\
-async with AsyncClient(\
-transport=ASGITransport(app=app), base_url="<http://test%22%5C> ) as ac:\
-response = await ac.get("/")\
-\# Assertions follow
+async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+) as ac:
+    response = await ac.get("/")
+# Assertions follow
+```
 
-The base_url="<http://test>" is a mandatory parameter for HTTPX, serving as a
+The `base_url="http://test"` argument is mandatory for HTTPX, serving as a
 placeholder even when ASGITransport is used, as HTTPX uses it for internal
 routing logic.1\
 It is important to distinguish between Falcon's synchronous testing client
@@ -274,18 +275,16 @@ return app
 @pytest.mark.asyncio\
 async def test_get_things(client_app):\
 async with AsyncClient(transport=ASGITransport(app=client_app),
-base_url="<http://test>") as ac:\
-response = await ac.get("/things")\
-assert response.status_code == falcon.HTTP_200\
+base_url="<http://test>") as ac: response = await ac.get("/things") assert
+response.status_code == falcon.HTTP_200\
 assert response.json() == {'message': 'Hello, async world!'}
 
 @pytest.mark.asyncio\
 async def test_post_things(client_app):\
 payload = {"name": "My Thing", "value": 42}\
 async with AsyncClient(transport=ASGITransport(app=client_app),
-base_url="<http://test>") as ac:\
-response = await ac.post("/things", json=payload)\
-assert response.status_code == falcon.HTTP_201\
+base_url="<http://test>") as ac: response = await ac.post("/things",
+json=payload) assert response.status_code == falcon.HTTP_201\
 assert response.json() == {'received': payload}
 
 These tests demonstrate how to use httpx.AsyncClient with ASGITransport to send
@@ -486,9 +485,8 @@ Falcon app\
 \# The httpx.AsyncClient itself is an async context manager.\
 \# Its \_\_aenter\_\_ and \_\_aexit\_\_ methods handle setup and teardown.\
 async with AsyncClient(transport=ASGITransport(app=app),
-base_url="<http://test>") as client:\
-yield client\
-\# The client is automatically closed here upon exiting the 'async with' block.
+base_url="<http://test>") as client: yield client # The client is automatically
+closed here upon exiting the 'async with' block.
 
 This pattern is crucial for robust resource management in asynchronous tests.
 

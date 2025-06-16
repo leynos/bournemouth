@@ -570,9 +570,9 @@ class ItemResource:
             resp.media = item # Serialized by msgspec
         else:
             resp.status_code = falcon.HTTP_NOT_FOUND
-            resp.media = {"message": "Item not found"}
+        resp.media = {"message": "Item not found"}
 
-```python
+````
 
 Working directly with `msgspec.Struct` instances (like `item_create_data`)
 significantly improves code readability and maintainability compared to
@@ -586,7 +586,6 @@ related to misspelled dictionary keys or incorrect data types.
 Falcon, when configured with `msgspec` media handlers, will automatically
 serialize `msgspec.Struct` instances assigned to `resp.media`.
 
-
 ```python
 # (Continuing from ItemResource example)
 # In on_post method, after creating the item:
@@ -594,7 +593,7 @@ serialize `msgspec.Struct` instances assigned to `resp.media`.
 # 'new_item' is an instance of the 'Item' msgspec.Struct.
 # Falcon's response processing will use the configured msgspec handler
 # (e.g., json_handler_optimized) to serialize 'new_item' into JSON.
-```python
+```
 
 This direct assignment (`resp.media = struct_instance`) is a powerful
 simplification. The developer does not need to manually call
@@ -607,8 +606,7 @@ aligning with Falcon's philosophy of minimizing boilerplate.
 
 Consider a `PUT` request to update an existing item:
 
-
-```python
+````python
 class ItemUpdate(msgspec.Struct, forbid_unknown_fields=True):
     name: Optional[str] = None
     price: Optional[str] = None # Using Optional for partial updates
@@ -765,10 +763,10 @@ class CommandResource:
                 resp.media = {"error": "Unknown or malformed command structure."}
                 resp.status_code = falcon.HTTP_BAD_REQUEST
         
-        if resp.status_code is None: # Default to 200 OK if not set by a case
+        if resp.status_code is None:  # Default to 200 OK if not set by a case
             resp.status_code = falcon.HTTP_OK
 
-```python
+````
 
 This use of `match/case` provides a more declarative and often safer way to
 handle polymorphic data or complex conditional logic based on data shape,
@@ -783,7 +781,6 @@ structure.
 
 Pattern matching can extend to nested `Structs` and include guards
 (`if condition`) for more complex logic.
-
 
 ```python
 # Continuing with UserCreate and Address Structs from earlier:
@@ -800,12 +797,11 @@ Pattern matching can extend to nested `Structs` and include guards
 #         print(f"Minor user detected: {name}")
 #     case _:
 #         print("Processing generic user data.")
-```python
+```
 
 ### 6.4. Comparing `match/case` with Traditional Imperative Querying
 
 Consider processing the `UpdateCommand` without `match/case`:
-
 
 ```python
 # Traditional if/elif for UpdateCommand logic
@@ -822,7 +818,7 @@ Consider processing the `UpdateCommand` without `match/case`:
 #     else:
 #         resp.media = {"message": f"Executing UPDATE: item_id {id_val} (no changes specified)."}
 # #... other elif isinstance(command_data, CreateCommand) etc.
-```python
+```
 
 The `match/case` version is often more readable because it co-locates the
 structure being matched with the variables being bound and the conditions
@@ -859,7 +855,6 @@ complete Falcon application. This example defines `msgspec.Structs` for a "Book"
 resource, implements the `MsgspecMiddleware`, sets up error handling, configures
 `msgspec`-based JSON media handling, and includes a Falcon resource with
 `on_get` and `on_post` methods.
-
 
 ```python
 import falcon
@@ -1005,7 +1000,7 @@ if __name__ == '__main__':
     with make_server('', 8000, app) as httpd:
         print("Serving on port 8000...")
         httpd.serve_forever()
-```python
+```
 
 This complete, runnable example serves as a practical demonstration of how the
 individual components—media handlers, middleware, error handlers, `Struct`
@@ -1152,4 +1147,3 @@ associated with manual data parsing, validation, and serialization, this
 combination allows development teams to focus more on the unique business logic
 and value proposition of their applications. This can lead to a more enjoyable
 development experience and faster delivery of features.
-````
