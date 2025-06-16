@@ -15,7 +15,7 @@ ______________________________________________________________________
 | 1   | **Traefik** (or NGINX Ingress)                 | TLS termination, OIDC ↔ IdP, rate-limit        | single binary, well-worn Helm chart                                                                    |
 | 2   | **chat-api** (**Python 3.13 + Falcon**)        | Handles REST/WS chat, does RAG & novelty test  | Falcon adds `<1 ms`/router overhead in benchmarks ([falconframework.org][1])                           |
 | 3   | **neo4j** (single-node, Community)             | Knowledge-graph + native vector index          | graph *and* ANN search in one store ([Graph Database & Analytics][2], [Graph Database & Analytics][3]) |
-| 4   | **postgres** (13 + `pgvector`)                 | users + auth tables + audit log; fallback ANN | keeps auth/PII out of the graph; pgvector is OSS ([GitHub][4])                                         |
+| 4   | **postgres** (13 + `pgvector`)                 | users \+ auth tables + audit log; fallback ANN | keeps auth/PII out of the graph; pgvector is OSS ([GitHub][4])                                         |
 | 5   | **worker** (same image as chat-api)            | Background queue + cron for batch KG writes    | avoids a full Airflow/Argo install; scale to 0 when idle                                               |
 
 A **monorepo**, one Dockerfile, two deployable images (API / worker) keep

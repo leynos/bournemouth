@@ -332,26 +332,18 @@ These structs will be used to parse the JSON body of HTTP error responses (e.g.,
 
 ### Table 1: Key `msgspec` Data Models for OpenRouter API
 
-| Struct Name | Key Fields | API Concept | Notes | | ----------- | ---------- |
------------ | ----- | `role: Literal["system","user","assistant","tool"]`,
-`content: str | list[ContentPart]`, `name: str | None`,
-`tool_call_id: str | None` | Entry in the `messages` array | Use list form for
-multimodal input; `tool_call_id` only with role="tool" | |
-`ChatCompletionRequest` | `model: str`, `messages: list[ChatMessage]`,
-`stream: bool = False`, `temperature: float | None`, `tools: list[Tool] | None`
-| Body for `/chat/completions` | `model` and `messages` required; other fields
-tune generation | | `ChatCompletionResponse` | `id: str`,
-`choices: list[ChatCompletionChoice]`, `usage: UsageStats | None`, `model: str`
-| Non-streaming response object | Full model reply | | `StreamChunk` |
-`id: str`, `choices: list[ChatCompletionChoice]`, `usage: UsageStats | None`,
-`model: str` | SSE chunk payload | `usage` usually in the final chunk | |
-`OpenRouterErrorResponse` | `error: OpenRouterAPIErrorDetails` | Error response
-body | Structured error details | | `UsageStats` | `prompt_tokens: int`,
-`completion_tokens: int`, `total_tokens: int` | Token usage data | Returned in
-non-streaming responses and the final SSE chunk | This table serves as an
-essential reference, bridging the OpenRouter API's JSON structures with the
-Python client's typed data models, thereby enhancing developer understanding and
-reducing integration errors.
+| Struct Name             | Key Fields                                                              | API Concept                                                             | Notes                                                                   |
+| ----------------------- | ----------------------------------------------------------------------- | ----------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| ChatMessage             | role, content, name, tool_call_id                                       | entry in messages array                                                 | Use list form for multimodal input; tool_call_id only with role="tool". |
+| ChatCompletionRequest   | model, messages, stream, temperature, tools                             | body for /chat/completions                                              | model and messages required; other fields tune generation.              |
+| ChatCompletionResponse  | id, choices, usage, model                                               | non-streaming response                                                  | full model reply.                                                       |
+| StreamChunk             | id, choices, usage, model                                               | SSE chunk payload                                                       | usage usually appears in final chunk.                                   |
+| OpenRouterErrorResponse | error                                                                   | error response body                                                     | structured error details.                                               |
+| UsageStats              | prompt_tokens, completion_tokens, total_tokens                          | token usage data                                                        | returned in non-streaming responses and the final SSE chunk.            |
+
+This table serves as an essential reference, bridging the OpenRouter API's JSON
+structures with the Python client's typed data models, thereby enhancing
+developer understanding and reducing integration errors.
 
 ## 4. API Endpoint Interactions
 
@@ -912,12 +904,12 @@ ease of use.
   async def run_streaming_example(client: OpenRouterAsyncClient):
       print("\n--- Streaming Example ---")
       stream_request_payload = ChatCompletionRequest(
-          model="openai/gpt-4o-mini", # Example model [18]
-          messages=,
+          model="openai/gpt-4o-mini",  # Example model [18]
+          messages=[ChatMessage(role="user", content="Hello!")],
           stream=True,
-          max_tokens=150
+          max_tokens=150,
       )
-      full_response_content =
+      full_response_content = []
       try:
           print("Assistant (streaming): ", end="", flush=True)
           final_usage_stats = None
