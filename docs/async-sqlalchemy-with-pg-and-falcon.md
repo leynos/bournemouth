@@ -40,7 +40,7 @@ asynchronous database driver; for PostgreSQL, asyncpg is the recommended choice
 due to its performance and feature set.6\
 A typical engine setup for PostgreSQL with asyncpg is as follows:
 
-Python
+```python
 
 from sqlalchemy.ext.asyncio import create_async_engine\
 from sqlalchemy.pool import AsyncAdaptedQueuePool
@@ -56,6 +56,7 @@ pool_recycle=3600, # Recycle connections every hour\
 pool_pre_ping=True, # Check connection liveness\
 echo=False # Set to True for SQL logging in development\
 )
+```
 
 6\
 The DATABASE_URL string uses the postgresql+asyncpg:// scheme to specify the
@@ -84,29 +85,14 @@ fundamental for reliable asynchronous database interactions.\
 Several key parameters govern the behavior of this pool:\
 **Table 1: create_async_engine Key Pooling Parameters**
 
-| Parameter | Description | Typical Value/Range | Impact & Best Practice | |
-:---- | :---- | :---- | :---- | | pool_size | The number of connections to keep
-persistently in the pool.9 | 5-20 (application-dependent) | Sets the baseline
-for available connections. Too small can lead to waiting; too large can strain
-database resources. Tune based on load tests and database capacity. | |
-max_overflow | The maximum number of additional connections that can be opened
-beyond pool_size under load.9 | 10-50 (application-dependent) | Allows handling
-of temporary spikes in demand. Total connections = pool_size + max_overflow.
-Ensure the database can handle this total. | | pool_recycle | Time in seconds
-after which a connection is automatically recycled (closed and replaced).9 |
-1800-7200 (30-120 minutes) | Prevents issues with stale connections due to
-network or database timeouts. Should be less than any server-side connection
-timeout. | | pool_pre_ping | If True, issues a lightweight "ping" (e.g., SELECT
-1\) on connection checkout to test liveness.9 | True / False | Recommended as
-True for production to avoid errors from dead connections, especially with long
-pool_recycle times. Adds minor overhead but improves reliability. | |
-pool_timeout | Number of seconds to wait for a connection from the pool before
-raising a timeout error.10 | 30 (default) | Prevents indefinite blocking if the
-pool is exhausted. Adjust based on application tolerance for waiting. | |
-echo_pool | If True or a logging level string (e.g., "debug"), logs connection
-pool activity.13 | False (production), True or "debug" (development) | Useful
-for debugging pool behavior, such as checkouts, checkins, and recycling. Can be
-verbose for production. |
+| Parameter                                         | Description                                                                                     | Typical Value/Range                               | Impact & Best Practice                                                                                                                                               |
+| ------------------------------------------------- | ----------------------------------------------------------------------------------------------- | ------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| pool_size                                         | The number of connections to keep persistently in the pool.9                                    | 5-20 (application-dependent)                      | Sets the baseline for available connections. Too small can lead to waiting; too large can strain database resources. Tune based on load tests and database capacity. |
+| max_overflow                                      | The maximum number of additional connections that can be opened beyond pool_size under load.9   | 10-50 (application-dependent)                     | Allows handling of temporary spikes in demand. Total connections = pool_size + max_overflow. Ensure the database can handle this total.                              |
+| pool_recycle                                      | Time in seconds after which a connection is automatically recycled (closed and replaced).9      | 1800-7200 (30-120 minutes)                        | Prevents issues with stale connections due to network or database timeouts. Should be less than any server-side connection timeout.                                  |
+| pool_pre_ping                                     | If True, issues a lightweight "ping" (e.g., SELECT 1) on connection checkout to test liveness.9 | True / False                                      | Recommended as True for production to avoid errors from dead connections, especially with long pool_recycle times. Adds minor overhead but improves reliability.     |
+| pool_timeout                                      | Number of seconds to wait for a connection from the pool before raising a timeout error.10      | 30 (default)                                      | Prevents indefinite blocking if the pool is exhausted. Adjust based on application tolerance for waiting.                                                            |
+| echo_pool                                         | If True or a logging level string (e.g., "debug"), logs connection pool activity.13             | False (production), True or "debug" (development) | Useful for debugging pool behavior, such as checkouts, checkins, and recycling. Can be verbose for production.                                                       |
 
 7\
 Properly configuring these parameters is essential for balancing performance,
@@ -118,7 +104,7 @@ Once the AsyncEngine is configured, an async_sessionmaker is used to create a
 factory for AsyncSession instances.7 The AsyncSession is the primary interface
 for ORM operations in an asynchronous context.
 
-Python
+```python
 
 from sqlalchemy.ext.asyncio import async_sessionmaker, AsyncSession
 
@@ -129,6 +115,7 @@ class\_=AsyncSession,\
 expire_on_commit=False,\
 autoflush=False\
 )
+```
 
 9\
 Several parameters are critical when configuring the async_sessionmaker:
@@ -156,22 +143,21 @@ Several parameters are critical when configuring the async_sessionmaker:
   This ensures that all I/O operations are consciously awaited and managed
   within the asynchronous flow of the application.
 
-**Table 2: async_sessionmaker Configuration Options**
+### Table 2: async_sessionmaker Configuration Options
 
 | Parameter | Description | Recommended Setting (Async) | Rationale for Async |
-| :---- | :---- | :---- | :---- | | bind | The AsyncEngine to which new sessions
-will be bound. | engine instance | Essential for connecting sessions to the
-database. | | class\_ | The class of session to be generated. | AsyncSession |
-Ensures that sessions are compatible with asynchronous operations. | |
-expire_on_commit | If True, all instances are expired after commit(). | False |
-Prevents attributes from being expired post-commit, avoiding potential unawaited
-lazy-loading I/O that can cause errors or block the event loop in an async
-context.7 | | autoflush | If True, pending changes are flushed before queries. |
-False | Provides more explicit control over when database I/O occurs via await
-session.flush(), preventing unexpected blocking or unawaited operations that
-could arise from automatic flushes.9 |
+| ---------------- | ---------------------------------------------------- |
+--------------------------- |
+\------------------------------------------------------------------------------------
+| | bind | The AsyncEngine to which new sessions will be bound. | engine
+instance | Essential for connecting sessions to the database. | | class\_ | The
+class of session to be generated. | AsyncSession | Ensures sessions are
+compatible with asynchronous operations. | | expire_on_commit | If True, all
+instances are expired after commit(). | False | Prevents unawaited lazy-loading
+I/O that can cause errors or block the event loop. | | autoflush | If True,
+pending changes are flushed before queries. | False | Provides explicit control
+over when database I/O occurs via `await session.flush()`. |
 
-9\
 Finally, during application shutdown, it is crucial to dispose of the engine
 using await engine.dispose(). This call gracefully closes all underlying
 database connections in the pool.7
@@ -223,7 +209,7 @@ process_request and async def process_response methods.\
 The middleware class will take the async_session_factory (created in the
 previous section) as an argument during initialization.
 
-Python
+````python
 
 import falcon\
 from sqlalchemy.ext.asyncio import AsyncSession\
@@ -234,7 +220,7 @@ class SQLAlchemySessionManager:\
 def \_\_init\_\_(self, async_session_factory):\
 self.async_session_factory = async_session_factory
 
-```
+```python
 async def process\_request(self, req, resp):  
     \# Create a new session for each request and attach it to req.context  
     req.context.session \= self.async\_session\_factory()  
@@ -264,7 +250,7 @@ async def process\_response(self, req, resp, resource, req\_succeeded):
             raise \# Re-raise  
         finally:  
             await session.close() \# Always close the session to return connection to pool
-```
+````
 
 9\
 The transaction handling within process_response is crucial. The example above
@@ -279,7 +265,7 @@ to avoid attempting to commit or roll back an already concluded transaction.\
 The middleware instance is passed to the falcon.asgi.App during its
 instantiation.
 
-Python
+```python
 
 \# In your application setup file (e.g., app.py or main.py)\
 \# 'async_session_factory' is the async_sessionmaker() instance configured
@@ -296,12 +282,13 @@ app = falcon.asgi.App(middleware=[session_middleware])
 \# id: Mapped[int] = mapped_column(primary_key=True, index=True)\
 \# name: Mapped[str]\
 \# email: Mapped[str] = mapped_column(unique=True)
+```
 
 18\
 3\. Using the Session in Falcon Responders:\
 Responders can access the session via req.context.session.
 
-Python
+```python
 
 from sqlalchemy import select\
 \# Assuming User model is defined as above and session is provided by middleware\
@@ -316,8 +303,6 @@ try:\
 \# async with session.begin():\
 \# result = await session.execute(select(User).where(User.id == user_id))\
 \# user = result.scalar_one_or_none()
-
-```
         \# Simpler approach if middleware handles top-level transaction:  
         result \= await session.execute(select(User).where(User.id \== user\_id))  
         user \= result.scalar\_one\_or\_none()
@@ -384,7 +369,7 @@ memory at once, SQLAlchemy provides streaming capabilities:
 - async for obj in (await session.stream(stmt)).scalars():: Iterates over scalar
   results (e.g., ORM objects) in a streaming fashion.7
 
-Python
+```python
 
 from sqlalchemy import select\
 \# Assuming User is an ORM model and session is an active AsyncSession\
@@ -407,7 +392,7 @@ async for name in async_result.scalars():\
 \# Process each name as it streams in\
 print(name)
 
-20
+```
 
 ### **B. Data Modification: add(), add_all(), delete()**
 
@@ -428,7 +413,7 @@ needed before the transaction fully commits, ensuring that no other concurrent
 task interacts with stale data. Explicitly awaiting flush() provides control
 over when these intermediate state updates occur.
 
-Python
+```python
 
 \# from.models import User # Assuming User model
 
@@ -462,8 +447,7 @@ await session.delete(user_to_delete) # Stage the delete\
 \# Commit is typically handled by middleware or at the end of request logic.\
 return True\
 return False
-
-20
+```
 
 ### **C. Efficient Relationship Loading: selectinload, joinedload in an Async Context**
 
@@ -482,7 +466,7 @@ strategies are essential to mitigate this.23
   simultaneously. It is often suitable for many-to-one or one-to-one
   relationships.24
 
-Python
+```python
 
 from sqlalchemy.orm import selectinload, joinedload\
 \# from.models import User, Address # Assuming User and Address models with a
@@ -493,6 +477,8 @@ stmt_users_with_addresses = select(User).options(selectinload(User.addresses))
 
 \# Example: Get an address and eagerly load its associated user (many-to-one)\
 stmt_address_with_user = select(Address).options(joinedload(Address.user))
+
+```
 
 20\
 In an asynchronous context, minimizing the number of await points (database
@@ -511,23 +497,22 @@ volume are critical factors.\
 Another useful strategy is lazy='raise' or the raiseload() option, which can be
 used to prevent accidental lazy loads by raising an exception if an unloaded
 attribute is accessed.24 This is particularly helpful in async code to ensure
-all data access is explicit and awaited.\
-**Table 3: Async Relationship Loading Strategies: A Quick Comparison**
+all data access is explicit and awaited.\\
 
-| Strategy | Async Mechanism | No. of DB Round Trips (await points) | Typical
-Use Case | Async Considerations | | :---- | :---- | :---- | :---- | :---- | |
-selectinload | Issues a second SELECT... WHERE id IN (...) | 2 (or more for
-nested) | Collections (one-to-many, many-to-many) | Generally efficient for
-collections. Avoids Cartesian products. The two awaits are non-blocking. | |
-joinedload | Uses JOIN in the primary SELECT | 1 | Scalar references
-(many-to-one, one-to-one) | Single await. Can create Cartesian products with
-collections, potentially increasing data transfer. Best for to-one
-relationships. | | lazy='raise' or raiseload() | Raises InvalidRequestError on
-access of unloaded attribute | 0 (until access attempt) | Preventing accidental
-lazy loads | Crucial in async to ensure all I/O is explicit and awaited. Helps
-identify missing eager loads during development. |
+### Table 3: Async Relationship Loading Strategies: A Quick Comparison
 
-20
+| Strategy | Async Mechanism | DB Round Trips | Typical Use Case | Async
+Considerations |
+|---------|----------------|---------------|-----------------|---------------------|
+| selectinload | Issues a second `SELECT ... WHERE id IN (...)` | 2 (or more for
+nested) | Collections (one-to-many, many-to-many) | Efficient for collections
+and avoids Cartesian products. Awaits are non-blocking. | | joinedload | Uses
+JOIN in the primary `SELECT` | 1 | Scalar references (many-to-one, one-to-one) |
+Single await. Can create Cartesian products with collections, increasing data
+transfer. | | lazy='raise' or raiseload() | Raises `InvalidRequestError` when
+accessing an unloaded attribute | 0 (until access attempt) | Preventing
+accidental lazy loads | Ensures all I/O is explicit and awaited. Helps spot
+missing eager loads during development. |
 
 ## **V. Asynchronous Transaction Control**
 
@@ -549,7 +534,7 @@ atomically:
   rolled back (await session.rollback() is implicitly called), and the exception
   is re-raised.
 
-Python
+```python
 
 \# Assuming session is an active AsyncSession and User is an ORM model\
 \# from.models import User
@@ -565,6 +550,8 @@ else:\
 raise ValueError(f"User with ID {user_id} not found.")\
 \# Transaction is committed here if no exceptions were raised.\
 \# If ValueError or any other exception occurred, transaction is rolled back.
+
+```
 
 20\
 It's important to distinguish async with session.begin(): from async with
@@ -588,18 +575,22 @@ ensuring they are awaited.8 The custom Falcon middleware detailed in Section
 III.B is an example where explicit commit/rollback logic is implemented in the
 process_response method.
 
-Python
+```python
 
 \# Caution: Manual transaction management requires careful error handling.\
 \# from.models import User\
 try:\
-\# user = User(name="Example", email="example@example.com")\
-\# session.add(user)\
-#... other operations...\
+\# user = User(name="Example", email="<example@example.com>")\
+\# session.add(user)\\
+
+# ... other operations...
+
 await session.commit() # Explicit commit\
 except Exception:\
 await session.rollback() # Explicit rollback on error\
 raise
+
+```
 
 ### **C. Handling Nested Transactions (Savepoints) with await session.begin_nested()**
 
@@ -610,7 +601,7 @@ or rolled back without affecting the entire outer transaction.\
 begin_nested() also returns a transaction object that can be used as an
 asynchronous context manager.
 
-Python
+```python
 
 \# from.models import User, AuditLog
 
@@ -624,7 +615,6 @@ session.add(user)\
 else:\
 user.name = user_data["name"]
 
-```
     await session.flush() \# Ensure user ID is available for audit log
 
     try:  
@@ -641,7 +631,8 @@ user.name = user_data["name"]
         \# If this was await session.rollback(), it would rollback the savepoint.  
         \# The context manager handles this rollback automatically on exception.
 
-\# Outer transaction commits (user and potentially audit log if successful) or rolls back if an error occurred in the outer block.
+\# Outer transaction commits (user and potentially audit log if successful)
+or rolls back if an error occurred in the outer block.
 ```
 
 30\
@@ -688,7 +679,7 @@ It's also beneficial to be aware of asyncpg-specific exceptions (e.g., from
 asyncpg.exceptions) if more granular error handling related to the driver is
 needed.11
 
-Python
+```python
 
 from sqlalchemy.exc import IntegrityError, NoResultFound, OperationalError\
 import asyncpg # For asyncpg specific exceptions\
@@ -734,6 +725,8 @@ connection error\
 \# # Re-raise to be handled by Falcon's global error handlers or for further
 logging\
 \# raise falcon.HTTPInternalServerError(title="An unexpected error occurred.")
+
+```
 
 31
 
@@ -933,7 +926,7 @@ test isolation via the rollback of the encompassing connection-level
 transaction.\
 A conceptual conftest.py for such a setup:
 
-Python
+```python
 
 \# conftest.py\
 import pytest\
@@ -992,7 +985,6 @@ join_transaction_mode="create_savepoint" # Key for transactional tests\
 )\
 async_sess = async_session_factory()
 
-```
 \# This event listener ensures that after a test "commits" (releases a savepoint),  
 \# a new savepoint is started if the session is used further within the same test.  
 \# This is important because session.commit() in "create\_savepoint" mode  
@@ -1000,7 +992,8 @@ async_sess = async_session_factory()
 \# unless a new savepoint is begun.  
 @event.listens\_for(async\_sess.sync\_session, "after\_transaction\_end")  
 def restart\_savepoint(session, transaction):  
-    if transaction.nested and not transaction.\_parent.nested: \# Check if it was a top-level savepoint for this session  
+    if transaction.nested and not transaction.\_parent.nested:
+    \# Check if it was a top-level savepoint for this session  
         \# Ensure the connection is still valid and in a transaction  
         if db\_connection.is\_active and not db\_connection.in\_transaction():  
              \# This state should ideally not be reached if connection fixture manages transaction properly  
@@ -1046,7 +1039,7 @@ app.dependency_overrides. Common strategies include:
 A robust approach involves creating a test-specific application instance that
 uses a test middleware:
 
-Python
+```python
 
 \# conftest.py (extending previous example)\
 \# from my_app.main import create_app_with_routes # Assuming you have a function
@@ -1061,7 +1054,6 @@ async def process_request(self, req, resp):\
 req.context.session = db_session\
 \# The db_session fixture already handles the transaction/savepoint start
 
-```
     async def process\_response(self, req, resp, resource, req\_succeeded):  
         \# The db\_session fixture and its underlying connection fixture handle rollback  
         pass
@@ -1081,7 +1073,7 @@ return falcon.testing.TestClient(test\_app)
 \# async def test_get_specific_user(client, db_session: AsyncSession):\
 \# # Setup: Create a user directly using the test session\
 \# # from my_app.models import User\
-\# # test_user = User(name="Test User", email="test@example.com")\
+\# # test_user = User(name="Test User", email="<test@example.com>")\
 \# # db_session.add(test_user)\
 \# # await db_session.commit() # This commits to the savepoint
 
@@ -1148,7 +1140,7 @@ Python web services.\
 - Deeper exploration of asyncio patterns and best practices for concurrent
   programming in Python.1
 
-#### **Works cited**
+### Works cited
 
 01. asyncio — Asynchronous I/O — Python 3.13.3 documentation, accessed on June
     1, 2025,

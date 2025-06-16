@@ -1,3 +1,5 @@
+# Design Proposal
+
 Thanks, that's exactly the context I needed. I’ll put together a proposed
 architecture for a cloud-deployed, novelty-based knowledge graph memory system
 with retrieval-augmented generation (RAG), tuned for multiple authenticated
@@ -7,7 +9,7 @@ Argo where relevant.
 
 I’ll let you know as soon as the design is ready for review.
 
-# Cloud-Deployable Knowledge Graph Memory & RAG System Architecture
+## Cloud-Deployable Knowledge Graph Memory & RAG System Architecture
 
 ## Introduction
 
@@ -89,72 +91,22 @@ interacting services and modules, illustrated below:
   to enable auditability. A versioning scheme in the graph allows tracing how
   knowledge evolved over time.
 
-*Table 1: Major Components and Technology Choices*
+### Table 1: Major Components and Technology Choices\*
 
-| Component | Technology (Choice) | Purpose | | -------------------------------
-| -------------------------------------------------- |
-\-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-| | **Web API Layer** | **Falcon (Python 3.13)** | HTTP API for chatbot
-integration; handles requests, auth, and session management. Falcon is
-lightweight and async-friendly, ideal for low-latency APIs. | | **Concurrency
-Model** | **PEP 734 Subinterpreters** | Utilize Python subinterpreters to
-isolate user sessions or tasks. Each interpreter has its own GIL, enabling
-parallel execution on multiple cores for concurrent user requests without
-threading conflicts. | | **Knowledge Graph Store** | **Neo4j (Graph DB)** or
-similar | Stores the **knowledge graph memory** – nodes (entities) and edges
-(relations), with properties for timestamps, versions, etc. Neo4j supports graph
-queries (Cypher) and can index text and vectors for fast retrieval. Open-source
-alternatives: Apache AGE (Postgres extension), ArangoDB, or even an RDF
-triplestore. | | **Vector Index** (optional) | **Built-in Neo4j index or
-Faiss/PGVector** | For semantic similarity search. Neo4j 5+ supports vector
-indexing for nodes. Alternatively, use an external vector store (FAISS library
-or PostgreSQL with pgvector) to retrieve relevant documents or facts by
-embeddings. | | **LLM Generation** | **Retrieval-Augmented Generation** pipeline
-| Not a single tool, but the process: use an LLM (could be an open-source model
-or API) to generate answers using retrieved context. Integration via Python
-(e.g., HuggingFace Transformers or OpenAI API). In this architecture, the LLM
-call is made only after retrieving knowledge, to keep the number of LLM calls
-minimal for latency reasons. | | **Novelty Detection Module** | **Custom (NLP +
-ML)** | Code that decides if new information is novel enough to store. May use
-NLP (named entity recognition, keyword comparison) and embedding similarity to
-existing knowledge. Possibly implemented with spaCy or transformer models for
-NER, and embedding distance calculations (which could leverage JAX for speed). |
-| **Entity & Relation Extractor** | **NLP Pipeline** (spaCy, Transformer-based
-NER/RE) | Analyzes text to extract structured data. For each novel piece of text
-(user utterance or document), it identifies entities (people, places, etc.) and
-relations between them. Could use pre-trained models or prompt an LLM to output
-triples. Runs either in real-time for critical info or in batch for accumulated
-data. | | **Orchestration** | **Apache Airflow** *or* **Argo Workflows** |
-Schedules and runs workflows for background tasks. **Airflow**: define DAGs in
-Python for tasks like daily knowledge consolidation, periodic re-computation
-(with time-based scheduling and dependency management). **Argo**:
-Kubernetes-native workflows (each step in a container), good for parallel jobs
-on K8s. Both handle retries, monitoring, etc. | | **Parallel Compute Framework**
-| **JAX** and/or **Dask** | **JAX**: for numeric-heavy operations on
-CPU/GPU/TPU. JAX can compile and run vectorized computations with accelerators
-and parallelize across devices via `pmap` (useful for computing large batches of
-embeddings or similarity scores quickly). **Dask**: for general Python
-parallelism across a cluster. Dask’s distributed scheduler can manage complex
-task graphs with low overhead (~1ms per task) and scale computations to many
-workers, useful for data preprocessing, handling many simultaneous extraction
-tasks, etc. | | **Persistence (Relational)** | **PostgreSQL** (primary RDBMS) |
-Stores metadata: user accounts, authentication info, and audit logs of
-interactions or memory changes. Also could store unstructured conversation
-history if needed (though large texts might be in object storage instead).
-Chosen for reliability and open-source availability. | | **Persistence
-(Embedded)** | **SQLite / DuckDB** | Used for lightweight storage in certain
-components: e.g., caching recent conversation data per user in an embedded DB
-for quick local access, or performing analytical queries on logs using DuckDB’s
-fast columnar engine. These are file-based and require no separate service,
-making them useful for on-the-fly analysis or local session state that can later
-be merged into the main DB. | | **Monitoring & Logging** | **Audit Logs +
-Versioning** | Not a single product, but practice: Each update to the KG is
-logged (could be in Postgres or a log file). The knowledge graph itself
-implements **temporal versioning** – for example, edges have `t_valid`
-(start/end timestamps) to indicate when a fact was true. This way, updates don’t
-delete info but mark it as expired, preserving history. Tools like
-Prometheus/Grafana can be added for monitoring performance metrics (latency,
-throughput) in the K8s deployment. |
+| Component                       | Technology (Choice)                                | Purpose                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| ------------------------------- | -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Web API Layer**               | **Falcon (Python 3.13)**                           | HTTP API for chatbot integration; handles requests, auth, and session management. Falcon is lightweight and async-friendly, ideal for low-latency APIs.                                                                                                                                                                                                                                                                                                                                                                                |
+| **Concurrency Model**           | **PEP 734 Subinterpreters**                        | Utilize Python subinterpreters to isolate user sessions or tasks. Each interpreter has its own GIL, enabling parallel execution on multiple cores for concurrent user requests without threading conflicts.                                                                                                                                                                                                                                                                                                                            |
+| **Knowledge Graph Store**       | **Neo4j (Graph DB)** or similar                    | Stores the **knowledge graph memory** – nodes (entities) and edges (relations), with properties for timestamps, versions, etc. Neo4j supports graph queries (Cypher) and can index text and vectors for fast retrieval. Open-source alternatives: Apache AGE (Postgres extension), ArangoDB, or even an RDF triplestore.                                                                                                                                                                                                               |
+| **Vector Index** (optional)     | **Built-in Neo4j index or Faiss/PGVector**         | For semantic similarity search. Neo4j 5+ supports vector indexing for nodes. Alternatively, use an external vector store (FAISS library or PostgreSQL with pgvector) to retrieve relevant documents or facts by embeddings.                                                                                                                                                                                                                                                                                                            |
+| **LLM Generation**              | **Retrieval-Augmented Generation** pipeline        | Not a single tool, but the process: use an LLM (could be an open-source model or API) to generate answers using retrieved context. Integration via Python (e.g., HuggingFace Transformers or OpenAI API). In this architecture, the LLM call is made only after retrieving knowledge, to keep the number of LLM calls minimal for latency reasons.                                                                                                                                                                                     |
+| **Novelty Detection Module**    | **Custom (NLP + ML)**                              | Code that decides if new information is novel enough to store. May use NLP (named entity recognition, keyword comparison) and embedding similarity to existing knowledge. Possibly implemented with spaCy or transformer models for NER, and embedding distance calculations (which could leverage JAX for speed).                                                                                                                                                                                                                     |
+| **Entity & Relation Extractor** | **NLP Pipeline** (spaCy, Transformer-based NER/RE) | Analyzes text to extract structured data. For each novel piece of text (user utterance or document), it identifies entities (people, places, etc.) and relations between them. Could use pre-trained models or prompt an LLM to output triples. Runs either in real-time for critical info or in batch for accumulated data.                                                                                                                                                                                                           |
+| **Orchestration**               | **Apache Airflow** *or* **Argo Workflows**         | Schedules and runs workflows for background tasks. **Airflow**: define DAGs in Python for tasks like daily knowledge consolidation, periodic re-computation (with time-based scheduling and dependency management). **Argo**: Kubernetes-native workflows (each step in a container), good for parallel jobs on K8s. Both handle retries, monitoring, etc.                                                                                                                                                                             |
+| **Parallel Compute Framework**  | **JAX** and/or **Dask**                            | **JAX**: for numeric-heavy operations on CPU/GPU/TPU. JAX can compile and run vectorized computations with accelerators and parallelize across devices via `pmap` (useful for computing large batches of embeddings or similarity scores quickly). **Dask**: for general Python parallelism across a cluster. Dask’s distributed scheduler can manage complex task graphs with low overhead (~1ms per task) and scale computations to many workers, useful for data preprocessing, handling many simultaneous extraction tasks, etc.   |
+| **Persistence (Relational)**    | **PostgreSQL** (primary RDBMS)                     | Stores metadata: user accounts, authentication info, and audit logs of interactions or memory changes. Also could store unstructured conversation history if needed (though large texts might be in object storage instead). Chosen for reliability and open-source availability.                                                                                                                                                                                                                                                      |
+| **Persistence (Embedded)**      | **SQLite / DuckDB**                                | Used for lightweight storage in certain components: e.g., caching recent conversation data per user in an embedded DB for quick local access, or performing analytical queries on logs using DuckDB’s fast columnar engine. These are file-based and require no separate service, making them useful for on-the-fly analysis or local session state that can later be merged into the main DB.                                                                                                                                         |
+| **Monitoring & Logging**        | **Audit Logs + Versioning**                        | Not a single product, but practice: Each update to the KG is logged (could be in Postgres or a log file). The knowledge graph itself implements **temporal versioning** – for example, edges have `t_valid` (start/end timestamps) to indicate when a fact was true. This way, updates don’t delete info but mark it as expired, preserving history. Tools like Prometheus/Grafana can be added for monitoring performance metrics (latency, throughput) in the K8s deployment.                                                        |
 
 ## Web API Service and Concurrency Model
 
@@ -491,52 +443,35 @@ event-driven if we want to consolidate.
   Neo4j’s dump or write certain subgraphs to file) for backup and potential
   rollback.
 
-The **table below** summarizes the update strategies based on novelty level:
-
-| Novelty Level | Example Scenario | Action | Frequency/Latency | Pros |
-Cons/Considerations | | -------------------------------------- |
-\-----------------------------------------------------------------------------------------------------------------------------------------
-|
-\---------------------------------------------------------------------------------------------------------------------------------------------------------------------
-| -------------------------------------------- |
-\--------------------------------------------------------------------------------------------------------------------------------------
-|
-\---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-| | **High Novelty** (surprise) | User mentions a **new entity** or a fact
-contradicting stored info (e.g., new job, new pet). | *Immediate update* –
-trigger extraction and graph upsert right away (asynchronously, but within
-seconds). | Real-time / On-demand. | Memory is up-to-date almost instantly; user
-can query new info immediately; ensures critical knowledge is not missed. |
-Slight overhead per message; many rapid updates could spike load (mitigate with
-rate-limiting or combine very close-in-time updates). | | **Moderate Novelty** |
-User provides additional detail or a new relation among known entities (e.g.,
-“Alice (known) is now Bob’s mentor”). | *Queued for batch* – record the info in
-a temp store or log; process in the next batch cycle (e.g., within an hour). |
-Within 1 hour (configurable batch interval). | Amortizes cost by processing
-multiple items together; can use optimized batch NLP (e.g., process 100
-sentences in parallel with Dask). | Knowledge graph not immediately updated
-(user’s follow-up question may not find it until batch runs); need to ensure
-medium-term info isn’t forgotten in the interim (perhaps also store in
-short-term memory). | | **Low Novelty** (redundant or trivial) | User repeats
-something already known (“As I said, my car is a Tesla”) or provides info not
-useful for long-term memory (casual chitchat). | *No immediate action* –
-possibly log frequency, but do not update KG (or update a counter on an existing
-node). These may be handled by a periodic cleanup if needed. | N/A (maybe
-reviewed in offline analysis). | Avoids cluttering the graph with duplicates or
-irrelevant data; saves computation. | Risk of ignoring something important if
-detection is imperfect. Needs careful tuning to not miss slightly rephrased new
-info (false negatives). |
-
 This strategy embodies a **novelty-driven memory update policy** – an idea that
-the system’s memory should evolve primarily when truly new knowledge is
-encountered, much like human memory encodes new events and not every redundant
-detail. It’s worth noting that novelty detection itself can be an *open-world
-problem*; the system might encounter entities not just new to the user but
-completely unknown globally. In such cases, external knowledge bases or web
-search could be invoked to verify or enrich the information (though that’s
-beyond our current scope, it could be a future extension: e.g., if a user
-mentions a new movie, the system might search a movie database to get more
-details for the KG).
+
+- **High Novelty (surprise)**
+
+  - *Action:* Immediate update via extraction and graph upsert.
+  - *Frequency/Latency:* Real-time or on demand.
+  - *Pros:* Memory stays current; user queries reflect new info quickly.
+  - *Cons:* Overhead per message; bursty updates may need rate limiting.
+
+- **Moderate Novelty**
+
+  - *Action:* Queued for batch processing (e.g., within an hour).
+  - *Pros:* Batching amortizes cost; optimized NLP can be used.
+  - *Cons:* Graph not immediately updated; ensure medium-term info isn't lost.
+
+- **Low Novelty (redundant or trivial)**
+
+  - *Action:* No immediate update; maybe log frequency or update counters.
+  - *Pros:* Avoids cluttering the graph with irrelevant data.
+  - *Cons:* Detection mistakes could drop important info. the system’s memory
+    should evolve primarily when truly new knowledge is encountered, much like
+    human memory encodes new events and not every redundant detail. It’s worth
+    noting that novelty detection itself can be an *open-world problem*; the
+    system might encounter entities not just new to the user but completely
+    unknown globally. In such cases, external knowledge bases or web search
+    could be invoked to verify or enrich the information (though that’s beyond
+    our current scope, it could be a future extension: e.g., if a user mentions
+    a new movie, the system might search a movie database to get more details
+    for the KG).
 
 ## Retrieval-Augmented Generation (RAG) Pipeline
 
@@ -578,7 +513,7 @@ are:
    user’s question into the language model for answer generation. This could be
    done via a prompt like:
 
-   ```
+   ```text
    System: Here are some known facts: "User has a dog named Fido. User bought their car at SuperCars Dealership." 
    User: What's my dog's name and where did I buy my car?
    Assistant: 

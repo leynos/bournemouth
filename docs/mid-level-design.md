@@ -529,7 +529,16 @@ prompt.)*
   - Interacts with Postgres via SQLAlchemy: e.g.,
 
     ```python
-    session.add(KnowledgeLog(user_id=user_id, entity="Alice", relation="SIBLING_OF", object="Bob", timestamp=datetime.utcnow(), source_text="Alice is Bob's sister."))
+    session.add(
+        KnowledgeLog(
+            user_id=user_id,
+            entity="Alice",
+            relation="SIBLING_OF",
+            object="Bob",
+            timestamp=datetime.utcnow(),
+            source_text="Alice is Bob's sister.",
+        )
+    )
     session.commit()
     ```
 
@@ -1112,14 +1121,17 @@ new fact is learned:
 
     - It reads the payload: user_id=User123, text="My cat Fluffy had surgery on
       her leg."
+
     - It logs "Processing knowledge update for User123: 'My cat Fluffy had
       surgery...'"
+
     - Runs NER on the text. Suppose NER finds two entities: "Fluffy" (with label
       PERSON or ANIMAL – if we have a custom model it might not label "Fluffy"
       as an animal by default since it's a name, but context "my cat" helps; we
       might custom-handle "my cat X" patterns), and possibly "leg" (which might
       not be a named entity, likely not). It might identify "surgery" as a noun
       but not a named entity. So key new entity is "Fluffy".
+
     - RE step: We might not have a sophisticated relation extraction here.
       However, from "my cat Fluffy", we can infer a relation "Fluffy is a cat
       owned by [User]." If we model the user in the KG, we could create a node
@@ -1129,14 +1141,25 @@ new fact is learned:
       name). So we might create (Fluffy)-[:IS_A]->(CatSpecies) if we had a
       taxonomy. But maybe too complex for MVP. We at least know Fluffy is an
       entity of interest.
-    - The worker constructs Cypher queries to add Fluffy. It might do:
-      `MERGE (f:Pet {name:"Fluffy", user_id:"User123"}) ON CREATE SET f.species="cat", f.created_at=..., f.source="chat message 123";`
+
+      - The worker constructs Cypher queries to add Fluffy. It might do:
+
+        ```cypher
+        MERGE (f:Pet {name:"Fluffy", user_id:"User123"})
+          ON CREATE SET
+            f.species = "cat",
+            f.created_at = ...,
+            f.source = "chat message 123";
+        ```
+
       If we have a node for the user or a concept "cat", it might also MERGE
       those relationships. It also logs to Postgres: Insert into AuditLog:
       (user_id=User123, action="KG_UPDATE", detail="Added entity Fluffy (Pet)")
       with timestamp.
+
     - The worker commits these changes to Neo4j and Postgres. Now the knowledge
       graph has a new node "Fluffy" belonging to User123.
+
     - It then marks the Celery task as completed (acknowledges it).
 
 12. **Subsequent Query Usage:** Later, if the user asks a related question,

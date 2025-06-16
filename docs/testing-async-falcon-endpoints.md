@@ -192,12 +192,11 @@ from httpx import ASGITransport, AsyncClient\
 @pytest.mark.asyncio\
 async def test_root_endpoint(app): # Assuming 'app' is provided by a fixture\
 async with AsyncClient(\
-transport=ASGITransport(app=app), base_url="http://test"\
-) as ac:\
+transport=ASGITransport(app=app), base_url="<http://test%22%5C> ) as ac:\
 response = await ac.get("/")\
 \# Assertions follow
 
-The base_url="http://test" is a mandatory parameter for HTTPX, serving as a
+The base_url="<http://test>" is a mandatory parameter for HTTPX, serving as a
 placeholder even when ASGITransport is used, as HTTPX uses it for internal
 routing logic.1\
 It is important to distinguish between Falcon's synchronous testing client
@@ -243,7 +242,7 @@ async def on_get(self, req, resp):\
 resp.media = {'message': 'Hello, async world!'}\
 resp.status = falcon.HTTP_200
 
-```
+```python
 async def on\_post(self, req, resp):  
     """Handles POST requests"""  
     \# For POST requests, the request body is typically read asynchronously  
@@ -275,7 +274,7 @@ return app
 @pytest.mark.asyncio\
 async def test_get_things(client_app):\
 async with AsyncClient(transport=ASGITransport(app=client_app),
-base_url="http://test") as ac:\
+base_url="<http://test>") as ac:\
 response = await ac.get("/things")\
 assert response.status_code == falcon.HTTP_200\
 assert response.json() == {'message': 'Hello, async world!'}
@@ -284,7 +283,7 @@ assert response.json() == {'message': 'Hello, async world!'}
 async def test_post_things(client_app):\
 payload = {"name": "My Thing", "value": 42}\
 async with AsyncClient(transport=ASGITransport(app=client_app),
-base_url="http://test") as ac:\
+base_url="<http://test>") as ac:\
 response = await ac.post("/things", json=payload)\
 assert response.status_code == falcon.HTTP_201\
 assert response.json() == {'received': payload}
@@ -364,7 +363,7 @@ response = await conductor.get('/some_other_endpoint') # Assuming this route
 exists\
 assert response.status_code == 200
 
-```
+```python
     \# For streaming endpoints (conceptual, actual iteration depends on endpoint):  
     \# async with await conductor.simulate\_get\_stream('/events') as result:  
     \#     events\_received \=  
@@ -486,8 +485,8 @@ async def async_test_client(app): # Assuming 'app' is a fixture providing the
 Falcon app\
 \# The httpx.AsyncClient itself is an async context manager.\
 \# Its \_\_aenter\_\_ and \_\_aexit\_\_ methods handle setup and teardown.\
-async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test")
-as client:\
+async with AsyncClient(transport=ASGITransport(app=app),
+base_url="<http://test>") as client:\
 yield client\
 \# The client is automatically closed here upon exiting the 'async with' block.
 
@@ -730,13 +729,14 @@ from src.app_with_service import app_svc # Your Falcon ASGI app
 
 @pytest.fixture\
 def client_svc(event_loop): # event_loop fixture from pytest-asyncio\
-return AsyncClient(transport=ASGITransport(app=app_svc), base_url="http://test")
+return AsyncClient(transport=ASGITransport(app=app_svc),
+base_url="<http://test>")
 
 @pytest.mark.asyncio\
 async def test_get_item_with_mocked_service(client_svc, mocker):\
 mocked_service_data = "Mocked data for item_789"
 
-```
+```python
 \# Patch the 'fetch\_data' method of the 'service\_instance'  
 \# The target for patching is 'src.app\_with\_service.service\_instance.fetch\_data'  
 \# because that's where 'fetch\_data' is looked up when ServiceResource calls it.  
@@ -768,16 +768,13 @@ target.
 To further clarify the distinction, the following table compares key features of
 Mock and AsyncMock:
 
-| Feature | unittest.mock.Mock | unittest.mock.AsyncMock (Python 3.8+ or
-asyncmock library) | | :---- | :---- | :---- | | **Suitable for** | Synchronous
-functions/methods | Asynchronous functions/methods (async def) | | **Return type
-when called** | Regular Python object (or configured) | An awaitable (typically
-a coroutine) | | **return_value attribute** | The direct value returned by the
-mock. | The value the awaitable (coroutine) resolves to when awaited. | |
-**Usage with await** | TypeError: object Mock can't be used in 'await'
-expression | Correctly awaits and yields the resolved value. | | **Primary Use
-Case** | Mocking synchronous dependencies. | Mocking asynchronous dependencies.
-|
+| Feature                     | unittest.mock.Mock                                            | unittest.mock.AsyncMock (Python 3.8+ or asyncmock library)    |
+| :-------------------------- | ------------------------------------------------------------- | ------------------------------------------------------------- |
+| **Suitable for**            | Synchronous functions/methods                                 | Asynchronous functions/methods (async def)                    |
+| **Return type when called** | Regular Python object (or configured)                         | An awaitable (typically a coroutine)                          |
+| **return_value attribute**  | The direct value returned by the mock.                        | The value the awaitable (coroutine) resolves to when awaited. |
+| **Usage with await**        | TypeError: object Mock can't be used in 'await' expression    | Correctly awaits and yields the resolved value.               |
+| **Primary Use Case**        | Mocking synchronous dependencies.                             | Mocking asynchronous dependencies.                            |
 
 This table underscores why AsyncMock is essential for correctly simulating the
 behavior of asynchronous dependencies.
@@ -892,29 +889,33 @@ from src.app_with_hooks import app_hooks
 @pytest.fixture(scope="module")\
 def hooked_app_client(event_loop): # event_loop from pytest-asyncio\
 return AsyncClient(transport=ASGITransport(app=app_hooks),
-base_url="http://test")
+base_url="<http://test>")
 
-@pytest.mark.asyncio\
-async def test_protected_resource_no_token(hooked_app_client):\
-response = await hooked_app_client.get("/protected-info")\
-assert response.status_code == falcon.HTTP_UNAUTHORIZED\
-response_json = response.json()\
-assert response_json["title"] == "Authentication required"
+```python
+@pytest.mark.asyncio
+async def test_protected_resource_no_token(hooked_app_client):
+    response = await hooked_app_client.get("/protected-info")
+    assert response.status_code == falcon.HTTP_UNAUTHORIZED
+    response_json = response.json()
+    assert response_json["title"] == "Authentication required"
 
-@pytest.mark.asyncio\
-async def test_protected_resource_invalid_token(hooked_app_client):\
-headers = {"Authorization": "Bearer invalid-token"}\
-response = await hooked_app_client.get("/protected-info", headers=headers)\
-assert response.status_code == falcon.HTTP_UNAUTHORIZED
 
-@pytest.mark.asyncio\
-async def test_protected_resource_valid_token(hooked_app_client):\
-headers = {"Authorization": "Bearer secret-token-123"}\
-response = await hooked_app_client.get("/protected-info", headers=headers)\
-assert response.status_code == falcon.HTTP_OK\
-response_json = response.json()\
-assert response_json["data"] == "This is sensitive data."\
-assert response_json["user"]["id"] == "user-xyz"
+@pytest.mark.asyncio
+async def test_protected_resource_invalid_token(hooked_app_client):
+    headers = {"Authorization": "Bearer invalid-token"}
+    response = await hooked_app_client.get("/protected-info", headers=headers)
+    assert response.status_code == falcon.HTTP_UNAUTHORIZED
+
+
+@pytest.mark.asyncio
+async def test_protected_resource_valid_token(hooked_app_client):
+    headers = {"Authorization": "Bearer secret-token-123"}
+    response = await hooked_app_client.get("/protected-info", headers=headers)
+    assert response.status_code == falcon.HTTP_OK
+    response_json = response.json()
+    assert response_json["data"] == "This is sensitive data."
+    assert response_json["user"]["id"] == "user-xyz"
+```
 
 This testing pattern, adapted from synchronous examples and using
 httpx.AsyncClient 1, effectively validates the behavior of the asynchronous
@@ -1020,7 +1021,7 @@ self.shutdown_complete = False\
 \# In a real scenario, this might be an actual connection pool object\
 self.db_connection_info = None
 
-```
+```python
 async def process\_startup(self, scope, event):  
     \# Simulate initializing a database connection pool  
     self.db\_connection\_info \= "fake\_db\_pool\_initialized"  
@@ -1088,7 +1089,7 @@ assert not db_middleware_instance.startup_complete\
 assert not db_middleware_instance.shutdown_complete\
 assert db_middleware_instance.db_connection_info is None
 
-```
+````python
 async with testing.ASGIConductor(app\_mw) as conductor:  
     \# After entering context, process\_startup should have run  
     assert db\_middleware\_instance.startup\_complete  
@@ -1104,7 +1105,7 @@ async with testing.ASGIConductor(app\_mw) as conductor:
 assert db\_middleware\_instance.startup\_complete \# Still true  
 assert db\_middleware\_instance.shutdown\_complete  
 assert db\_middleware\_instance.db\_connection\_info is None \# Cleaned up
-```
+```python
 
 This example demonstrates how ASGIConductor facilitates testing the full
 lifecycle of ASGI middleware, including the propagation of state from
@@ -1200,7 +1201,7 @@ async def test_operation_raises_specific_exception(mocker, async_test_client):\
 mocker.patch('path.to.some_utility_that_might_fail_async',
 side_effect=ValueError("Simulated problem"))
 
-```
+```python
 \# If testing that the resource correctly translates this to a Falcon error:  
 response \= await async\_test\_client.get("/some\_endpoint\_that\_uses\_utility")  
 assert response.status\_code \== falcon.HTTP\_INTERNAL\_SERVER\_ERROR  
@@ -1212,7 +1213,7 @@ assert "Simulated problem" in response.json().get("description", "")
 \#  
 \# with pytest.raises(TypeError, match="Specific type error"):  
 \#    await my\_raw\_async\_function()
-```
+```python
 
 This is particularly useful for testing custom error handling logic within
 responders, hooks, or middleware, or for verifying that unexpected errors are
@@ -1340,7 +1341,7 @@ For further information, the official documentation for Falcon (particularly its
 ASGI and testing sections), pytest, pytest-asyncio, and HTTPX are invaluable
 resources.
 
-#### **Works cited**
+### Works cited
 
 1. Async Tests - FastAPI, accessed on June 1, 2025,
    [https://fastapi.tiangolo.com/advanced/async-tests/](https://fastapi.tiangolo.com/advanced/async-tests/)
@@ -1356,3 +1357,4 @@ resources.
    [https://falcon.readthedocs.io/en/stable/api/hooks.html](https://falcon.readthedocs.io/en/stable/api/hooks.html)
 6. Middleware — Falcon 4.0.2 documentation, accessed on June 1, 2025,
    [https://falcon.readthedocs.io/en/stable/api/middleware.html](https://falcon.readthedocs.io/en/stable/api/middleware.html)
+````
