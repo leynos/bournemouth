@@ -440,8 +440,8 @@ graph-backed RAG system. The workflow is:
    returned vector(s).
 2. **Upsert nodes** into Neo4j with an `embedding` property (as a list of
    floats), making sure a vector index is configured for that property (e.g.
-   using
-   `CREATE VECTOR INDEX ... OPTIONS {vector.dimensions: ..., vector.similarity_function: ...}`).
+   using `CREATE VECTOR INDEX ... OPTIONS {vector.dimensions: ...,`
+   `vector.similarity_function: ...}`).
 3. **Query by similarity** using `db.index.vector.queryNodes(...)` to fetch
    relevant nodes and their similarity scores.
 4. Use the results (e.g. node content) as context for your LLM or downstream

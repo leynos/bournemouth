@@ -1,4 +1,4 @@
-# Design for a Comprehensive Asynchronous OpenRouter.ai Completions API Client in Python using `msgspec` and `httpx`
+# Asynchronous OpenRouter Completions Client with msgspec and httpx
 
 ## 1. Introduction
 
@@ -51,12 +51,11 @@ parameters:
 - `base_url: Optional[str]`: Defaults to `https://openrouter.ai/api/v1/`.1
   Allows users to override if necessary, for instance, for testing against a
   mock server or if OpenRouter changes its API prefix.
-- `timeout_config: Optional`: An optional `httpx.Timeout` instance. If not
-  provided, `httpx`'s default timeouts will apply (5 seconds for all operations
-  3).
-- `default_headers: Optional]`: Optional custom headers to be included with
-  every request. These will be merged with standard headers like `Authorization`
-  and `Content-Type`.
+- `timeout_config: Optional[httpx.Timeout]`: Optional timeout settings. If not
+  provided, `httpx` defaults (5 seconds for all operations) will apply.
+- `default_headers: Optional[dict[str, str]]`: Optional custom headers to be
+  included with every request. These merge with standard headers like
+  `Authorization` and `Content-Type`.
 
 Upon initialization, these parameters will be stored as instance attributes. The
 internal `httpx.AsyncClient` (`_client`) will be initialized to `None` at this
@@ -79,9 +78,7 @@ protocol.
   derived from the api_key. This method will return self, allowing the client
   instance to be used within the async with block.
 
-  Python
-
-  ```
+  ```python
   # Example snippet for __aenter__
   # async def __aenter__(self):
   #     self._client = httpx.AsyncClient(
@@ -167,8 +164,9 @@ API documentation, particularly the detailed TypeScript type definitions.8
     `List[ContentPart]` for user role with multimodal input 8)
   - `name: Optional[str] = None` 8
   - `tool_call_id: Optional[str] = None` (Required if `role` is "tool" 8)
-  - `tool_calls: Optional] = None` (Present if `role` is "assistant" and tool
-    calls were made; `ToolCall` defined under Response Structs 8)
+  - `tool_calls: Optional[List[ToolCall]] = None` (Present if `role` is
+    "assistant" and tool calls were made; `ToolCall` defined under Response
+    Structs)
 - `FunctionDescription(msgspec.Struct)`:
   - `name: str` 8
   - `description: Optional[str] = None` 8
@@ -205,9 +203,9 @@ API documentation, particularly the detailed TypeScript type definitions.8
   - `repetition_penalty: Optional[float] = None` (Range: (0, 2\]) 8
   - `stop: Optional[Union[str, List[str]]] = None` 8
   - `seed: Optional[int] = None` 2
-  - `tools: Optional] = None` 8
-  - `tool_choice: Optional = None` 8
-  - `response_format: Optional = None` 8
+  - `tools: Optional[List[Tool]] = None`
+  - `tool_choice: Optional[ToolChoice] = None`
+  - `response_format: Optional[ResponseFormat] = None`
   - `user: Optional[str] = None` (Identifier for end-users to help detect abuse)
     2
   - OpenRouter-specific parameters:
@@ -217,8 +215,8 @@ API documentation, particularly the detailed TypeScript type definitions.8
     - `route: Optional[Literal["fallback"]] = None` 8
     - `provider: Optional[ProviderPreferences] = None` (Provider routing
       preferences) 2
-    - `usage: Optional] = None` (e.g., `{"include": True}` to include usage in
-      response) 1
+    - `usage: Optional[dict[str, Any]] = None` (for example,
+      `{\"include\": True}` to include usage information in the response)
 
 ### 3.3. Response `Struct`s
 
@@ -236,13 +234,13 @@ These structs will model the data received from the OpenRouter API.
   responses)
   - `role: str` (Typically "assistant" 8)
   - `content: Optional[str] = None` 8
-  - `tool_calls: Optional] = None` 8
+  - `tool_calls: Optional[List[ToolCall]] = None`
 - `ResponseDelta(msgspec.Struct)`: (For the `delta` field in streaming response
   chunks)
   - `role: Optional[str] = None` 8
   - `content: Optional[str] = None` 8
-  - `tool_calls: Optional] = None` (The structure of streamed tool calls needs
-    careful handling as they might be delivered in chunks 8)
+  - `tool_calls: Optional[List[ToolCall]] = None` (The structure of streamed
+    tool calls might be delivered in chunks)
 - `ChatCompletionChoice(msgspec.Struct)`: (For choices in non-streaming
   responses)
   - `index: int` (Typically 0, though the API schema indicates `choices` is an
@@ -303,8 +301,8 @@ These structs will model error responses from the OpenRouter API.
   - `message: str` 8
   - `param: Optional[str] = None`
   - `type: Optional[str] = None` (e.g., "invalid_request_error")
-  - `metadata: Optional] = None` (For additional details like provider errors or
-    moderation flags 8)
+  - `metadata: Optional[dict[str, Any]] = None` (for provider errors or
+    moderation flags)
 - `OpenRouterErrorResponse(msgspec.Struct, forbid_unknown_fields=False)`:
   - `error: OpenRouterAPIErrorDetails` 8
 
@@ -322,8 +320,8 @@ These structs will be used to parse the JSON body of HTTP error responses (e.g.,
   `ChatCompletionRequest`) can be specified directly in the struct definition.5
 - The `forbid_unknown_fields` parameter in `msgspec.Struct` controls behavior
   when extra fields are encountered during decoding.5 Setting
-  `forbid_unknown_fields=True` on *request* structs is generally advisable to
-  catch typos or incorrect field names during development. For *response*
+  `forbid_unknown_fields=True` on _request_ structs is generally advisable to
+  catch typos or incorrect field names during development. For _response_
   structs, the decision is more nuanced. While `True` enforces strict adherence
   to the known schema and helps detect unexpected API changes, it can also make
   the client brittle if OpenRouter adds new, non-breaking informational fields.
@@ -334,9 +332,14 @@ These structs will be used to parse the JSON body of HTTP error responses (e.g.,
 
 ### Table 1: Key `msgspec` Data Models for OpenRouter API
 
-<table class="not-prose border-collapse table-auto w-full" style="min-width: 100px">
-<colgroup><col style="min-width: 25px"><col style="min-width: 25px"><col style="min-width: 25px"><col style="min-width: 25px"></colgroup><tbody><tr><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p><strong>msgspec Struct Name</strong></p></td><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p><strong>Key Fields (with Python Type Hints)</strong></p></td><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p><strong>Corresponding OpenRouter API Object/Concept</strong></p></td><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p><strong>Notes</strong></p></td></tr><tr><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p><code class="code-inline">ChatMessage</code></p></td><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p><code class="code-inline">role: Literal["system", "user", "assistant", "tool"]</code>, <code class="code-inline">content: Union[str, List[ContentPart]]</code>, <code class="code-inline">name: Optional[str]</code>, <code class="code-inline">tool_call_id: Optional[str]</code></p></td><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p>Item in the <code class="code-inline">messages</code> array of a Chat Completion Request</p></td><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p><code class="code-inline">content</code> can be a list of <code class="code-inline">ContentPart</code> for user multimodal input. <code class="code-inline">tool_call_id</code> relevant for <code class="code-inline">role="tool"</code>.</p></td></tr><tr><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p><code class="code-inline">ChatCompletionRequest</code></p></td><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p><code class="code-inline">model: str</code>, <code class="code-inline">messages: List[ChatMessage]</code>, <code class="code-inline">stream: bool = False</code>, <code class="code-inline">temperature: Optional[float]</code>, <code class="code-inline">tools: Optional]</code></p></td><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p>Main request body for <code class="code-inline">/chat/completions</code></p></td><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p><code class="code-inline">model</code> and <code class="code-inline">messages</code> are typically required. Many optional parameters for controlling generation.</p></td></tr><tr><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p><code class="code-inline">ChatCompletionResponse</code></p></td><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p><code class="code-inline">id: str</code>, <code class="code-inline">choices: List[ChatCompletionChoice]</code>, <code class="code-inline">usage: Optional</code>, <code class="code-inline">model: str</code></p></td><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p>Response object for non-streaming chat completions</p></td><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p>Contains the full response from the model.</p></td></tr><tr><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p><code class="code-inline">StreamChunk</code></p></td><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p><code class="code-inline">id: str</code>, <code class="code-inline">choices: List</code>, <code class="code-inline">usage: Optional</code>, <code class="code-inline">model: str</code></p></td><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p>Individual Server-Sent Event <code class="code-inline">data:</code> payload in a streaming chat completion</p></td><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p><code class="code-inline">usage</code> is typically only present in the final chunk with empty <code class="code-inline">choices</code>.</p></td></tr><tr><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p><code class="code-inline">OpenRouterErrorResponse</code></p></td><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p><code class="code-inline">error: OpenRouterAPIErrorDetails</code></p></td><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p>JSON body of an API error response (e.g., HTTP 4xx/5xx)</p></td><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p>Used to parse structured error information from OpenRouter.</p></td></tr><tr><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p><code class="code-inline">UsageStats</code></p></td><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p><code class="code-inline">prompt_tokens: int</code>, <code class="code-inline">completion_tokens: int</code>, <code class="code-inline">total_tokens: int</code></p></td><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p>Token usage information in responses</p></td><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p>Provided in non-streaming responses and the final chunk of streaming responses.</p></td></tr></tbody>
-</table>
+| Struct Name             | Key Fields                                                              | API Concept                                                             | Notes                                                                   |
+| ----------------------- | ----------------------------------------------------------------------- | ----------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| ChatMessage             | role, content, name, tool_call_id                                       | entry in messages array                                                 | Use list form for multimodal input; tool_call_id only with role="tool". |
+| ChatCompletionRequest   | model, messages, stream, temperature, tools                             | body for /chat/completions                                              | model and messages required; other fields tune generation.              |
+| ChatCompletionResponse  | id, choices, usage, model                                               | non-streaming response                                                  | full model reply.                                                       |
+| StreamChunk             | id, choices, usage, model                                               | SSE chunk payload                                                       | usage usually appears in final chunk.                                   |
+| OpenRouterErrorResponse | error                                                                   | error response body                                                     | structured error details.                                               |
+| UsageStats              | prompt_tokens, completion_tokens, total_tokens                          | token usage data                                                        | returned in non-streaming responses and the final SSE chunk.            |
 
 This table serves as an essential reference, bridging the OpenRouter API's JSON
 structures with the Python client's typed data models, thereby enhancing
@@ -364,7 +367,18 @@ focusing on chat completions.
 ### 4.2. Internal `_request` Helper Method
 
 To centralize common request logic, an internal asynchronous helper method,
-`async def _request(self, method: str, endpoint: str, payload_struct: Optional = None, params: Optional] = None, stream_response: bool = False)`,
+
+```python
+async def _request(
+    self,
+    method: str,
+    endpoint: str,
+    payload_struct: Optional = None,
+    params: Optional = None,
+    stream_response: bool = False,
+)
+```
+
 may be implemented. This method would:
 
 1. Take the HTTP method, endpoint path, an optional `msgspec.Struct` for the
@@ -429,15 +443,18 @@ This functionality allows for receiving the chat response as a stream of events
 - **Sending Request**: The streaming request will be initiated using `httpx`'s
   streaming capabilities:
 
-  Python
-
-  ```
+  ```python
   # endpoint_path will be "/chat/completions"
   # encoded_payload will be the msgspec-encoded ChatCompletionRequest
   # Assume necessary headers are prepared in a 'headers' dictionary
 
   try:
-      async with self._client.stream("POST", endpoint_path, content=encoded_payload, headers=headers) as response: # [3, 4]
+    async with self._client.stream(
+        "POST",
+        endpoint_path,
+        content=encoded_payload,
+        headers=headers,
+    ) as response:  # [3, 4]
           # Immediately check for non-successful status codes after establishing the stream
           if response.status_code >= 400:
               error_body = await response.aread() # [4]
@@ -453,10 +470,13 @@ This functionality allows for receiving the chat response as a stream of events
                   )
               except (msgspec.ValidationError, msgspec.DecodeError) as e: # [6, 7]
                   # If parsing fails, raise a more generic error with the raw body
-                  raise OpenRouterAPIError( # Custom exception defined in section 6
-                      message=f"API error {response.status_code} during stream initiation. Failed to parse error response: {error_body.decode(errors='ignore')}",
-                      status_code=response.status_code
-                  )
+                    raise OpenRouterAPIError(  # Custom exception defined in section 6
+                        message=(
+                            f"API error {response.status_code} during stream initiation. "
+                            f"Failed to parse error response: {error_body.decode(errors='ignore')}"
+                        ),
+                        status_code=response.status_code,
+                    )
 
           # Process Server-Sent Events (SSE)
           async for line in response.aiter_lines(): # [4]
@@ -475,13 +495,20 @@ This functionality allows for receiving the chat response as a stream of events
                   except (msgspec.ValidationError, msgspec.DecodeError) as e: # [6, 7]
                       # Handle or log malformed JSON chunks, potentially raise a custom error
                       # For example:
-                      # raise OpenRouterResponseDataValidationError(f"Failed to decode stream chunk: {json_payload_str}. Error: {e}")
+                        # raise OpenRouterResponseDataValidationError(
+                        #     f"Failed to decode stream chunk: {json_payload_str}. Error: {e}"
+                        # )
                       # Depending on desired robustness, you might log and continue, or raise.
                       # For this design, we'll assume logging and continuing for partial errors,
                       # but a production client might offer configurable behavior.
-                      # print(f"Warning: Failed to decode stream chunk: {json_payload_str}. Error: {e}") # Placeholder for logging
+                        # print(
+                        #     f"Warning: Failed to decode stream chunk: {json_payload_str}. Error: {e}"
+                        # )  # Placeholder for logging
                       # For a library, raising an error might be more appropriate:
-                      raise OpenRouterResponseDataValidationError(f"Failed to decode stream chunk: {json_payload_str}. Original error: {e}") from e
+                        raise OpenRouterResponseDataValidationError(
+                            f"Failed to decode stream chunk: {json_payload_str}. "
+                            f"Original error: {e}"
+                        ) from e
           # Ensure the response is closed if the loop finishes normally or breaks
           await response.aclose() # [4]
   except httpx.HTTPStatusError as e: # Should be caught by the status check above, but as a fallback
@@ -555,9 +582,10 @@ the client library itself.
 
 ### Table 2: OpenRouter API Endpoint Summary for Client Methods
 
-<table class="not-prose border-collapse table-auto w-full" style="min-width: 125px">
-<colgroup><col style="min-width: 25px"><col style="min-width: 25px"><col style="min-width: 25px"><col style="min-width: 25px"><col style="min-width: 25px"></colgroup><tbody><tr><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p><strong>Client Method / Endpoint Path</strong></p></td><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p><strong>HTTP Method</strong></p></td><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p><strong>Key msgspec Request Struct</strong></p></td><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p><strong>Key msgspec Response Struct / AsyncIterator Type</strong></p></td><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p><strong>Purpose</strong></p></td></tr><tr><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p><code class="code-inline">create_chat_completion</code> (<code class="code-inline">/chat/completions</code>)</p></td><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p><code class="code-inline">POST</code></p></td><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p><code class="code-inline">ChatCompletionRequest</code> (with <code class="code-inline">stream=False</code>)</p></td><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p><code class="code-inline">ChatCompletionResponse</code></p></td><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p>Standard, non-streaming LLM chat completion.</p></td></tr><tr><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p><code class="code-inline">stream_chat_completion</code> (<code class="code-inline">/chat/completions</code>)</p></td><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p><code class="code-inline">POST</code></p></td><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p><code class="code-inline">ChatCompletionRequest</code> (with <code class="code-inline">stream=True</code>)</p></td><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p><code class="code-inline">AsyncIterator</code></p></td><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p>Streaming LLM chat completion via Server-Sent Events.</p></td></tr></tbody>
-</table>
+| Client Method / Endpoint Path                         | HTTP Method                                           | Key msgspec Request Struct                            | Key msgspec Response Struct / AsyncIterator Type      | Purpose                                               |
+| ----------------------------------------------------- | ----------------------------------------------------- | ----------------------------------------------------- | ----------------------------------------------------- | ----------------------------------------------------- |
+| create_chat_completion (/chat/completions)            | POST                                                  | ChatCompletionRequest (with stream=False)             | ChatCompletionResponse                                | Standard, non-streaming LLM chat completion.          |
+| stream_chat_completion (/chat/completions)            | POST                                                  | ChatCompletionRequest (with stream=True)              | AsyncIterator                                         | Streaming LLM chat completion via Server-Sent Events. |
 
 This table provides a concise overview of the primary client methods, their
 corresponding API endpoints, and the data structures involved, facilitating
@@ -582,9 +610,7 @@ authentication.
   instance when it's created (e.g., in `__aenter__` or by passing it to
   `httpx.AsyncClient(headers=...)`). For example:
 
-  Python
-
-  ```
+  ```python
   # Part of client initialization or __aenter__
   # merged_default_headers = {**self.user_default_headers}
   # merged_default_headers["Authorization"] = f"Bearer {self.api_key}"
@@ -731,12 +757,18 @@ own transport-level retry capabilities (`httpx.AsyncHTTPTransport(retries=...)`
 
 ### Table 3: Client Exception Hierarchy and Error Handling
 
-<table class="not-prose border-collapse table-auto w-full" style="min-width: 125px">
-<colgroup><col style="min-width: 25px"><col style="min-width: 25px"><col style="min-width: 25px"><col style="min-width: 25px"><col style="min-width: 25px"></colgroup><tbody><tr><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p><strong>Original Error Source / API Condition</strong></p></td><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p><strong>Condition/Trigger</strong></p></td><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p><strong>Custom Client Exception Raised</strong></p></td><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p><strong>Typical HTTP Status (if applicable)</strong></p></td><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p><strong>Notes/Recommended User Action</strong></p></td></tr><tr><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p><code class="code-inline">httpx.HTTPStatusError</code></p></td><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p>HTTP 401 from API</p></td><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p><code class="code-inline">OpenRouterAuthenticationError</code></p></td><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p>401</p></td><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p>Verify API key and account status.</p></td></tr><tr><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p><code class="code-inline">httpx.HTTPStatusError</code></p></td><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p>HTTP 402 from API</p></td><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p><code class="code-inline">OpenRouterInsufficientCreditsError</code></p></td><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p>402</p></td><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p>Add credits to OpenRouter account.</p></td></tr><tr><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p><code class="code-inline">httpx.HTTPStatusError</code></p></td><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p>HTTP 403 from API</p></td><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p><code class="code-inline">OpenRouterPermissionError</code></p></td><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p>403</p></td><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p>Check input for moderation flags or other permission issues.</p></td></tr><tr><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p><code class="code-inline">httpx.HTTPStatusError</code></p></td><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p>HTTP 429 from API</p></td><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p><code class="code-inline">OpenRouterRateLimitError</code></p></td><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p>429</p></td><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p>Wait and retry, ideally respecting <code class="code-inline">Retry-After</code> header. Consider requesting rate limit increases if persistent.</p></td></tr><tr><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p><code class="code-inline">httpx.HTTPStatusError</code></p></td><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p>HTTP 400 from API</p></td><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p><code class="code-inline">OpenRouterInvalidRequestError</code></p></td><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p>400</p></td><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p>Review request parameters against API documentation. Error details may specify the problematic field.</p></td></tr><tr><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p><code class="code-inline">httpx.HTTPStatusError</code></p></td><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p>HTTP 5xx from API</p></td><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p><code class="code-inline">OpenRouterServerError</code></p></td><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p>500, 502, 503, etc.</p></td><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p>Retry after a delay. If persistent, check OpenRouter status or contact support.</p></td></tr><tr><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p><code class="code-inline">httpx.ReadTimeout</code>, <code class="code-inline">httpx.ConnectTimeout</code></p></td><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p>Network timeout</p></td><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p><code class="code-inline">OpenRouterTimeoutError</code></p></td><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p>N/A</p></td><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p>Increase client timeout configuration or retry. Check network connectivity.</p></td></tr><tr><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p><code class="code-inline">httpx.ConnectError</code>, <code class="code-inline">httpx.NetworkError</code></p></td><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p>General network issue</p></td><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p><code class="code-inline">OpenRouterNetworkError</code></p></td><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p>N/A</p></td><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p>Check network connectivity. Retry.</p></td></tr><tr><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p><code class="code-inline">msgspec.ValidationError</code></p></td><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p>Invalid request data provided by user</p></td><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p><code class="code-inline">OpenRouterRequestDataValidationError</code></p></td><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p>N/A (pre-request)</p></td><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p>Correct the data structure or types in the request payload according to <code class="code-inline">msgspec</code> Struct definitions.</p></td></tr><tr><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p><code class="code-inline">msgspec.ValidationError</code></p></td><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p>Invalid response data from API</p></td><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p><code class="code-inline">OpenRouterResponseDataValidationError</code></p></td><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p>200 (typically for stream/response body)</p></td><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p>This may indicate an API change or a bug in client's <code class="code-inline">msgspec</code> models. Report or investigate.</p></td></tr></tbody>
-</table>
-
-This table provides users with a clear guide to understanding the types of
-errors they might encounter and how to handle them programmatically.
+| Source             | Condition    | Exception               | Notes               |
+| ------------------ | ------------ | ----------------------- | ------------------- |
+| httpx.HTTPStatus   | 401          | AuthError               | Verify key          |
+| httpx.HTTPStatus   | 402          | CreditsError            | Add credits         |
+| httpx.HTTPStatus   | 403          | PermissionError         | Check input         |
+| httpx.HTTPStatus   | 429          | RateLimitError          | Wait and retry      |
+| httpx.HTTPStatus   | 400          | InvalidRequest          | Review request      |
+| httpx.HTTPStatus   | 5xx          | ServerError             | Retry later         |
+| httpx.Timeout      | timeout      | TimeoutError            | Increase timeout    |
+| httpx.NetworkError | network      | NetworkError            | Check connection    |
+| ValidationError    | bad request  | RequestValidationError  | Fix payload         |
+| ValidationError    | bad response | ResponseValidationError | Possible change     |
 
 ## 7. Client Configuration and Customization
 
@@ -753,10 +785,10 @@ The client should offer flexibility through various configuration options.
     headers will be merged with the standard `Authorization` and `Content-Type`
     headers.
   - For per-request customization, client methods (like
-    `create_chat_completion`) can accept an optional `headers: Optional] = None`
-    parameter. These headers would be merged with (and potentially override)
-    client-level default headers for that specific request. `httpx.Client`
-    methods support this pattern.3
+    `create_chat_completion`) can accept an optional
+    `headers: Optional[dict[str, str]] = None` parameter. These headers would be
+    merged with (and potentially override) client-level default headers for that
+    specific request. `httpx.Client` methods support this pattern.3
   - The documentation should mention OpenRouter-recognized optional headers like
     `HTTP-Referer` (to identify the application on openrouter.ai) and `X-Title`
     (to set/modify the application's title for discovery).8
@@ -774,11 +806,11 @@ The client should offer flexibility through various configuration options.
 Exposing these underlying `httpx` configurations provides necessary flexibility.
 While common options like `api_key` and `timeout_config` can be direct
 parameters of `OpenRouterAsyncClient`, a more general approach for less common
-`httpx` settings could be an optional `httpx_client_options: Optional]`
-parameter. This dictionary would be unpacked and passed to the
-`httpx.AsyncClient` constructor, allowing advanced users to fine-tune aspects
-like HTTP/2 settings, connection limits, or event hooks without cluttering the
-`OpenRouterAsyncClient`'s primary API.
+`httpx` settings could be an optional
+`httpx_client_options: Optional[dict[str, Any]]` parameter. This dictionary
+would be unpacked and passed to the `httpx.AsyncClient` constructor, allowing
+advanced users to fine-tune aspects like HTTP/2 settings, connection limits, or
+event hooks without cluttering the `OpenRouterAsyncClient`'s primary API.
 
 ## 8. Illustrative Usage Examples
 
@@ -787,9 +819,7 @@ ease of use.
 
 - **Prerequisites**:
 
-  Bash
-
-  ```
+  ```bash
   # pip install openrouter-async-client msgspec httpx
 
   ```
@@ -798,9 +828,7 @@ ease of use.
 
 - **Initializing the client**:
 
-  Python
-
-  ```
+  ```python
   import asyncio
   from openrouter_client import (
       OpenRouterAsyncClient,
@@ -839,9 +867,7 @@ ease of use.
 
 - **Making a standard (non-streaming) chat completion request**:
 
-  Python
-
-  ```
+  ```python
   async def run_non_streaming_example(client: OpenRouterAsyncClient):
       print("\n--- Non-Streaming Example ---")
       request_payload = ChatCompletionRequest(
@@ -855,7 +881,11 @@ ease of use.
           if response.choices and response.choices.message:
               print("Assistant:", response.choices.message.content)
           if response.usage:
-              print(f"Tokens used: Prompt={response.usage.prompt_tokens}, Completion={response.usage.completion_tokens}, Total={response.usage.total_tokens}")
+            print(
+                f"Tokens used: Prompt={response.usage.prompt_tokens}, "
+                f"Completion={response.usage.completion_tokens}, "
+                f"Total={response.usage.total_tokens}"
+            )
       except OpenRouterAPIStatusError as e: # Catching a more specific error
           print(f"API Status Error ({e.status_code}): {e.error_details.message if e.error_details else 'No details provided'}")
           if e.error_details and e.error_details.code:
@@ -870,18 +900,16 @@ ease of use.
 
 - **Iterating over a streaming chat completion response**:
 
-  Python
-
-  ```
+  ```python
   async def run_streaming_example(client: OpenRouterAsyncClient):
       print("\n--- Streaming Example ---")
       stream_request_payload = ChatCompletionRequest(
-          model="openai/gpt-4o-mini", # Example model [18]
-          messages=,
+          model="openai/gpt-4o-mini",  # Example model [18]
+          messages=[ChatMessage(role="user", content="Hello!")],
           stream=True,
-          max_tokens=150
+          max_tokens=150,
       )
-      full_response_content =
+      full_response_content = []
       try:
           print("Assistant (streaming): ", end="", flush=True)
           final_usage_stats = None
@@ -899,12 +927,19 @@ ease of use.
           # assembled_response = "".join(full_response_content)
           # print(f"Assembled full response: {assembled_response}") # Optional: print full assembled response
 
-          if final_usage_stats:
-              print(f"\n--- Stream Usage ---")
-              print(f"Tokens used: Prompt={final_usage_stats.prompt_tokens}, Completion={final_usage_stats.completion_tokens}, Total={final_usage_stats.total_tokens}")
+            if final_usage_stats:
+                print("\n--- Stream Usage ---")
+                print(
+                    f"Tokens used: Prompt={final_usage_stats.prompt_tokens}, "
+                    f"Completion={final_usage_stats.completion_tokens}, "
+                    f"Total={final_usage_stats.total_tokens}"
+                )
 
       except OpenRouterAPIStatusError as e:
-          print(f"\nAPI Status Error during stream ({e.status_code}): {e.error_details.message if e.error_details else 'No details'}")
+        print(
+            f"\nAPI Status Error during stream ({e.status_code}): "
+            f"{e.error_details.message if e.error_details else 'No details'}"
+        )
       except OpenRouterResponseDataValidationError as e: # Specific error for bad stream chunks
           print(f"\nError decoding stream data: {e}")
       except OpenRouterClientError as e: # General client error

@@ -54,9 +54,7 @@ Falcon provides a `falcon.media.JSONHandler` that can be configured to use
 `msgspec.json.encode` and `msgspec.json.decode` can be supplied as the `dumps`
 and `loads` arguments, respectively.1
 
-Python
-
-```
+```python
 import msgspec
 import falcon.media
 
@@ -75,9 +73,7 @@ scenarios, partly due to the Global Interpreter Lock (GIL) and the general cost
 of Python object management. Pre-constructing these instances amortizes this
 cost to application startup.
 
-Python
-
-```
+```python
 # At module level or app initialization
 _msgspec_json_encoder = msgspec.json.Encoder()
 _msgspec_json_decoder = msgspec.json.Decoder()
@@ -99,9 +95,7 @@ handler by subclassing `falcon.media.BaseHandler`.1 This involves defining
 The following example demonstrates a custom handler for MessagePack using
 `msgspec.msgpack`:
 
-Python
-
-```
+```python
 from typing import Optional
 from msgspec import msgpack
 from falcon import media
@@ -151,9 +145,7 @@ dictionaries in `app.req_options` (for requests) and `app.resp_options` (for
 responses).1 This replaces Falcon's default handlers for the specified media
 types.
 
-Python
-
-```
+```python
 # Assuming 'app' is an instance of falcon.App or falcon.asgi.App
 # And json_handler_optimized and msgpack_handler are defined as above
 
@@ -187,9 +179,7 @@ optimized for `msgspec`'s performance characteristics.
 
 Examples of `msgspec.Struct` definitions:
 
-Python
-
-```
+```python
 import msgspec
 from typing import Optional, List
 
@@ -225,9 +215,7 @@ request media, validates and converts it using `msgspec.convert`, and injects
 the resulting typed `Struct` instance into the `params` dictionary for use by
 the resource method.
 
-Python
-
-```
+```python
 import msgspec
 from falcon import Request, Response, HTTPUnprocessableEntity
 
@@ -284,9 +272,7 @@ The middleware relies on a convention: resource classes should define attributes
 like `POST_SCHEMA`, `PUT_SCHEMA`, etc., that point to the relevant
 `msgspec.Struct` type.1
 
-Python
-
-```
+```python
 class UserResource:
     POST_SCHEMA = UserCreate  # UserCreate is the msgspec.Struct defined earlier
 
@@ -324,22 +310,21 @@ similar injection pattern. Therefore, careful and descriptive naming of
 `msgspec.Structs` is important. The current middleware design is tailored for a
 single schema validation per request method based on `req.media()`.
 
-### 3.5. Adapting Middleware for Synchronous (WSGI) and Asynchronous (ASGI) Falcon Apps
+### 3.5. Adapting Middleware for WSGI and ASGI Apps
 
 The `MsgspecMiddleware` example above is suitable for synchronous (WSGI) Falcon
 applications. For asynchronous (ASGI) applications, the `process_resource`
 method must be an `async def` method, and the call to `req.get_media()` must be
 `await`ed, as it performs I/O.1
 
-Python
+For ASGI applications:
 
-```
-# For ASGI applications
+```python
 class AsyncMsgspecMiddleware:
     async def process_resource(
         self, req: Request, resp: Response, resource: object, params: dict
     ) -> None:
-        schema_attr_name = f'{req.method.upper()}_SCHEMA'
+        schema_attr_name = f"{req.method.upper()}_SCHEMA"
         schema = getattr(resource, schema_attr_name, None)
 
         if schema:
@@ -383,10 +368,8 @@ representation of `msgspec.ValidationError` usually contains detailed
 information about the validation failures, which can be included in the response
 body.
 
-Python
-
-```
-from falcon import Request, Response, HTTPUnprocessableEntity # Ensure import
+```python
+from falcon import Request, Response, HTTPUnprocessableEntity
 import msgspec
 
 def handle_msgspec_validation_error(
@@ -427,9 +410,7 @@ recommended solution is to wrap the `msgspec` decode function (e.g.,
 `falcon.MediaMalformedError` (which typically results in an HTTP 400 Bad Request
 response).
 
-Python
-
-```
+````python
 import falcon
 import msgspec
 from typing import Any # For type hinting _msgspec_loads_json_robust
@@ -453,7 +434,7 @@ def _msgspec_loads_json_robust(content: bytes) -> Any: # msgspec.json.decode exp
 #     dumps=_msgspec_json_encoder.encode, # From efficient JSON handling section
 #     loads=_msgspec_loads_json_robust,
 # )
-```
+```python
 
 The fact that `msgspec.DecodeError` does not inherit from `ValueError` is a
 subtle but crucial point. Many Python developers are accustomed to error
@@ -472,9 +453,8 @@ A complete Falcon application setup should include the registration of the
 use of the robust media handler (e.g., `json_handler_robust` incorporating
 `_msgspec_loads_json_robust`).
 
-Python
 
-```
+```python
 # Assuming _msgspec_json_encoder is defined for optimized encoding
 # Assuming _msgspec_loads_json_robust is defined as above
 json_handler_robust = falcon.media.JSONHandler(
@@ -505,7 +485,7 @@ def create_app() -> falcon.App: # Or falcon.asgi.App for asynchronous applicatio
     # app.add_route('/users', user_resource)
     
     return app
-```
+```python
 
 This integrated setup ensures that validation errors (HTTP 422) and media
 decoding errors (HTTP 400) are handled gracefully, providing meaningful feedback
@@ -518,9 +498,10 @@ API.
 The following table summarizes the recommended handling for common `msgspec`
 exceptions within a Falcon application:
 
-<table class="not-prose border-collapse table-auto w-full" style="min-width: 100px">
-<colgroup><col style="min-width: 25px"><col style="min-width: 25px"><col style="min-width: 25px"><col style="min-width: 25px"></colgroup><tbody><tr><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p><strong>msgspec Exception</strong></p></td><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p><strong>Typical Cause in Falcon Context</strong></p></td><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p><strong>Recommended Falcon Handling</strong></p></td><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p><strong>HTTP Status Code</strong></p></td></tr><tr><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p><code class="code-inline">msgspec.ValidationError</code></p></td><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p>Request data fails <code class="code-inline">Struct</code> validation (by middleware)</p></td><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p>Raise <code class="code-inline">falcon.HTTPUnprocessableEntity</code> via global error handler</p></td><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p>422</p></td></tr><tr><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p><code class="code-inline">msgspec.DecodeError</code></p></td><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p>Malformed input (e.g., invalid JSON/MessagePack in request)</p></td><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p>Wrap and raise <code class="code-inline">falcon.MediaMalformedError</code> in custom <code class="code-inline">loads</code></p></td><td class="border border-neutral-300 dark:border-neutral-600 p-1.5" colspan="1" rowspan="1"><p>400</p></td></tr></tbody>
-</table>
+| Exception               | Cause                           | Falcon Handling               | HTTP |
+| ----------------------- | ------------------------------- | ----------------------------- | ---- |
+| msgspec.ValidationError | Request fails Struct validation | raise HTTPUnprocessableEntity | 422  |
+| msgspec.DecodeError     | Malformed input                 | raise MediaMalformedError     | 400  |
 
 This table serves as a quick reference, directly linking `msgspec`'s specific
 exceptions to Falcon's idiomatic HTTP exceptions and encouraging standardized
@@ -539,9 +520,8 @@ instances are injected into the `params` dictionary (or directly available as
 keyword arguments if the resource method unpacks `**kwargs`). This means that
 within the resource method, the data is already parsed, validated, and typed.
 
-Python
 
-```
+```python
 import falcon
 import msgspec
 
@@ -587,9 +567,9 @@ class ItemResource:
             resp.media = item # Serialized by msgspec
         else:
             resp.status_code = falcon.HTTP_NOT_FOUND
-            resp.media = {"message": "Item not found"}
+        resp.media = {"message": "Item not found"}
 
-```
+````
 
 Working directly with `msgspec.Struct` instances (like `item_create_data`)
 significantly improves code readability and maintainability compared to
@@ -603,9 +583,7 @@ related to misspelled dictionary keys or incorrect data types.
 Falcon, when configured with `msgspec` media handlers, will automatically
 serialize `msgspec.Struct` instances assigned to `resp.media`.
 
-Python
-
-```
+```python
 # (Continuing from ItemResource example)
 # In on_post method, after creating the item:
 # resp.media = new_item 
@@ -625,9 +603,7 @@ aligning with Falcon's philosophy of minimizing boilerplate.
 
 Consider a `PUT` request to update an existing item:
 
-Python
-
-```
+````python
 class ItemUpdate(msgspec.Struct, forbid_unknown_fields=True):
     name: Optional[str] = None
     price: Optional[str] = None # Using Optional for partial updates
@@ -668,7 +644,7 @@ class SingleItemResource: # Assuming this handles /items/{item_id}
             resp.status_code = falcon.HTTP_NOT_FOUND
             resp.media = {"message": "Item not found"}
 
-```
+```python
 
 In these examples, path parameters (like `item_id`) from Falcon's routing are
 used alongside the `msgspec.Struct` data derived from the request body. This
@@ -702,9 +678,8 @@ Consider an endpoint that processes various types of commands, each defined by a
 `Union` of command `Structs`), the resulting `Struct` instance can be processed
 using `match/case`.
 
-Python
 
-```
+```python
 import msgspec
 from typing import Union, Literal, Optional
 import falcon # For HTTP status codes
@@ -755,9 +730,16 @@ class CommandResource:
                 # Example: db.delete_item(id_val)
                 resp.media = {"message": f"Executing DELETE: item_id {id_val}."}
 
-            case UpdateCommand(action="update", item_id=id_val, new_name=name, new_quantity=q) if name is not None and q is not None:
+            case UpdateCommand(
+                action="update",
+                item_id=id_val,
+                new_name=name,
+                new_quantity=q,
+            ) if name is not None and q is not None:
                 # Logic for updating both name and quantity
-                resp.media = {"message": f"Executing UPDATE: item_id {id_val}, new_name '{name}', new_quantity {q}."}
+                resp.media = {
+                    "message": f"Executing UPDATE: item_id {id_val}, new_name '{name}', new_quantity {q}."
+                }
             
             case UpdateCommand(action="update", item_id=id_val, new_name=name) if name is not None:
                 # Logic for updating only name
@@ -778,10 +760,10 @@ class CommandResource:
                 resp.media = {"error": "Unknown or malformed command structure."}
                 resp.status_code = falcon.HTTP_BAD_REQUEST
         
-        if resp.status_code is None: # Default to 200 OK if not set by a case
+        if resp.status_code is None:  # Default to 200 OK if not set by a case
             resp.status_code = falcon.HTTP_OK
 
-```
+````
 
 This use of `match/case` provides a more declarative and often safer way to
 handle polymorphic data or complex conditional logic based on data shape,
@@ -797,9 +779,7 @@ structure.
 Pattern matching can extend to nested `Structs` and include guards
 (`if condition`) for more complex logic.
 
-Python
-
-```
+```python
 # Continuing with UserCreate and Address Structs from earlier:
 # class Address(msgspec.Struct): street: str; city: str; zip_code: str
 # class UserCreate(msgspec.Struct): username: str;...; address: Optional[Address] = None
@@ -820,9 +800,7 @@ Python
 
 Consider processing the `UpdateCommand` without `match/case`:
 
-Python
-
-```
+```python
 # Traditional if/elif for UpdateCommand logic
 # if isinstance(command_data, UpdateCommand):
 #     id_val = command_data.item_id
@@ -875,9 +853,7 @@ resource, implements the `MsgspecMiddleware`, sets up error handling, configures
 `msgspec`-based JSON media handling, and includes a Falcon resource with
 `on_get` and `on_post` methods.
 
-Python
-
-```
+```python
 import falcon
 import msgspec
 from typing import List, Optional, Union, Any, Dict

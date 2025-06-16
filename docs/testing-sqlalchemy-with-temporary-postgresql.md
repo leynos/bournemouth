@@ -1,4 +1,4 @@
-# **Comprehensive Guide to Testing SQLAlchemy with PostgreSQL: A Unified Approach using pytest-postgresql**
+# Comprehensive Guide to Testing SQLAlchemy with PostgreSQL using pytest-postgresql
 
 ## **1. Introduction**
 
@@ -410,6 +410,6 @@ PostgreSQL installation is preferred.\
 **Further Resources:**
 
 - pytest-postgresql Documentation: (Search PyPI or GitHub for the latest)
-- SQLAlchemy Documentation: https://www.sqlalchemy.org/
-- asyncpg Documentation/Repository: https://github.com/MagicStack/asyncpg
-- pytest-asyncio Documentation: https://pytest-asyncio.readthedocs.io/
+- SQLAlchemy Documentation: <https://www.sqlalchemy.org/>
+- asyncpg Documentation/Repository: <https://github.com/MagicStack/asyncpg>
+- pytest-asyncio Documentation: <https://pytest-asyncio.readthedocs.io/>

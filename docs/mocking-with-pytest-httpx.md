@@ -1,70 +1,73 @@
-A Comprehensive Guide to Mocking httpx with pytest-httpx
+# A Comprehensive Guide to Mocking httpx with pytest-httpx
 
-1. Introduction to httpx and the Need for Mocking The httpx library has emerged
-   as a modern, powerful HTTP client for Python, offering support for both
-   synchronous and asynchronous programming paradigms, HTTP/1.1 and HTTP/2
-   protocols, and a feature set comparable to the widely-used requests library
-   but with significant enhancements. Its capabilities include connection
-   pooling, cookie persistence, automatic content decoding, support for proxies,
-   and robust timeout handling, making it suitable for a wide array of
-   applications, from simple API interactions to complex microservice
-   communications and web scraping tasks. The library's design prioritizes
-   usability, type safety, and performance, particularly in asynchronous
-   contexts where concurrent I/O operations can significantly improve
-   application responsiveness. Testing applications that interact with external
-   HTTP services presents several challenges. Real network calls introduce
-   flakiness, as tests can fail due to network issues, server downtime, or rate
-   limiting, none of which reflect a bug in the application code itself.
-   Furthermore, these external calls can be slow, significantly increasing test
-   suite execution time. They may also have side effects (e.g., creating
-   resources on a live server) or incur costs if the API is a paid service. To
-   mitigate these issues, mocking HTTP requests is an essential practice in
-   software testing. Mocking involves replacing the parts of the system that
-   communicate with external services with controlled "test doubles" that
-   simulate the behavior of those services. This allows tests to run quickly,
-   reliably, and in isolation, focusing solely on the logic of the application
-   under test. pytest, a popular Python testing framework, excels at simplifying
-   test creation and reducing boilerplate through its fixture system and plugin
-   architecture. pytest-httpx is a pytest plugin specifically designed to
-   facilitate the mocking of httpx requests within tests. It provides a fixture,
-   httpx_mock, that intercepts outgoing httpx requests and allows developers to
-   define custom responses, thereby enabling comprehensive testing of
-   network-dependent code without making actual HTTP calls. This guide provides
-   an in-depth exploration of pytest-httpx, covering its installation,
-   fundamental usage, advanced mocking techniques, and best practices for
-   effectively testing applications built with httpx.
-2. Understanding pytest and Fixtures pytest is a mature and flexible testing
-   framework for Python that has gained widespread adoption due to its concise
-   syntax, powerful features, and extensive plugin ecosystem. It simplifies test
-   discovery, execution, and reporting, allowing developers to write tests
-   ranging from simple unit tests to complex functional and integration test
-   scenarios. One of pytest's cornerstone features is its fixture system.
-   Fixtures are functions that pytest runs before (and sometimes after) test
-   functions. They are primarily used to set up and tear down resources or
-   states required for tests, such as database connections, temporary files, or,
-   in the context of this guide, mock objects. By encapsulating setup and
-   teardown logic, fixtures promote modularity and reusability, allowing the
-   same setup to be used across multiple tests without code duplication. This
-   ensures a consistent and correctly configured environment for each test,
-   isolating test cases and improving reproducibility. Fixtures can be scoped
-   (e.g., function, class, module, session) to control their lifecycle and can
-   be automatically applied to tests using the autouse=True attribute. The
-   pytest-httpx library leverages this fixture system by providing the
-   httpx_mock fixture. This fixture, once included as an argument in a test
-   function, automatically intercepts all HTTP requests made by the httpx
-   library during that test's execution. This seamless integration means
-   developers do not need to manually patch httpx functions or manage the
-   lifecycle of mock objects; pytest and pytest-httpx handle this transparently.
-   This approach significantly simplifies the test setup process compared to
-   manual patching techniques (e.g., using unittest.mock.patch or pytest-mock's
-   mocker.patch.object ), reducing boilerplate code and minimizing the risk of
-   errors associated with incorrect patch management, such as patches not being
-   applied correctly or persisting beyond the intended test scope. The fixture
-   mechanism ensures that mocking is active only during the test and is properly
-   cleaned up afterward, contributing to test isolation.
-3. Setting Up pytest-httpx 3.1. Installation To begin using pytest-httpx, it
-   must be installed in the Python environment alongside pytest and httpx. Use
-   `uv` to add it to the `dev` dependency group and install the dependencies:
+## 1. Introduction to httpx and the Need for Mocking The httpx library has emerged
+
+as a modern, powerful HTTP client for Python, offering support for both
+synchronous and asynchronous programming paradigms, HTTP/1.1 and HTTP/2
+protocols, and a feature set comparable to the widely-used requests library but
+with significant enhancements. Its capabilities include connection pooling,
+cookie persistence, automatic content decoding, support for proxies, and robust
+timeout handling, making it suitable for a wide array of applications, from
+simple API interactions to complex microservice communications and web scraping
+tasks. The library's design prioritizes usability, type safety, and performance,
+particularly in asynchronous contexts where concurrent I/O operations can
+significantly improve application responsiveness. Testing applications that
+interact with external HTTP services presents several challenges. Real network
+calls introduce flakiness, as tests can fail due to network issues, server
+downtime, or rate limiting, none of which reflect a bug in the application code
+itself. Furthermore, these external calls can be slow, significantly increasing
+test suite execution time. They may also have side effects (e.g., creating
+resources on a live server) or incur costs if the API is a paid service. To
+mitigate these issues, mocking HTTP requests is an essential practice in
+software testing. Mocking involves replacing the parts of the system that
+communicate with external services with controlled "test doubles" that simulate
+the behavior of those services. This allows tests to run quickly, reliably, and
+in isolation, focusing solely on the logic of the application under test.
+pytest, a popular Python testing framework, excels at simplifying test creation
+and reducing boilerplate through its fixture system and plugin architecture.
+pytest-httpx is a pytest plugin specifically designed to facilitate the mocking
+of httpx requests within tests. It provides a fixture, httpx_mock, that
+intercepts outgoing httpx requests and allows developers to define custom
+responses, thereby enabling comprehensive testing of network-dependent code
+without making actual HTTP calls. This guide provides an in-depth exploration of
+pytest-httpx, covering its installation, fundamental usage, advanced mocking
+techniques, and best practices for effectively testing applications built with
+httpx.
+
+## 2. Understanding pytest and Fixtures pytest is a mature and flexible testing
+
+framework for Python that has gained widespread adoption due to its concise
+syntax, powerful features, and extensive plugin ecosystem. It simplifies test
+discovery, execution, and reporting, allowing developers to write tests ranging
+from simple unit tests to complex functional and integration test scenarios. One
+of pytest's cornerstone features is its fixture system. Fixtures are functions
+that pytest runs before (and sometimes after) test functions. They are primarily
+used to set up and tear down resources or states required for tests, such as
+database connections, temporary files, or, in the context of this guide, mock
+objects. By encapsulating setup and teardown logic, fixtures promote modularity
+and reusability, allowing the same setup to be used across multiple tests
+without code duplication. This ensures a consistent and correctly configured
+environment for each test, isolating test cases and improving reproducibility.
+Fixtures can be scoped (e.g., function, class, module, session) to control their
+lifecycle and can be automatically applied to tests using the autouse=True
+attribute. The pytest-httpx library leverages this fixture system by providing
+the httpx_mock fixture. This fixture, once included as an argument in a test
+function, automatically intercepts all HTTP requests made by the httpx library
+during that test's execution. This seamless integration means developers do not
+need to manually patch httpx functions or manage the lifecycle of mock objects;
+pytest and pytest-httpx handle this transparently. This approach significantly
+simplifies the test setup process compared to manual patching techniques (e.g.,
+using unittest.mock.patch or pytest-mock's mocker.patch.object ), reducing
+boilerplate code and minimizing the risk of errors associated with incorrect
+patch management, such as patches not being applied correctly or persisting
+beyond the intended test scope. The fixture mechanism ensures that mocking is
+active only during the test and is properly cleaned up afterward, contributing
+to test isolation.
+
+## 3. Setting Up pytest-httpx 3.1. Installation To begin using pytest-httpx, it
+
+must be installed in the Python environment alongside pytest and httpx. Use `uv`
+to add it to the `dev` dependency group and install the dependencies:
 
 ```bash
 uv add --group dev pytest-httpx
@@ -75,31 +78,42 @@ uv pip install --group dev -e .
 These commands update `pyproject.toml`, lock the new dependency, and install all
 development dependencies (including your project in editable mode). pytest-httpx
 requires Python 3.9 or higher, while httpx itself requires Python 3.8 or higher.
-Ensure that the project's Python version meets these requirements. 3.2. Basic
-Fixture Usage (httpx_mock) Once installed, pytest-httpx makes its primary
-fixture, httpx_mock, available to pytest. To use it, a test function simply
-needs to accept httpx_mock as an argument. This signals to pytest to inject and
-activate the fixture for the duration of that test. A minimal synchronous test
-example demonstrating the fixture usage is as follows: import httpx from
-pytest_httpx import HTTPXMock # For type hinting
+Ensure that the project's Python version meets these requirements.
+
+### 3.2. Basic Fixture Usage (`httpx_mock`)
+
+Once installed, pytest-httpx exposes a `httpx_mock` fixture. Include it as an
+argument to your test function to intercept httpx calls.
+
+```python
+import httpx
+from pytest_httpx import HTTPXMock
 
 def test_sync_example(httpx_mock: HTTPXMock):
-httpx_mock.add_response(url="https://test_url", json={"data": "success"}) # Code
-under test that makes a GET request to "https://test_url" response =
-httpx.get("https://test_url") assert response.json() == {"data": "success"}
+    httpx_mock.add_response(url="https://test_url", json={"data": "success"})
+    response = httpx.get("https://test_url")
+    assert response.json() == {"data": "success"}
+```
 
-In this example, httpx_mock.add_response() is used to define a mock response for
-requests to "https://test_url". Any call to httpx.get("https://test_url") within
-this test will be intercepted and receive the defined JSON response. For
-asynchronous code utilizing httpx.AsyncClient, pytest-httpx works seamlessly
-with pytest.mark.asyncio. The test function should be an async def function:
-import pytest import httpx from pytest_httpx import HTTPXMock # For type hinting
+For asynchronous code, decorate the test with `pytest.mark.asyncio` and use
+`httpx.AsyncClient`:
 
-@pytest.mark.asyncio async def test_async_example(httpx_mock: HTTPXMock):
-httpx_mock.add_response(url="https://test_url", json={"data": "async_success"})
-\# Code under test that uses httpx.AsyncClient async with httpx.AsyncClient() as
-client: response = await client.get("https://test_url") assert response.json()
-== {"data": "async_success"}
+```python
+import pytest
+import httpx
+from pytest_httpx import HTTPXMock
+
+@pytest.mark.asyncio
+async def test_async_example(httpx_mock: HTTPXMock):
+    httpx_mock.add_response(url="https://test_url", json={"data": "async_success"})
+    async with httpx.AsyncClient() as client:
+        response = await client.get("https://test_url")
+    assert response.json() == {"data": "async_success"}
+```
+
+Using the `HTTPXMock` type hint provides editor autocompletion and type
+checking. The fixture seamlessly intercepts both top-level `httpx` calls and
+client instances, indicating deep integration with httpx's transport layer.
 
 Using the HTTPXMock type hint (httpx_mock: HTTPXMock) is recommended for better
 editor support, such as autocompletion and type checking, enhancing the
@@ -121,33 +135,38 @@ response that httpx should receive when a request matches certain criteria. If
 add_response() is invoked without any arguments, it registers a default mock
 that matches any HTTP request. This default response is an HTTP/1.1 200 OK with
 an empty body. This can be particularly useful for initial test scaffolding or
-when the test only needs to verify that any HTTP request was made, without
-concern for its specifics or the response content. httpx_mock.add_response() #
-Matches any request, returns 200 OK
-
 This "fail open" characteristic for basic mock setup allows developers to
 quickly establish a baseline mock and iteratively refine its specificity. This
 can accelerate the initial phases of test writing, enabling a focus on the core
-logic before detailing every aspect of the HTTP interaction. Typically, a mock
-response is targeted at a specific URL. For simple GET requests, specifying the
-url parameter is common:
-httpx_mock.add_response(url="https://api.example.com/data")
+logic before detailing every aspect of the HTTP interaction.
 
-# A call like client.get("https://api.example.com/data") will be matched.
+Typically, a mock response is targeted at a specific URL. For simple GET
+requests:
+
+```python
+httpx_mock.add_response(url="https://api.example.com/data")
+# A call like client.get("https://api.example.com/data") will be matched
+```
 
 To mock different HTTP methods such as POST, PUT, DELETE, PATCH, HEAD, or
-OPTIONS, the method parameter is used. This parameter accepts a string
-representing the HTTP method; it is case-insensitive as pytest-httpx internally
-converts it to uppercase. httpx_mock.add_response(method="POST",
-url="https://api.example.com/submit") httpx_mock.add_response(method="PUT",
-url="https://api.example.com/update/1") httpx_mock.add_response(method="DELETE",
-url="https://api.example.com/resource/1")
+OPTIONS, use the `method` parameter. It accepts a string representing the HTTP
+method and is case-insensitive as pytest-httpx converts it to uppercase.
+
+```python
+httpx_mock.add_response(method="POST", url="https://api.example.com/submit")
+httpx_mock.add_response(method="PUT", url="https://api.example.com/update/1")
+httpx_mock.add_response(method="DELETE", url="https://api.example.com/resource/1")
+```
 
 The HTTP status code of the mocked response can be customized using the
-status_code parameter, which takes an integer value :
+`status_code` parameter, which takes an integer value:
+
+```python
 httpx_mock.add_response(url="https://api.example.com/notfound", status_code=404)
-httpx_mock.add_response(url="https://api.example.com/created", status_code=201,
-method="POST")
+httpx_mock.add_response(
+    url="https://api.example.com/created", status_code=201, method="POST"
+)
+```
 
 Defining the content of the mocked response is crucial. pytest-httpx offers
 several convenient parameters for this:
@@ -157,22 +176,29 @@ several convenient parameters for this:
   to application/json, and uses it as the response body. Given the prevalence of
   JSON in modern APIs , this automation significantly reduces boilerplate
   compared to manual serialization and header setting.
-  httpx_mock.add_response(url="https://api.example.com/user/123",
+  httpx_mock.add_response(url="<https://api.example.com/user/123>",
   json={"message": "Success!", "id": 123})
 
 - Text: For plain text responses, the text parameter is used. The Content-Type
   may default to text/plain or can be explicitly set via the headers parameter.
-  httpx_mock.add_response(url="https://api.example.com/greeting", text="Hello,
+  httpx_mock.add_response(url="<https://api.example.com/greeting>", text="Hello,
   world!")
 
 - Bytes: The content parameter is used for providing a binary response body as
-  bytes. httpx_mock.add_response(url="https://api.example.com/binary-data",
+  bytes. httpx_mock.add_response(url="<https://api.example.com/binary-data>",
   content=b"\\x00\\x01\\x02\\x03")
 
-- HTML: While some documentation hints at a dedicated html parameter , a more
-  general approach is to use the text parameter with an appropriate Content-Type
-  header: httpx_mock.add_response(url="https://api.example.com/page",
-  text="<h1>Title</h1><p>Content</p>", headers={"Content-Type": "text/html"})
+- HTML: While some documentation hints at a dedicated `html` parameter, a more
+  general approach is to use the `text` parameter with an appropriate
+  Content-Type header:
+
+```python
+httpx_mock.add_response(
+    url="https://api.example.com/page",
+    text="<h1>Title</h1><p>Content</p>",
+    headers={"Content-Type": "text/html"},
+)
+```
 
 - Multipart body: pytest-httpx supports defining responses that simulate
   multipart content, although the primary focus in documentation snippets is on
@@ -181,11 +207,12 @@ several convenient parameters for this:
   Python libraries) and provide it via the content parameter along with the
   correct Content-Type header including the boundary. Response headers can be
   customized using the headers parameter, which accepts a dictionary :
-  httpx_mock.add_response(url="https://api.example.com/custom",
+  httpx_mock.add_response(url="<https://api.example.com/custom>",
   headers={"X-Custom-Header": "TestValue", "Content-Language": "en-US"})
 
 For testing interactions with servers using HTTP/2.0, the http_version parameter
-can be set: httpx_mock.add_response(url="https://api.example.com/http2_service",
+can be set:
+httpx_mock.add_response(url="<https://api.example.com/http2_service>",
 http_version="HTTP/2.0")
 
 The design philosophy of providing high-level abstractions like the json
@@ -194,7 +221,7 @@ content and headers for other data types, underscores a commitment to developer
 experience for frequent tasks. A summary of key httpx_mock.add_response()
 parameters is provided below: | Parameter | Type | Description | Example Usage |
 |---|---|---|---| | url | str, re.Pattern, httpx.URL | The URL to match. If not
-provided, matches any URL. | url="https://example.com/data" | | method | str |
+provided, matches any URL. | url="<https://example.com/data>" | | method | str |
 The HTTP method to match (e.g., "GET", "POST"). Case-insensitive. |
 method="POST" | | status_code | int | The HTTP status code for the response.
 Defaults to 200. | status_code=404 | | json | dict, list | Python object to be
@@ -206,30 +233,33 @@ response. | headers={"X-API-KEY": "secret"} | | http_version | str | HTTP
 version string for the response (e.g., "HTTP/1.1", "HTTP/2.0"). Defaults to
 "HTTP/1.1". | http_version="HTTP/2.0" | This table centralizes information that
 is otherwise distributed across various examples , serving as a quick reference.
-5\. Advanced Request Matching Beyond basic URL and method matching, pytest-httpx
-provides a rich set of parameters to define more specific criteria for when a
-mock response should be applied. This precision is vital for ensuring that tests
-accurately reflect the intended interactions with external services and for
-robust contract testing. The url parameter itself offers advanced capabilities.
-It can accept an exact string, a Python re.Pattern object for regular expression
-matching, or an httpx.URL instance. Matching is performed on the full URL,
-including any query parameters. The order of query parameters in the request URL
-string generally does not affect matching; however, for parameters that can have
-multiple values, the order of those values is significant. import re import
-httpx
+
+## 5. Advanced Request Matching
+
+Beyond basic URL and method matching, pytest-httpx provides a rich set of
+parameters to define more specific criteria for when a mock response should be
+applied. This precision is vital for ensuring that tests accurately reflect the
+intended interactions with external services and for robust contract testing.
+The `url` parameter itself offers advanced capabilities. It can accept an exact
+string, a Python re.Pattern object for regular expression matching, or an
+httpx.URL instance. Matching is performed on the full URL, including any query
+parameters. The order of query parameters in the request URL string generally
+does not affect matching; however, for parameters that can have multiple values,
+the order of those values is significant.
+
+```python
+import re
+import httpx
 
 # Exact string match
-
 httpx_mock.add_response(url="https://example.com/data?param1=val1&param2=val2")
 
-# Regex match for URLs like /users/1, /users/42, etc.
-
-httpx_mock.add_response(url=re.compile(r"https://example.com/users/\\d+"))
+# Regex match for URLs like /users/1, /users/42, etc
+httpx_mock.add_response(url=re.compile(r"https://example.com/users/\d+"))
 
 # httpx.URL match, useful for programmatically building URLs with params
-
-httpx_mock.add_response(url=httpx.URL("https://example.com/data",
-params={"param1": "val1"}))
+httpx_mock.add_response(url=httpx.URL("https://example.com/data", params={"param1": "val1"}))
+```
 
 The ability to use regular expressions or unittest.mock.ANY (for JSON matching,
 discussed below) provides valuable flexibility. It allows tests to be resilient
@@ -242,37 +272,37 @@ HTTP headers, the match_headers parameter is used. It takes a dictionary where
 keys are header names and values are the expected header values. Matching is
 performed on equality for each provided header, and header names are typically
 treated case-insensitively. httpx_mock.add_response(
-url="https://api.example.com/protected", match_headers={"Authorization": "Bearer
-testtoken", "X-API-Version": "2"} )
+url="<https://api.example.com/protected>", match_headers={"Authorization":
+"Bearer testtoken", "X-API-Version": "2"} )
 
-# This mock will match a request to the URL if it includes an 'Authorization' header
-
-# with the value 'Bearer testtoken' and an 'X-API-Version' header with the value '2'.
-
-Matching the content of the request body is also supported through several
-parameters:
+This mock will match a request to the URL if it includes an 'Authorization'
+header with the value 'Bearer testtoken' and an 'X-API-Version' header with the
+value '2'.
 
 - match_content: This parameter expects the full HTTP request body as bytes and
   performs an exact equality match. httpx_mock.add_response(method="POST",
-  url="https://example.com/binary_upload", match_content=b"Exact byte content of
-  the request")
+  url="<https://example.com/binary_upload>", match_content=b"Exact byte content
+  of the request")
 
 - match_json: For requests with a JSON body, this parameter takes a Python
   dictionary or list. pytest-httpx will parse the request's JSON body and
   compare it to the provided object. For partial matching within the JSON
-  structure, unittest.mock.ANY can be used to specify fields whose values are
-  not critical for the match. from unittest.mock import ANY
-  httpx_mock.add_response(method="POST", url="https://example.com/submit_json",
-  match_json={"key1": "value1", "timestamp": ANY, "user_id": 123})
 
-# A POST request to the URL with JSON body:
-
-# {"key1": "value1", "timestamp": "2023-10-27T10:00:00Z", "user_id": 123} would match.
+```python
+from unittest.mock import ANY
+httpx_mock.add_response(
+    method="POST",
+    url="https://example.com/submit_json",
+    match_json={"key1": "value1", "timestamp": ANY, "user_id": 123},
+)
+# A POST request to the URL with JSON body
+# {"key1": "value1", "timestamp": "2023-10-27T10:00:00Z", "user_id": 123} would match
+```
 
 - match_data: If the request sends form-encoded data
   (application/x-www-form-urlencoded), this parameter takes a dictionary to
   match against the form fields. httpx_mock.add_response(method="POST",
-  url="https://example.com/form_submit", match_data={"field1": "data1",
+  url="<https://example.com/form_submit>", match_data={"field1": "data1",
   "field2": "another_value"})
 
 - match_files: For multipart/form-data requests (typically file uploads),
@@ -280,28 +310,24 @@ parameters:
   structure is a dictionary where keys are field names and values are tuples,
   often ("filename.ext", b"File content"). This can be combined with match_data
   for other form fields in the same multipart request. httpx_mock.add_response(
-  method="POST", url="https://example.com/upload_file", match_files={"document":
-  ("report.txt", b"This is the report content.")}, match_data={"description":
-  "Monthly financial report"} )
+  method="POST", url="<https://example.com/upload_file>",
+  match_files={"document": ("report.txt", b"This is the report content.")},
+  match_data={"description": "Monthly financial report"} )
 
 If the application under test routes requests through an HTTP proxy,
 pytest-httpx can match requests based on the proxy_url. This parameter accepts a
 string, a re.Pattern instance, or an httpx.URL instance, and matching is
-performed on the full proxy URL, including its query parameters.
+
+```python
 httpx_mock.add_response(proxy_url="http://myproxy.example.com:8080?user=test_user")
-
 # This mock would apply to requests made via an httpx.Client configured with
-
 # client = httpx.Client(proxy="http://myproxy.example.com:8080?user=test_user")
+```
 
-httpx allows passing arbitrary data with a request using "extensions." These are
-often utilized by custom transports or middleware. The match_extensions
-parameter enables matching requests based on these extensions, expecting a
-dictionary.
-httpx_mock.add_response(match_extensions={"custom_timeout_config_key":
-"aggressive_profile"})
-
+```python
+httpx_mock.add_response(match_extensions={"custom_timeout_config_key": "aggressive_profile"})
 # This would match client.get("...", extensions={"custom_timeout_config_key": "aggressive_profile"})
+```
 
 When multiple mock responses are registered that could potentially match an
 incoming request, pytest-httpx employs a specific selection logic: it chooses
@@ -350,8 +376,11 @@ object as an argument, providing access to all details of the incoming request,
 such as its headers, body, and URL. The callback must then return an
 httpx.Response object. This powerful feature enables the simulation of complex
 server behaviors where the response content or status might depend on the data
-sent in the request. import httpx from pytest_httpx import HTTPXMock
+sent in the request.
 
+```python
+import httpx
+from pytest_httpx import HTTPXMock
 def dynamic_response_callback(request: httpx.Request) -> httpx.Response: try: #
 Attempt to read and decode JSON, fallback for other content types request_data =
 request.json() name = request_data.get("name", "Guest") except Exception: #
@@ -360,17 +389,19 @@ request_data_str = request.read().decode(errors='replace') if "special_param" in
 request_data_str: return httpx.Response(200, json={"status": "special_text",
 "greeting": f"Hello, {name} based on text!"})
 
-```
-if "admin" in name.lower():
-    return httpx.Response(200, json={"status": "admin_greeting", "message": f"Welcome, Admin {name}!"})
-return httpx.Response(200, json={"status": "user_greeting", "message": f"Hello, {name}!"})
+
+if "admin" in name.lower(): return httpx.Response(200, json={"status":
+"admin_greeting", "message": f"Welcome, Admin {name}!"}) return
+httpx.Response(200, json={"status": "user_greeting", "message": f"Hello,
+{name}!"})
+
 ```
 
 def test_dynamic_response_with_callback(httpx_mock: HTTPXMock):
 httpx_mock.add_callback( dynamic_response_callback,
-url="https://api.example.com/greet", method="POST" )
+url="<https://api.example.com/greet>", method="POST" )
 
-```
+```python
 # Call 1: Regular user
 response1 = httpx.post("https://api.example.com/greet", json={"name": "Alice"})
 assert response1.status_code == 200
@@ -403,55 +434,54 @@ pytest-httpx supports this in two primary ways:
   add_callback) entries for the same URL and method, they will be consumed in
   the order of registration. This relies on the "first one not yet sent" rule
   for response selection. This method is straightforward for fixed, predictable
-  sequences. def test_sequential_calls_pagination(httpx_mock: HTTPXMock):
-  base_url = "https://api.example.com/items"
 
-  # First page of items
+```python
+def test_sequential_calls_pagination(httpx_mock: HTTPXMock):
+    base_url = "https://api.example.com/items"
 
-  httpx_mock.add_response(url=base_url, params={"page": "1"}, json=\[{"id": 1,
-  "name": "Item 1"}\])
+    # First page of items
+    httpx_mock.add_response(url=base_url, params={"page": "1"}, json=[{"id": 1, "name": "Item 1"}])
 
-  # Second page of items
+    # Second page of items
+    httpx_mock.add_response(url=base_url, params={"page": "2"}, json=[{"id": 2, "name": "Item 2"}])
 
-  httpx_mock.add_response(url=base_url, params={"page": "2"}, json=\[{"id": 2,
-  "name": "Item 2"}\])
+    # Attempt to get a third page, results in no more items (e.g., empty list or 404)
+    httpx_mock.add_response(url=base_url, params={"page": "3"}, json=[])
 
-  # Attempt to get a third page, results in no more items (e.g., empty list or 404)
-
-  httpx_mock.add_response(url=base_url, params={"page": "3"}, json=)
-
-  assert httpx.get(base_url, params={"page": "1"}).json() == \[{"id": 1, "name":
-  "Item 1"}\] assert httpx.get(base_url, params={"page": "2"}).json() ==
-  \[{"id": 2, "name": "Item 2"}\] assert httpx.get(base_url, params={"page":
-  "3"}).json() ==
+    assert httpx.get(base_url, params={"page": "1"}).json() == [{"id": 1, "name": "Item 1"}]
+    assert httpx.get(base_url, params={"page": "2"}).json() == [{"id": 2, "name": "Item 2"}]
+    assert httpx.get(base_url, params={"page": "3"}).json() == []
+```
 
 - Using a Callback with Internal State: For more complex sequences where the
   response logic itself is intricate or depends on an accumulated state from
   previous requests, a callback function or method of a class instance can
   maintain its own state (e.g., a counter, a list of previously seen IDs). This
-  offers greater flexibility. import httpx from pytest_httpx import HTTPXMock
+  import httpx from pytest_httpx import HTTPXMock
 
-class StatefulAPISimulator: def __init__(self): self.call_count = 0
-self.items_created =
+```python
+class StatefulAPISimulator:
+    def __init__(self):
+        self.call_count = 0
+        self.items_created = []
 
-```
-def process_request(self, request: httpx.Request) -> httpx.Response:
-    self.call_count += 1
-    if request.method == "POST":
-        new_item_id = f"item_{self.call_count}"
-        self.items_created.append(new_item_id)
-        return httpx.Response(201, json={"id": new_item_id, "status": "created"})
-    elif request.method == "GET":
-        return httpx.Response(200, json={"items": self.items_created, "count": len(self.items_created)})
-    return httpx.Response(405, text="Method Not Allowed")
+    def process_request(self, request: httpx.Request) -> httpx.Response:
+        self.call_count += 1
+        if request.method == "POST":
+            new_item_id = f"item_{self.call_count}"
+            self.items_created.append(new_item_id)
+            return httpx.Response(201, json={"id": new_item_id, "status": "created"})
+        elif request.method == "GET":
+            return httpx.Response(200, json={"items": self.items_created, "count": len(self.items_created)})
+        return httpx.Response(405, text="Method Not Allowed")
 ```
 
 def test_stateful_api_simulation(httpx_mock: HTTPXMock): simulator =
 StatefulAPISimulator() # Register the same callback for multiple methods on the
 same URL pattern httpx_mock.add_callback(simulator.process_request,
-url="https://api.example.com/resource_manager")
+url="<https://api.example.com/resource_manager>")
 
-```
+```python
 # Create first item
 response_post1 = httpx.post("https://api.example.com/resource_manager", json={"data": "first"})
 assert response_post1.status_code == 201
@@ -488,10 +518,10 @@ aspects of the outgoing requests. For instance, one can check the number of
 requests made: from pytest_httpx import HTTPXMock import httpx
 
 def test_single_request_was_made(httpx_mock: HTTPXMock):
-httpx_mock.add_response(url="https://api.example.com/action") # Code under test
-that calls the API once httpx.get("https://api.example.com/action")
+httpx_mock.add_response(url="<https://api.example.com/action>") # Code under
+test that calls the API once httpx.get("<https://api.example.com/action>")
 
-```
+```python
 requests_made = httpx_mock.get_requests()
 assert len(requests_made) == 1
 ```
@@ -500,11 +530,11 @@ Each item in the list returned by get_requests() is an instance of
 httpx.Request. This object exposes attributes like url, method, headers, and
 content (or read() for the body as bytes), allowing for detailed inspection and
 assertions: def test_inspect_request_details_example(httpx_mock: HTTPXMock):
-target_url = "https://api.example.com/submit_data" request_payload =
+target_url = "<https://api.example.com/submit_data>" request_payload =
 {"data_key": "test_payload_value"} custom_request_headers = {"X-Trace-ID":
 "abcdef12345", "Content-Type": "application/json"}
 
-```
+```python
 httpx_mock.add_response(method="POST", url=target_url) # Mock the response
 # Code under test making the POST request
 httpx.post(target_url, json=request_payload, headers={"X-Trace-ID": "abcdef12345"}) # httpx auto-adds Content-Type for json
@@ -566,10 +596,10 @@ identically in these asynchronous tests, intercepting calls made by
 httpx.AsyncClient. import pytest import httpx from pytest_httpx import HTTPXMock
 
 @pytest.mark.asyncio async def test_async_client_interaction_example(httpx_mock:
-HTTPXMock): mock_url = "https://async.service.example.com/data"
+HTTPXMock): mock_url = "<https://async.service.example.com/data>"
 mock_response_json = {"key": "async_value_example"}
 
-```
+```python
 httpx_mock.add_response(url=mock_url, json=mock_response_json)
 
 # Code under test using httpx.AsyncClient
@@ -598,7 +628,7 @@ httpx.Response: # Simulate some async work, e.g., an internal async lookup or
 delay # await asyncio.sleep(0.01) return httpx.Response(200, text="Response from
 async callback")
 
-```
+```python
 httpx_mock.add_callback(my_async_callback, url="https://async.service.example.com/dynamic_resource")
 
 async with httpx.AsyncClient() as client:
@@ -652,10 +682,10 @@ failed", request=request)
 
 @pytest.mark.asyncio # This test could also be synchronous async def
 test_application_handles_connect_error(httpx_mock: HTTPXMock): service_url =
-"https://unreachable.internal.service.com/api/data" httpx_mock.add_callback(
+"<https://unreachable.internal.service.com/api/data>" httpx_mock.add_callback(
 raise_connect_error_callback, url=service_url )
 
-```
+```python
 # Assume 'fetch_data_from_service' is a function in the SUT
 # that calls the service_url and has error handling for httpx.ConnectError
 with pytest.raises(httpx.ConnectError, match="Mocked connection establishment failed"):
@@ -679,11 +709,11 @@ checking response.status_code or by observing its behavior when
 response.raise_for_status() is called (which would raise an
 httpx.HTTPStatusError). def test_application_handles_403_forbidden(httpx_mock:
 HTTPXMock): forbidden_resource_url =
-"https://api.example.com/restricted_resource"
+"<https://api.example.com/restricted_resource>"
 httpx_mock.add_response(url=forbidden_resource_url, status_code=403,
 json={"detail": "Access denied"})
 
-```
+```python
 # SUT makes a request to forbidden_resource_url
 response = httpx.get(forbidden_resource_url) # Simulating SUT call
 
@@ -738,42 +768,44 @@ pytest-httpx can facilitate testing these:
   trigger exception. | This mapping helps ensure that tests cover a wide
   spectrum of potential failure scenarios.
 
-10. Working with Custom httpx Transports httpx offers an advanced feature
-    allowing users to customize how requests are sent by providing a custom
-    transport class to an httpx.Client instance via the transport argument.
-    Standard transports include HTTPTransport (the default for network
-    requests), WSGITransport (for testing WSGI applications like Flask directly
-    in-process), and ASGITransport (for testing ASGI applications like FastAPI
-    in-process). Users can also create their own transport classes by
-    subclassing httpx.BaseTransport (for synchronous clients) or
-    httpx.AsyncBaseTransport (for asynchronous clients) to implement specialized
-    request handling logic. When considering how pytest-httpx interacts with
-    clients using custom transports, it's important to understand the mocking
-    mechanism. pytest-httpx generally operates by patching httpx's request
-    dispatching at a level that intercepts requests before they would be handled
-    by a transport designed for actual network communication. The primary goal
-    of pytest-httpx is to prevent real network calls and substitute mock
-    responses. If the objective is to test the internal logic of a custom
-    transport itself, pytest-httpx might not be the most direct tool. Instead,
-    httpx provides its own httpx.MockTransport class. This class, part of httpx
-    core, accepts a handler function that maps incoming httpx.Request objects to
-    predetermined httpx.Response objects. import httpx import os # For the
-    example from httpx docs
+## 10. Working with Custom httpx Transports httpx offers an advanced feature
+
+```python
+allowing users to customize how requests are sent by providing a custom
+transport class to an httpx.Client instance via the transport argument.
+Standard transports include HTTPTransport (the default for network
+requests), WSGITransport (for testing WSGI applications like Flask directly
+in-process), and ASGITransport (for testing ASGI applications like FastAPI
+in-process). Users can also create their own transport classes by
+subclassing httpx.BaseTransport (for synchronous clients) or
+httpx.AsyncBaseTransport (for asynchronous clients) to implement specialized
+request handling logic. When considering how pytest-httpx interacts with
+clients using custom transports, it's important to understand the mocking
+mechanism. pytest-httpx generally operates by patching httpx's request
+dispatching at a level that intercepts requests before they would be handled
+by a transport designed for actual network communication. The primary goal
+of pytest-httpx is to prevent real network calls and substitute mock
+responses. If the objective is to test the internal logic of a custom
+transport itself, pytest-httpx might not be the most direct tool. Instead,
+httpx provides its own httpx.MockTransport class. This class, part of httpx
+core, accepts a handler function that maps incoming httpx.Request objects to
+predetermined httpx.Response objects. import httpx import os # For the
+example from httpx docs
+```
 
 def my_mock_handler(request: httpx.Request) -> httpx.Response: # Example: return
 a specific response based on request URL or method if request.url.path ==
 "/special_endpoint": return httpx.Response(200, json={"message": "Handled by
-MockTransport"}) return httpx.Response(404, text="Not Found by MockTransport")
 
-# Example usage of httpx.MockTransport
-
-if os.environ.get('TESTING_WITH_MOCK_TRANSPORT', '').upper() == "TRUE":
-transport_to_use = httpx.MockTransport(my_mock_handler) else: transport_to_use =
-httpx.HTTPTransport() # Default network transport
+```python
+if os.environ.get("TESTING_WITH_MOCK_TRANSPORT", "").upper() == "TRUE":
+    transport_to_use = httpx.MockTransport(my_mock_handler)
+else:
+    transport_to_use = httpx.HTTPTransport()
 
 client_with_custom_or_mock_transport = httpx.Client(transport=transport_to_use)
-
-# Calls made with client_with_custom_or_mock_transport will use the specified transport.
+# Calls made with client_with_custom_or_mock_transport will use the specified transport
+```
 
 httpx.MockTransport offers a foundational, direct way to control request
 dispatching at the transport level for testing purposes. pytest-httpx, on the
@@ -821,29 +853,32 @@ transports depend on what is being tested:
   httpx.MockTransport or standard Python mocking libraries, would be more
   suitable.
 
-11. Testing Streaming Responses Modern web applications often deal with large
-    data responses or continuous data streams (e.g., file downloads, server-sent
-    events). httpx supports response streaming to handle such scenarios
-    efficiently, allowing data to be processed in chunks without loading the
-    entire response into memory at once. pytest-httpx provides capabilities to
-    mock these streaming responses, enabling tests to verify how an application
-    consumes and processes streamed data. To mock a streaming response, the
-    stream parameter is used within httpx_mock.add_response(). This parameter
-    should be an instance of httpx.SyncByteStream for synchronous clients or
-    httpx.AsyncByteStream for asynchronous clients. pytest-httpx includes a
-    convenient utility, pytest_httpx.IteratorStream, which can create a byte
-    stream from an iterable (like a list of byte strings or a generator function
-    yielding byte strings). This significantly simplifies the process of
-    defining mock streams, as developers do not need to implement the
-    SyncByteStream or AsyncByteStream interface manually. For synchronous
-    streaming: import httpx import pytest # Only if using pytest features like
-    markers, not strictly needed for this example from pytest_httpx import
-    HTTPXMock, IteratorStream
+## 11. Testing Streaming Responses Modern web applications often deal with large
+
+```python
+data responses or continuous data streams (e.g., file downloads, server-sent
+events). httpx supports response streaming to handle such scenarios
+efficiently, allowing data to be processed in chunks without loading the
+entire response into memory at once. pytest-httpx provides capabilities to
+mock these streaming responses, enabling tests to verify how an application
+consumes and processes streamed data. To mock a streaming response, the
+stream parameter is used within httpx_mock.add_response(). This parameter
+should be an instance of httpx.SyncByteStream for synchronous clients or
+httpx.AsyncByteStream for asynchronous clients. pytest-httpx includes a
+convenient utility, pytest_httpx.IteratorStream, which can create a byte
+stream from an iterable (like a list of byte strings or a generator function
+yielding byte strings). This significantly simplifies the process of
+defining mock streams, as developers do not need to implement the
+SyncByteStream or AsyncByteStream interface manually. For synchronous
+streaming: import httpx import pytest # Only if using pytest features like
+markers, not strictly needed for this example from pytest_httpx import
+HTTPXMock, IteratorStream
+```
 
 def test_synchronous_streaming_response_mock(httpx_mock: HTTPXMock): data_chunks
 \=
 
-```
+```python
 httpx_mock.add_response(
     url="https://example.com/large_data_stream",
     stream=IteratorStream(data_chunks) # Create a stream from the list of byte chunks
@@ -874,7 +909,7 @@ generate_async_data_chunks(): yield b"Async data chunk 1. " # await
 asyncio.sleep(0.01) # Optionally simulate delay between chunks yield b"Async
 data chunk 2. " yield b"Async data chunk 3, the end."
 
-```
+```python
 httpx_mock.add_response(
     url="https://example.com/asynchronous_stream_source",
     # IteratorStream can wrap async iterables for async responses
@@ -917,28 +952,31 @@ more maintainable, readable, and robust test suites.
   fixture can perform the necessary httpx_mock.add_response() or
   httpx_mock.add_callback() calls and can either return the httpx_mock instance
   for further customization or simply set up the mocks.
-  # conftest.py (example)
 
-import pytest from pytest_httpx import HTTPXMock
+```python
+import pytest
+from pytest_httpx import HTTPXMock
 
-@pytest.fixture def mock_successful_user_retrieval(httpx_mock: HTTPXMock):
-"""Mocks a successful GET request to /api/users/{user_id}."""
-httpx_mock.add_response( method="GET",
-url=re.compile(r"https://api.example.com/users/\\d+"), # Match any user ID
-json={"id": 123, "name": "Mocked User", "email": "user@example.com"} # Generic
-success ) # Optionally, return httpx_mock if tests need to add more specific
-mocks # or inspect requests related to this fixture. # return httpx_mock
+@pytest.fixture
+def mock_successful_user_retrieval(httpx_mock: HTTPXMock):
+    """Mocks a successful GET request to /api/users/{user_id}."""
+    httpx_mock.add_response(
+        method="GET",
+        url=re.compile(r"https://api.example.com/users/\d+"),
+        json={"id": 123, "name": "Mocked User", "email": "user@example.com"},
+    )
+    # Optionally, return httpx_mock if tests need customization
+    # return httpx_mock
+```
 
-# In a test file, e.g., test_user_module.py
+In a test file, e.g., test_user_module.py
 
-# The mock_successful_user_retrieval fixture will be automatically applied if listed as an argument.
-
-def test_fetch_user_details_success(mock_successful_user_retrieval,
-user_service_instance): user = user_service_instance.get_user_by_id(123) assert
-user is not None assert user.name == "Mocked User"
-
-This practice adheres to the Don't Repeat Yourself (DRY) principle, making tests
-cleaner and easier to update if the API contract changes.
+```python
+def test_fetch_user_details_success(mock_successful_user_retrieval, user_service_instance):
+    user = user_service_instance.get_user_by_id(123)
+    assert user is not None
+    assert user.name == "Mocked User"
+```
 
 - Keeping Mocks Specific and Readable: It is advisable to use precise matching
   criteria (URL, method, match_headers, match_json, etc.) for mocks. This
@@ -976,9 +1014,7 @@ cleaner and easier to update if the API contract changes.
   the full potential of pytest-httpx to build comprehensive and reliable test
   suites for their httpx-based applications.
 
-13. Troubleshooting Common Issues and Pitfalls Even with a well-designed library
-    like pytest-httpx, users may encounter issues. Understanding common pitfalls
-    and how to debug them can save considerable time.
+## 13. Troubleshooting Common Issues and Pitfalls Even with a well-designed library
 
 - Configuration Mistakes:
   - Missing httpx_mock fixture: Forgetting to include httpx_mock as an argument
@@ -1061,58 +1097,56 @@ cleaner and easier to update if the API contract changes.
   where expected requests are no longer made, thus preventing tests from
   becoming stale or providing a false sense of security.
 
-14. Migrating from Other Mocking Libraries Developers transitioning to httpx and
-    pytest-httpx may have experience with mocking libraries for older HTTP
-    clients like requests or aiohttp. pytest-httpx documentation acknowledges
-    this by providing direct comparisons, which can significantly ease the
-    migration process. 14.1. Comparison with responses (for requests library)
-    The responses library is a popular choice for mocking HTTP requests made by
-    the requests library. pytest-httpx shares conceptual similarities but is
-    tailored for httpx. Key API mappings include : | Feature | responses Syntax
-    | pytest-httpx Syntax (httpx_mock) | |---|---|---| | Add a response |
-    responses.add(...) | add_response(...) | | Add a callback |
-    responses.add_callback(...) | add_callback(...) | | Retrieve requests made |
-    responses.calls (list of Call objects) | get_requests() (list of
-    httpx.Request objects) | | Specify HTTP method | method=responses.GET
-    (constants) | method="GET" (string) | | Response body (bytes) |
-    body=b"sample" | content=b"sample" | | Response body (string) |
-    body="sample" | text="sample" | | Response body (JSON) | json={"key":
-    "value"} | json={"key": "value"} | | Response status code | status=201 |
-    status_code=201 | | Response headers | adding_headers={"name": "value"} |
-    headers={"name": "value"} | | Content-Type header |
-    content_type="application/custom" | headers={"content-type":
-    "application/custom"} | | Match full query string | match_querystring=True
-    (influences URL matching) | URL matching (url param) always includes query
-    params. | 14.2. Comparison with aioresponses (for aiohttp library)
-    aioresponses serves a similar purpose for the aiohttp asynchronous HTTP
-    client. The mapping to pytest-httpx is also straightforward : | Feature |
-    aioresponses Syntax | pytest-httpx Syntax (httpx_mock) | |---|---|---| | Add
-    a response (for specific method) | aioresponses_instance.get(url,...) |
-    add_response(method="GET", url=url,...) | | Add a callback (for specific
-    method) | aioresponses_instance.get(url, callback=my_callback,...) |
-    add_callback(my_callback, method="GET", url=url,...) | 14.3. Key Differences
-    and Advantages The primary difference is the target library: pytest-httpx is
-    exclusively for httpx. Its design leverages pytest's fixture system for
-    seamless integration. The request matching capabilities in pytest-httpx are
-    extensive, covering URL (with regex), method, headers, various body types
-    (JSON with partial matching, content, data, files), proxy URLs, and httpx
-    extensions. A significant advantage of the httpx and pytest-httpx ecosystem
-    is the unified handling of synchronous and asynchronous code. httpx itself
-    provides both Client and AsyncClient with largely symmetrical APIs.
-    pytest-httpx mirrors this by using the single httpx_mock fixture to mock
-    calls from both client types, employing the same add_response and
-    add_callback API. This contrasts with older ecosystems where separate
-    libraries (e.g., responses for sync requests, aioresponses for async
-    aiohttp) were often needed, leading to different mocking paradigms for sync
-    and async code. This unification simplifies development and testing,
-    especially for projects that utilize modern asynchronous Python or are
-    transitioning towards it. The explicit comparison tables in the pytest-httpx
-    documentation demonstrate a pragmatic approach to user adoption, recognizing
-    that developers often bring experience from these established tools and
-    aiming to lower the learning curve.
-15. Conclusion and Further Resources pytest-httpx stands out as an essential
-    tool for testing Python applications that rely on the httpx HTTP client. Its
-    benefits are numerous:
+## 14. Migrating from Other Mocking Libraries Developers transitioning to httpx and
+
+pytest-httpx may have experience with mocking libraries for older HTTP clients
+like requests or aiohttp. pytest-httpx documentation acknowledges this by
+providing direct comparisons, which can significantly ease the The responses
+library is a popular choice for mocking HTTP requests made by the requests
+library. pytest-httpx shares conceptual similarities but is tailored for httpx.
+Key API mappings include : | Feature | responses Syntax | pytest-httpx Syntax
+(httpx_mock) | |---|---|---| | Add a response | responses.add(...) |
+add_response(...) | | Add a callback | responses.add_callback(...) |
+add_callback(...) | | Retrieve requests made | responses.calls (list of Call
+objects) | get_requests() (list of httpx.Request objects) | | Specify HTTP
+method | method=responses.GET (constants) | method="GET" (string) | | Response
+body (bytes) | body=b"sample" | content=b"sample" | | Response body (string) |
+body="sample" | text="sample" | | Response body (JSON) | json={"key": "value"} |
+json={"key": "value"} | | Response status code | status=201 | status_code=201 |
+| Response headers | adding_headers={"name": "value"} | headers={"name":
+"value"} | | Content-Type header | content_type="application/custom" |
+headers={"content-type": "application/custom"} | | Match full query string |
+match_querystring=True (influences URL matching) | URL matching (url param)
+always includes query params. | 14.2. Comparison with aioresponses (for aiohttp
+library) aioresponses serves a similar purpose for the aiohttp asynchronous HTTP
+client. The mapping to pytest-httpx is also straightforward : | Feature |
+aioresponses Syntax | pytest-httpx Syntax (httpx_mock) | |---|---|---| | Add a
+response (for specific method) | aioresponses_instance.get(url,...) |
+add_response(method="GET", url=url,...) | | Add a callback (for specific method)
+| aioresponses_instance.get(url, callback=my_callback,...) |
+add_callback(my_callback, method="GET", url=url,...) | 14.3. Key Differences and
+Advantages The primary difference is the target library: pytest-httpx is
+exclusively for httpx. Its design leverages pytest's fixture system for seamless
+integration. The request matching capabilities in pytest-httpx are extensive,
+covering URL (with regex), method, headers, various body types (JSON with
+partial matching, content, data, files), proxy URLs, and httpx extensions. A
+significant advantage of the httpx and pytest-httpx ecosystem is the unified
+handling of synchronous and asynchronous code. httpx itself provides both Client
+and AsyncClient with largely symmetrical APIs. pytest-httpx mirrors this by
+using the single httpx_mock fixture to mock calls from both client types,
+employing the same add_response and add_callback API. This contrasts with older
+ecosystems where separate libraries (e.g., responses for sync requests,
+aioresponses for async aiohttp) were often needed, leading to different mocking
+paradigms for sync and async code. This unification simplifies development and
+testing, especially for projects that utilize modern asynchronous Python or are
+transitioning towards it. The explicit comparison tables in the pytest-httpx
+documentation demonstrate a pragmatic approach to user adoption, recognizing
+that developers often bring experience from these established tools and aiming
+to lower the learning curve.
+
+## 15. Conclusion and Further Resources pytest-httpx stands out as an essential
+
+benefits are numerous:
 
 - Seamless pytest Integration: It leverages pytest's powerful fixture system,
   making mock setup and teardown transparent and straightforward.

@@ -226,7 +226,15 @@ Because historic messages may be shared by many branches, **never hard-delete**
 rows. Instead:
 
 Then run a nightly job that removes messages *only* when
-`NOT EXISTS (SELECT 1 FROM conversation WHERE root_message_id = message.id OR parent_id = message.id)`.
+
+```sql
+NOT EXISTS (
+    SELECT 1
+    FROM conversation
+    WHERE root_message_id = message.id
+      OR parent_id = message.id
+)
+```
 
 ### Testing forks
 

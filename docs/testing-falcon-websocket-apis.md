@@ -97,9 +97,7 @@ typically required:
 
 These can be installed using `pip`:
 
-Bash
-
-```
+```bash
 pip install falcon pytest pytest-asyncio
 ```
 
@@ -133,9 +131,7 @@ a command-line option (`--asyncio-mode`).12
 
 **Example** `pytest.ini` **configuration for** `auto` **mode:**
 
-Ini, TOML
-
-```
+```ini
 [pytest]
 asyncio_mode = auto
 ```
@@ -188,9 +184,7 @@ Assuming the Falcon ASGI application instance is named `app` (e.g.,
 `app = falcon.asgi.App()`), a `pytest` fixture for `ASGIConductor` would look
 like this:
 
-Python
-
-```
+```python
 # conftest.py or your test file
 import pytest
 from falcon import testing
@@ -221,9 +215,7 @@ WebSocket, providing methods to send and receive messages.
 
 **Example structure:**
 
-Python
-
-```
+```python
 @pytest.mark.asyncio
 async def test_websocket_connection(conductor): # conductor fixture is injected
     async with conductor.simulate_ws('/your_websocket_endpoint') as ws_client:
@@ -268,9 +260,7 @@ WebSocket endpoint and that the server accepts the connection. The
 server-side `on_websocket` handler calls `await ws.accept()`, the `async with`
 block will be entered.
 
-Python
-
-```
+```python
 # tests/test_chat_websocket.py
 import pytest
 from falcon import testing # For ASGIConductor and WebSocketDisconnected
@@ -311,9 +301,7 @@ If the server rejects the connection by raising an `falcon.HTTPError` (e.g.,
 `simulate_ws()` will raise that `HTTPError`.4 `pytest.raises` can be used to
 assert this.
 
-Python
-
-```
+```python
 import pytest
 from falcon import HTTPForbidden, testing
 
@@ -345,9 +333,7 @@ passing.
 This pattern involves the test client sending a message and then asserting the
 server's response.
 
-Python
-
-```
+```python
 @pytest.mark.asyncio
 async def test_websocket_echo_text_message(conductor):
     async with conductor.simulate_ws('/echo') as ws_client: # Assuming an '/echo' endpoint
@@ -373,9 +359,7 @@ potentially unsolicited (e.g., notifications, broadcasts). While `ASGIConductor`
 simulates a single client, it can verify that this client receives messages that
 would be part of a broader broadcast or server-initiated event stream.
 
-Python
-
-```
+```python
 @pytest.mark.asyncio
 async def test_websocket_server_sends_greeting(conductor):
     # Assuming the '/chat' endpoint sends a welcome message upon successful connection.
@@ -408,9 +392,7 @@ protocols, structured data like JSON.
 - **Binary Payloads:** Use `ws_client.send_data(b'some_binary_data')` and
   `binary_response = await ws_client.receive_data()`.
 
-  Python
-
-  ```
+```python
   @pytest.mark.asyncio
   async def test_websocket_binary_message_exchange(conductor):
       async with conductor.simulate_ws('/binary_processor') as ws_client:
@@ -421,7 +403,7 @@ protocols, structured data like JSON.
           processed_data = await ws_client.receive_data(timeout=1)
           assert processed_data == b'\x05\x04\x03\x02\x01' # Example response
 
-  ```
+```
 
 - **JSON (or other Media Types):** Falcon's WebSocket support includes media
   handlers (e.g., `JSONHandlerWS`, `MessagePackHandlerWS`) that can
@@ -429,9 +411,7 @@ protocols, structured data like JSON.
   (ASGIWebSocketSimulator) also supports this via `send_media()` and
   `receive_media()`.
 
-  Python
-
-  ```
+```python
   @pytest.mark.asyncio
   async def test_websocket_json_media_exchange(conductor):
       # Ensure your Falcon app has JSONHandlerWS configured for WebSockets
@@ -445,12 +425,12 @@ protocols, structured data like JSON.
           response_json = await ws_client.receive_media(timeout=1)
           assert response_json == json_payload
 
-  ```
+```
 
-  Testing with media handlers ensures that the serialization/deserialization
-  logic on both the client (simulator) and server sides works correctly for the
-  chosen media type. This is particularly important for APIs that rely heavily
-  on structured data formats like JSON.
+Testing with media handlers ensures that the serialization/deserialization logic
+on both the client (simulator) and server sides works correctly for the chosen
+media type. This is particularly important for APIs that rely heavily on
+structured data formats like JSON.
 
 ### 4.5. Testing WebSocket Closure
 
@@ -462,9 +442,7 @@ vital.
 The test client can initiate a closure using
 `await ws_client.close(code=1000, reason='Testing client closure')`.
 
-Python
-
-```
+```python
 @pytest.mark.asyncio
 async def test_websocket_client_initiates_closure(conductor):
     async with conductor.simulate_ws('/chat') as ws_client:
@@ -492,9 +470,7 @@ connection closed by the server, it should raise an exception indicating the
 disconnection. The specific exception is typically
 `falcon.testing.WebSocketDisconnected` (from the testing module).
 
-Python
-
-```
+```python
 from falcon.testing import WebSocketDisconnected as TestClientWebSocketDisconnected
 
 @pytest.mark.asyncio
@@ -539,9 +515,7 @@ Testing this with ASGIConductor can be done by simply exiting the async with
 conductor.simulate_ws(...) block, which simulates the client closing the
 connection.
 
-Python
-
-```
+```python
 # In your Falcon app (e.g., app.py):
 # class MyResource:
 #     async def on_websocket(self, req, ws):
@@ -585,9 +559,7 @@ reason='Application-specific error').
 
 The test client should be able to observe these close codes.
 
-Python
-
-```
+```python
 from falcon.testing import WebSocketDisconnected as TestClientWebSocketDisconnected
 
 @pytest.mark.asyncio
@@ -618,9 +590,7 @@ deserialization fails.4 The `on_websocket` handler should catch such exceptions
 and respond appropriately (e.g., send an error message over the WebSocket, close
 with a specific code, or log and ignore) rather than crashing.
 
-Python
-
-```
+```python
 @pytest.mark.asyncio
 async def test_websocket_server_handles_malformed_json(conductor):
     # Assuming '/json_processor_ws' expects JSON messages.
@@ -638,7 +608,7 @@ async def test_websocket_server_handles_malformed_json(conductor):
         with pytest.raises(TestClientWebSocketDisconnected) as exc_info:
             await ws_client.receive_text(timeout=1) # Or receive_media if it tries to send structured error before close
         assert ws_client.close_code == 1003 # Example: "Unsupported Data" or a custom app code
-                                         # (or 3000 + HTTP 400 if MediaMalformedError is handled by Falcon's default error processing)
+          # (or 3000 + HTTP 400 if default error handling applies)
 
         # The exact behavior (error message vs. close code) depends on server implementation.
 ```
@@ -659,9 +629,7 @@ handshake request. The server-side `on_websocket` handler inspects `req.headers`
 or `req.params` (available from the `req` object passed to `on_websocket`)
 before deciding to call `await ws.accept()`.4
 
-Python
-
-```
+```python
 @pytest.mark.asyncio
 async def test_websocket_handshake_auth_valid_token(conductor):
     # '/secure_ws_endpoint' requires a valid 'X-Auth-Token' header.
@@ -689,9 +657,7 @@ authorization of actions over an established WebSocket, this involves the client
 sending a specific authentication message after the connection is accepted. The
 server then validates this message.
 
-Python
-
-```
+```python
 @pytest.mark.asyncio
 async def test_websocket_message_based_auth(conductor):
     async with conductor.simulate_ws('/auth_via_message_ws') as ws_client:
@@ -731,9 +697,7 @@ To test middleware, one would typically:
 
 *Application Code (*`app_with_middleware.py`*):*
 
-Python
-
-```
+```python
 import falcon
 import falcon.asgi
 
@@ -758,9 +722,7 @@ app_mw.add_route('/ws_with_middleware', ws_resource)
 
 *Test Code (*`test_middleware.py`*):*
 
-Python
-
-```
+```python
 import pytest
 from falcon import testing
 from app_with_middleware import app_mw # Import the app with middleware
@@ -797,9 +759,7 @@ list of strings). The `ASGIWebSocketSimulator` object (the `ws_client`) should
 then provide a way to inspect the subprotocol selected by the server (e.g., a
 `ws_client.subprotocol` attribute).
 
-Python
-
-```
+```python
 @pytest.mark.asyncio
 async def test_websocket_subprotocol_negotiation_success(conductor):
     client_protocols = ['chat.v1', 'chat.v2', 'legacy.chat']
@@ -869,9 +829,7 @@ Organize tests logically, for example, by WebSocket endpoint, feature, or
 message type. Use descriptive names for test functions and test files to clearly
 indicate their purpose.
 
-Python
-
-```
+```python
 # e.g., tests/websockets/test_chat_room.py
 
 @pytest.mark.asyncio
@@ -895,9 +853,7 @@ dependencies.6
   expensive resources at startup could be module or session-scoped if the tests
   don't modify shared app state in a conflicting way.
 
-Python
-
-```
+```python
 # conftest.py
 import pytest
 import pytest_asyncio # If using @pytest_asyncio.fixture
@@ -932,9 +888,7 @@ testing, these external dependencies should be mocked.
   "WSGI/ASGI testing helpers and mocks" which refers to its simulation
   capabilities rather than general purpose mocking libraries.20
 
-Python
-
-```
+```python
 from unittest.mock import AsyncMock
 
 @pytest.mark.asyncio
@@ -978,9 +932,7 @@ arrives. Using the `timeout` parameter available in `ASGIWebSocketSimulator`'s
 receive methods (e.g., `await ws_client.receive_text(timeout=1.0)`) is crucial
 for preventing tests from stalling indefinitely.
 
-Python
-
-```
+```python
 @pytest.mark.asyncio
 async def test_websocket_receive_with_timeout(conductor):
     async with conductor.simulate_ws('/no_reply_endpoint') as ws_client:
