@@ -1,8 +1,8 @@
-# 1 Key goals for the **MVP**
+# 1. Key goals for the **MVP**
 
 | Target              | Requirement                                     | Practical yard-stick                                                                       |
 | ------------------- | ----------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| **Latency**         | Sub-second end-to-end for 95 % of chat turns    | Retrieval ≤ 50 ms, LLM generation ≤ 600 ms, glue ≤ 350 ms                                  |
+| **Latency**         | Sub-second end-to-end for 95% of chat turns     | Retrieval ≤ 50 ms, LLM generation ≤ 600 ms, glue ≤ 350 ms                                  |
 | **Security**        | Comparable to a mainstream consumer e-mail host | TLS everywhere, OIDC login, data encrypted at rest, audit trail, per-tenant data isolation |
 | **Cost/complexity** | “One DevOps engineer can run it”                | ≤ 5 long-running services, zero-licence software                                           |
 
@@ -13,7 +13,7 @@ ______________________________________________________________________
 | #   | Runtime                                        | Role                                           | Why it’s *minimum*                                                                                     |
 | --- | ---------------------------------------------- | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
 | 1   | **Traefik** (or NGINX Ingress)                 | TLS termination, OIDC ↔ IdP, rate-limit        | single binary, well-worn Helm chart                                                                    |
-| 2   | **chat-api** (**Python 3.13 + Falcon**)        | Handles REST/WS chat, does RAG & novelty test  | Falcon adds \<1 ms/router overhead in benchmarks ([falconframework.org][1])                            |
+| 2   | **chat-api** (**Python 3.13 + Falcon**)        | Handles REST/WS chat, does RAG & novelty test  | Falcon adds `<1 ms`/router overhead in benchmarks ([falconframework.org][1])                           |
 | 3   | **neo4j** (single-node, Community)             | Knowledge-graph + native vector index          | graph *and* ANN search in one store ([Graph Database & Analytics][2], [Graph Database & Analytics][3]) |
 | 4   | **postgres** (13 + `pgvector`)                 | users \+ auth tables + audit log; fallback ANN | keeps auth/PII out of the graph; pgvector is OSS ([GitHub][4])                                         |
 | 5   | **worker** (same image as chat-api)            | Background queue + cron for batch KG writes    | avoids a full Airflow/Argo install; scale to 0 when idle                                               |

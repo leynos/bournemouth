@@ -89,10 +89,10 @@ Several key parameters govern the behavior of this pool:\
 | ------------------------------------------------- | ----------------------------------------------------------------------------------------------- | ------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | pool_size                                         | The number of connections to keep persistently in the pool.9                                    | 5-20 (application-dependent)                      | Sets the baseline for available connections. Too small can lead to waiting; too large can strain database resources. Tune based on load tests and database capacity. |
 | max_overflow                                      | The maximum number of additional connections that can be opened beyond pool_size under load.9   | 10-50 (application-dependent)                     | Allows handling of temporary spikes in demand. Total connections = pool_size + max_overflow. Ensure the database can handle this total.                              |
-| pool_recycle                                      | Time in seconds after which a connection is automatically recycled (closed and replaced).9      | 1800-7200 (30-120 minutes)                        | Prevents issues with stale connections due to network or database timeouts. Should be less than any server-side connection timeout.                                  |
+| pool_recycle                                      | Time in seconds after which a connection is automatically recycled (closed and replaced).9      | 1800–7200 (30-120 minutes)                        | Prevents issues with stale connections due to network or database timeouts. Should be less than any server-side connection timeout.                                  |
 | pool_pre_ping                                     | If True, issues a lightweight "ping" (e.g., SELECT 1) on connection checkout to test liveness.9 | True / False                                      | Recommended as True for production to avoid errors from dead connections, especially with long pool_recycle times. Adds minor overhead but improves reliability.     |
 | pool_timeout                                      | Number of seconds to wait for a connection from the pool before raising a timeout error.10      | 30 (default)                                      | Prevents indefinite blocking if the pool is exhausted. Adjust based on application tolerance for waiting.                                                            |
-| echo_pool                                         | If True or a logging level string (e.g., "debug"), logs connection pool activity.13             | False (production), True or "debug" (development) | Useful for debugging pool behavior, such as checkouts, checkins, and recycling. Can be verbose for production.                                                       |
+| echo_pool                                         | If True or a logging level string (e.g., "debug"), logs connection pool activity.13             | False (production), True or "debug" (development) | Useful for debugging pool behavior, such as checkouts, checkins, and recycling. It can be verbose for production.                                                    |
 
 7\
 Properly configuring these parameters is essential for balancing performance,
@@ -145,18 +145,12 @@ Several parameters are critical when configuring the async_sessionmaker:
 
 ### Table 2: async_sessionmaker Configuration Options
 
-| Parameter | Description | Recommended Setting (Async) | Rationale for Async |
-| ---------------- | ---------------------------------------------------- |
---------------------------- |
-\------------------------------------------------------------------------------------
-| | bind | The AsyncEngine to which new sessions will be bound. | engine
-instance | Essential for connecting sessions to the database. | | class\_ | The
-class of session to be generated. | AsyncSession | Ensures sessions are
-compatible with asynchronous operations. | | expire_on_commit | If True, all
-instances are expired after commit(). | False | Prevents unawaited lazy-loading
-I/O that can cause errors or block the event loop. | | autoflush | If True,
-pending changes are flushed before queries. | False | Provides explicit control
-over when database I/O occurs via `await session.flush()`. |
+| Parameter                                           | Description                                                              | Recommended Setting                                                      | Rationale for Async                                                      |
+| --------------------------------------------------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------ | ------------------------------------------------------------------------ |
+| `bind`                                              | The `AsyncEngine` instance to bind new sessions to.                      | engine instance                                                          | Connects sessions to the database.                                       |
+| `class_`                                            | Session class to generate.                                               | `AsyncSession`                                                           | Ensures compatibility with async operations.                             |
+| `expire_on_commit`                                  | Expire instances after `commit()`.                                       | `False`                                                                  | Avoids unawaited lazy loads after commit.                                |
+| `autoflush`                                         | Flush changes before each query.                                         | `False`                                                                  | Gives explicit control over when I/O occurs via `await session.flush()`. |
 
 Finally, during application shutdown, it is crucial to dispose of the engine
 using await engine.dispose(). This call gracefully closes all underlying
@@ -504,7 +498,7 @@ all data access is explicit and awaited.\\
 | Strategy | Async Mechanism | DB Round Trips | Typical Use Case | Async
 Considerations |
 |---------|----------------|---------------|-----------------|---------------------|
-| selectinload | Issues a second `SELECT ... WHERE id IN (...)` | 2 (or more for
+| selectinload | Issues a second `SELECT … WHERE id IN (...)` | 2 (or more for
 nested) | Collections (one-to-many, many-to-many) | Efficient for collections
 and avoids Cartesian products. Awaits are non-blocking. | | joinedload | Uses
 JOIN in the primary `SELECT` | 1 | Scalar references (many-to-one, one-to-one) |

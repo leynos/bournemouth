@@ -332,18 +332,26 @@ These structs will be used to parse the JSON body of HTTP error responses (e.g.,
 
 ### Table 1: Key `msgspec` Data Models for OpenRouter API
 
-| msgspec Struct Name     | Key Fields (with Python Type Hints)                                                                                                              | Corresponding OpenRouter API Object/Concept                               | Notes                                                                                                  |
-| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
-| ChatMessage             | role: Literal["system", "user", "assistant", "tool"], content: Union\[str, List[ContentPart]\], name: Optional[str], tool_call_id: Optional[str] | Item in the messages array of a Chat Completion Request                   | content can be a list of ContentPart for user multimodal input. tool_call_id relevant for role="tool". |
-| ChatCompletionRequest   | model: str, messages: List[ChatMessage], stream: bool = False, temperature: Optional[float], tools: Optional\]                                   | Main request body for /chat/completions                                   | model and messages are typically required. Many optional parameters for controlling generation.        |
-| ChatCompletionResponse  | id: str, choices: List[ChatCompletionChoice], usage: Optional, model: str                                                                        | Response object for non-streaming chat completions                        | Contains the full response from the model.                                                             |
-| StreamChunk             | id: str, choices: List, usage: Optional, model: str                                                                                              | Individual Server-Sent Event data: payload in a streaming chat completion | usage is typically only present in the final chunk with empty choices.                                 |
-| OpenRouterErrorResponse | error: OpenRouterAPIErrorDetails                                                                                                                 | JSON body of an API error response (e.g., HTTP 4xx/5xx)                   | Used to parse structured error information from OpenRouter.                                            |
-| UsageStats              | prompt_tokens: int, completion_tokens: int, total_tokens: int                                                                                    | Token usage information in responses                                      | Provided in non-streaming responses and the final chunk of streaming responses.                        |
-
-This table serves as an essential reference, bridging the OpenRouter API's JSON
-structures with the Python client's typed data models, thereby enhancing
-developer understanding and reducing integration errors.
+| Struct Name | Key Fields | API Concept | Notes | | --- | --- | --- | --- | |
+`ChatMessage` | `role: Literal["system","user","assistant","tool"]`,
+`content: str | list[ContentPart]`, `name: str | None`,
+`tool_call_id: str | None` | Entry in the `messages` array | Use list form for
+multimodal input; `tool_call_id` only with role="tool" | |
+`ChatCompletionRequest` | `model: str`, `messages: list[ChatMessage]`,
+`stream: bool = False`, `temperature: float | None`, `tools: list[Tool] | None`
+| Body for `/chat/completions` | `model` and `messages` required; other fields
+tune generation | | `ChatCompletionResponse` | `id: str`,
+`choices: list[ChatCompletionChoice]`, `usage: UsageStats | None`, `model: str`
+| Non-streaming response object | Full model reply | | `StreamChunk` |
+`id: str`, `choices: list[ChatCompletionChoice]`, `usage: UsageStats | None`,
+`model: str` | SSE chunk payload | `usage` usually in the final chunk | |
+`OpenRouterErrorResponse` | `error: OpenRouterAPIErrorDetails` | Error response
+body | Structured error details | | `UsageStats` | `prompt_tokens: int`,
+`completion_tokens: int`, `total_tokens: int` | Token usage data | Returned in
+non-streaming responses and the final SSE chunk | This table serves as an
+essential reference, bridging the OpenRouter API's JSON structures with the
+Python client's typed data models, thereby enhancing developer understanding and
+reducing integration errors.
 
 ## 4. API Endpoint Interactions
 

@@ -186,7 +186,7 @@ this:
 ```python
 import pytest
 from httpx import ASGITransport, AsyncClient
-# from my_falcon_app import app  # Your Falcon ASGI application instance
+# from my_falcon_app import app  # the Falcon ASGI application instance
 
 @pytest.mark.asyncio\
 async def test_root_endpoint(app): # Assuming 'app' is provided by a fixture\
@@ -231,7 +231,7 @@ To illustrate these concepts, consider a simple Falcon ASGI application and its
 corresponding tests.\
 **Falcon Application (src/app.py):**
 
-Python
+````python
 
 \# src/app.py\
 import falcon\
@@ -250,7 +250,7 @@ async def on\_post(self, req, resp):
     data \= await req.get\_media() \#.get\_media() is an awaitable for ASGI apps  
     resp.media \= {'received': data}  
     resp.status \= falcon.HTTP\_201
-```
+````
 
 app = falcon.asgi.App()\
 app.add_route('/things', ThingsResource())
@@ -260,7 +260,7 @@ on_post handler uses await req.get_media() to asynchronously parse the request
 body, a common pattern in Falcon ASGI applications.\
 **Test File (tests/test_app.py):**
 
-Python
+````python
 
 \# tests/test_app.py\
 import pytest\
@@ -275,7 +275,7 @@ return app
 @pytest.mark.asyncio\
 async def test_get_things(client_app):\
 async with AsyncClient(transport=ASGITransport(app=client_app),
-base_url="<http://test>") as ac: response = await ac.get("/things") assert
+base_url="http://test") as ac: response = await ac.get("/things") assert
 response.status_code == falcon.HTTP_200\
 assert response.json() == {'message': 'Hello, async world!'}
 
@@ -283,8 +283,8 @@ assert response.json() == {'message': 'Hello, async world!'}
 async def test_post_things(client_app):\
 payload = {"name": "My Thing", "value": 42}\
 async with AsyncClient(transport=ASGITransport(app=client_app),
-base_url="<http://test>") as ac: response = await ac.post("/things",
-json=payload) assert response.status_code == falcon.HTTP_201\
+base_url="http://test") as ac: response = await ac.post("/things", json=payload)
+assert response.status_code == falcon.HTTP_201\
 assert response.json() == {'received': payload}
 
 These tests demonstrate how to use httpx.AsyncClient with ASGITransport to send
@@ -331,7 +331,7 @@ database connections during process_startup and close them during
 process_shutdown; ASGIConductor facilitates the verification of such behavior.\
 An example of its usage:
 
-Python
+```python
 
 import pytest\
 from falcon import testing\
@@ -370,7 +370,7 @@ assert response.status_code == 200
     \#         events\_received.append(chunk.decode('utf-8'))  
     \#     assert len(events\_received) \== 3  
     \#     assert "Event 0" in events\_received
-```
+````
 
 The ASGIConductor ensures that process_startup methods of any registered
 middleware are called upon entering the async with block, and process_shutdown
@@ -400,7 +400,7 @@ An ASGIConductor instance can also be obtained directly from an instance of
 falcon.testing.TestClient by using the TestClient instance as an async context
 manager.
 
-Python
+````python
 
 \# client = falcon.testing.TestClient(my_asgi_app)\
 \# async with client as conductor:\
@@ -442,7 +442,7 @@ attempts to use it as the actual fixture value. This distinction is critical for
 the correct functioning of asynchronous tests.\
 An example of a simple asynchronous fixture:
 
-Python
+```python
 
 import pytest\
 import pytest_asyncio\
@@ -472,21 +472,21 @@ teardown phase.\
 An excellent example is creating an httpx.AsyncClient fixture that is properly
 closed after use:
 
-Python
+```python
 
 import pytest\
 import pytest_asyncio\
 from httpx import ASGITransport, AsyncClient\
-\# from my_falcon_app import app # Your Falcon ASGI application instance
+\# from my_falcon_app import app # the Falcon ASGI application instance
 
 @pytest_asyncio.fixture\
 async def async_test_client(app): # Assuming 'app' is a fixture providing the
 Falcon app\
 \# The httpx.AsyncClient itself is an async context manager.\
 \# Its \_\_aenter\_\_ and \_\_aexit\_\_ methods handle setup and teardown.\
-async with AsyncClient(transport=ASGITransport(app=app),
-base_url="<http://test>") as client: yield client # The client is automatically
-closed here upon exiting the 'async with' block.
+async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test")
+as client: yield client # The client is automatically closed here upon exiting
+the 'async with' block.
 
 This pattern is crucial for robust resource management in asynchronous tests.
 
@@ -505,7 +505,7 @@ overridden with a broader scope to match that of the async fixtures. This
 ensures that a single event loop instance is used for all tests within that
 scope, allowing broader-scoped async fixtures to operate correctly.
 
-Python
+```python
 
 import pytest\
 import asyncio
@@ -529,7 +529,7 @@ management prevents flaky tests and ensures efficient resource utilization.
 A common use case for async fixtures is managing asynchronous database
 connections.
 
-Python
+```python
 
 \# Conceptual example using a hypothetical asyncpg-like library\
 import pytest\
@@ -602,7 +602,7 @@ core principle of patching—replacing an object where it is looked up—remains
 same. The key difference is that the replacement object must be an AsyncMock.4\
 For example, to mock an asynchronous method get_cat_fact on a CatFact class:
 
-Python
+```python
 
 from unittest.mock import AsyncMock # Or from asyncmock import AsyncMock
 
@@ -679,7 +679,7 @@ its asynchronous dependencies in the expected manner.
 Consider a Falcon resource that depends on an external asynchronous service:\
 **Service (src/services.py):**
 
-Python
+```python
 
 \# src/services.py\
 import asyncio
@@ -692,7 +692,7 @@ return f"Data for {item_id} from external service"
 
 **Falcon Application with Service Dependency (src/app_with_service.py):**
 
-Python
+```python
 
 \# src/app_with_service.py\
 import falcon\
@@ -716,19 +716,18 @@ app_svc.add_route('/items/{item_id}', ServiceResource())
 
 **Test File (tests/test_app_with_service.py):**
 
-Python
+```python
 
 \# tests/test_app_with_service.py\
 import pytest\
 from httpx import ASGITransport, AsyncClient\
 from unittest.mock import AsyncMock, patch # Or from asyncmock import AsyncMock,
 patch\
-from src.app_with_service import app_svc # Your Falcon ASGI app
+from src.app_with_service import app_svc # the Falcon ASGI app
 
 @pytest.fixture\
 def client_svc(event_loop): # event_loop fixture from pytest-asyncio\
-return AsyncClient(transport=ASGITransport(app=app_svc),
-base_url="<http://test>")
+return AsyncClient(transport=ASGITransport(app=app_svc), base_url="http://test")
 
 @pytest.mark.asyncio\
 async def test_get_item_with_mocked_service(client_svc, mocker):\
@@ -751,7 +750,7 @@ assert response.json() \== {"item\_data": mocked\_service\_data}
 
 \# Verify that the mocked fetch\_data method was called correctly  
 patched\_fetch\_method.assert\_called\_once\_with("item\_789")
-```
+````
 
 This example demonstrates patching an async method of a dependency, setting its
 return value, making a request to the Falcon endpoint that uses this dependency,
@@ -836,7 +835,7 @@ testing regular asynchronous endpoints.
 Consider an asynchronous before hook for authentication:\
 **Async Hook (src/hooks.py):**
 
-Python
+````python
 
 \# src/hooks.py\
 import falcon
@@ -854,7 +853,7 @@ req.context.user = {"id": "user-xyz", "permissions": ["read", "write"]}
 
 **Resource with Hook (src/app_with_hooks.py):**
 
-Python
+```python
 
 \# src/app_with_hooks.py\
 import falcon\
@@ -874,7 +873,7 @@ app_hooks.add_route('/protected-info', ProtectedResource())
 
 **Test File (tests/test_hooks.py):**
 
-Python
+```python
 
 \# tests/test_hooks.py\
 import pytest\
@@ -887,7 +886,7 @@ from src.app_with_hooks import app_hooks
 @pytest.fixture(scope="module")\
 def hooked_app_client(event_loop): # event_loop from pytest-asyncio\
 return AsyncClient(transport=ASGITransport(app=app_hooks),
-base_url="<http://test>")
+base_url="http://test")
 
 ```python
 @pytest.mark.asyncio
@@ -913,7 +912,7 @@ async def test_protected_resource_valid_token(hooked_app_client):
     response_json = response.json()
     assert response_json["data"] == "This is sensitive data."
     assert response_json["user"]["id"] == "user-xyz"
-```
+````
 
 This testing pattern, adapted from synchronous examples and using
 httpx.AsyncClient 1, effectively validates the behavior of the asynchronous
@@ -1007,7 +1006,7 @@ from req.scope['state'] to req.context for easier access by responders.
 
 **Middleware with Lifespan Methods (src/middleware.py):**
 
-Python
+````python
 
 \# src/middleware.py\
 import falcon
@@ -1043,11 +1042,11 @@ async def process\_request(self, req, resp):
     \# Make the db\_pool available on req.context if it was set in scope\['state'\]  
     if 'db\_pool' in req.scope.get('state', {}):  
         req.context.db\_pool \= req.scope\['state'\]\['db\_pool'\]
-```
+````
 
 **Falcon App with Middleware (src/app_with_middleware.py):**
 
-Python
+````python
 
 \# src/app_with_middleware.py\
 import falcon\
@@ -1070,7 +1069,7 @@ app_mw.add_route('/data', DataResource())
 
 **Test using ASGIConductor (tests/test_middleware.py):**
 
-Python
+```python
 
 \# tests/test_middleware.py\
 import pytest\
@@ -1087,7 +1086,7 @@ assert not db_middleware_instance.startup_complete\
 assert not db_middleware_instance.shutdown_complete\
 assert db_middleware_instance.db_connection_info is None
 
-````python
+```python
 async with testing.ASGIConductor(app\_mw) as conductor:  
     \# After entering context, process\_startup should have run  
     assert db\_middleware\_instance.startup\_complete  
@@ -1145,7 +1144,7 @@ Tests should verify that:
 Example:\
 If a resource expects a 'name' field in a POST request:
 
-Python
+```python
 
 \# In a Falcon resource:\
 \# async def on_post(self, req, resp):\
@@ -1174,7 +1173,7 @@ For testing scenarios where specific Python exceptions (not necessarily Falcon's
 HTTP exceptions) are expected to be raised from asynchronous code, pytest.raises
 is the appropriate tool. It functions as a context manager:
 
-Python
+```python
 
 import pytest\
 import falcon
