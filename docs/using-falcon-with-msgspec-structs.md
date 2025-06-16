@@ -215,7 +215,7 @@ request media, validates and converts it using `msgspec.convert`, and injects
 the resulting typed `Struct` instance into the `params` dictionary for use by
 the resource method.
 
-````python
+```python
 import msgspec
 from falcon import Request, Response, HTTPUnprocessableEntity
 
@@ -254,7 +254,7 @@ class MsgspecMiddleware:
                 raise e
             # Note: msgspec.DecodeError (malformed input) should be handled
             # by the media handler's loads function, as discussed later.
-```python
+```
 
 This middleware approach centralizes validation logic, adhering to the Don't
 Repeat Yourself (DRY) principle. This significantly cleans up resource methods,
@@ -272,7 +272,6 @@ The middleware relies on a convention: resource classes should define attributes
 like `POST_SCHEMA`, `PUT_SCHEMA`, etc., that point to the relevant
 `msgspec.Struct` type.1
 
-
 ```python
 class UserResource:
     POST_SCHEMA = UserCreate  # UserCreate is the msgspec.Struct defined earlier
@@ -286,7 +285,7 @@ class UserResource:
         #... process user_data (which is a typed UserCreate instance)...
         resp.media = {"message": f"User {user_data.username} being processed."}
         resp.status_code = falcon.HTTP_202_ACCEPTED
-```python
+```
 
 This `getattr(resource, f'{req.method.upper()}_SCHEMA', None)` pattern is
 flexible. However, it depends on developers consistently adhering to this naming
@@ -318,14 +317,14 @@ applications. For asynchronous (ASGI) applications, the `process_resource`
 method must be an `async def` method, and the call to `req.get_media()` must be
 `await`ed, as it performs I/O.1
 
+For ASGI applications:
 
 ```python
-# For ASGI applications
 class AsyncMsgspecMiddleware:
     async def process_resource(
         self, req: Request, resp: Response, resource: object, params: dict
     ) -> None:
-        schema_attr_name = f'{req.method.upper()}_SCHEMA'
+        schema_attr_name = f"{req.method.upper()}_SCHEMA"
         schema = getattr(resource, schema_attr_name, None)
 
         if schema:
@@ -339,7 +338,7 @@ class AsyncMsgspecMiddleware:
                 params[param_name] = validated_data
             except msgspec.ValidationError as e:
                 raise e
-```python
+```
 
 This adaptation is crucial for correct operation in an ASGI environment,
 ensuring that I/O operations do not block the event loop.
@@ -369,9 +368,8 @@ representation of `msgspec.ValidationError` usually contains detailed
 information about the validation failures, which can be included in the response
 body.
 
-
 ```python
-from falcon import Request, Response, HTTPUnprocessableEntity # Ensure import
+from falcon import Request, Response, HTTPUnprocessableEntity
 import msgspec
 
 def handle_msgspec_validation_error(
@@ -382,7 +380,7 @@ def handle_msgspec_validation_error(
         title="Validation Error",  # A more specific title for the error type
         description=str(ex)
     )
-```python
+```
 
 This handler can then be registered with the Falcon application:
 
@@ -412,8 +410,7 @@ recommended solution is to wrap the `msgspec` decode function (e.g.,
 `falcon.MediaMalformedError` (which typically results in an HTTP 400 Bad Request
 response).
 
-
-```python
+````python
 import falcon
 import msgspec
 from typing import Any # For type hinting _msgspec_loads_json_robust
