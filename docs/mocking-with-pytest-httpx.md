@@ -78,31 +78,42 @@ uv pip install --group dev -e .
 These commands update `pyproject.toml`, lock the new dependency, and install all
 development dependencies (including your project in editable mode). pytest-httpx
 requires Python 3.9 or higher, while httpx itself requires Python 3.8 or higher.
-Ensure that the project's Python version meets these requirements. 3.2. Basic
-Fixture Usage (httpx_mock) Once installed, pytest-httpx makes its primary
-fixture, httpx_mock, available to pytest. To use it, a test function simply
-needs to accept httpx_mock as an argument. This signals to pytest to inject and
-activate the fixture for the duration of that test. A minimal synchronous test
-example demonstrating the fixture usage is as follows: import httpx from
-pytest_httpx import HTTPXMock # For type hinting
+Ensure that the project's Python version meets these requirements.
+
+### 3.2. Basic Fixture Usage (`httpx_mock`)
+
+Once installed, pytest-httpx exposes a `httpx_mock` fixture. Include it as an
+argument to your test function to intercept httpx calls.
+
+```python
+import httpx
+from pytest_httpx import HTTPXMock
 
 def test_sync_example(httpx_mock: HTTPXMock):
-httpx_mock.add_response(url="https://test_url", json={"data": "success"}) # Code
-under test that makes a GET request to "https://test_url" response =
-httpx.get("https://test_url") assert response.json() == {"data": "success"}
+    httpx_mock.add_response(url="https://test_url", json={"data": "success"})
+    response = httpx.get("https://test_url")
+    assert response.json() == {"data": "success"}
+```
 
-In this example, httpx_mock.add_response() is used to define a mock response for
-requests to "https://test_url". Any call to httpx.get("https://test_url") within
-this test will be intercepted and receive the defined JSON response. For
-asynchronous code utilizing httpx.AsyncClient, pytest-httpx works seamlessly
-with pytest.mark.asyncio. The test function should be an async def function:
-import pytest import httpx from pytest_httpx import HTTPXMock # For type hinting
+For asynchronous code, decorate the test with `pytest.mark.asyncio` and use
+`httpx.AsyncClient`:
 
-@pytest.mark.asyncio async def test_async_example(httpx_mock: HTTPXMock):
-httpx_mock.add_response(url="https://test_url", json={"data": "async_success"})
-\# Code under test that uses httpx.AsyncClient async with httpx.AsyncClient() as
-client: response = await client.get("https://test_url") assert response.json()
-== {"data": "async_success"}
+```python
+import pytest
+import httpx
+from pytest_httpx import HTTPXMock
+
+@pytest.mark.asyncio
+async def test_async_example(httpx_mock: HTTPXMock):
+    httpx_mock.add_response(url="https://test_url", json={"data": "async_success"})
+    async with httpx.AsyncClient() as client:
+        response = await client.get("https://test_url")
+    assert response.json() == {"data": "async_success"}
+```
+
+Using the `HTTPXMock` type hint provides editor autocompletion and type
+checking. The fixture seamlessly intercepts both top-level `httpx` calls and
+client instances, indicating deep integration with httpx's transport layer.
 
 Using the HTTPXMock type hint (httpx_mock: HTTPXMock) is recommended for better
 editor support, such as autocompletion and type checking, enhancing the
@@ -138,20 +149,24 @@ httpx_mock.add_response(url="https://api.example.com/data")
 ```
 
 To mock different HTTP methods such as POST, PUT, DELETE, PATCH, HEAD, or
-OPTIONS, the method parameter is used. This parameter accepts a string
-representing the HTTP method; it is case-insensitive as pytest-httpx internally
-converts it to uppercase. httpx_mock.add_response(method="POST",
-url="<https://api.example.com/submit>") httpx_mock.add_response(method="PUT",
-url="<https://api.example.com/update/1>")
-httpx_mock.add_response(method="DELETE",
-url="<https://api.example.com/resource/1>")
+OPTIONS, use the `method` parameter. It accepts a string representing the HTTP
+method and is case-insensitive as pytest-httpx converts it to uppercase.
+
+```python
+httpx_mock.add_response(method="POST", url="https://api.example.com/submit")
+httpx_mock.add_response(method="PUT", url="https://api.example.com/update/1")
+httpx_mock.add_response(method="DELETE", url="https://api.example.com/resource/1")
+```
 
 The HTTP status code of the mocked response can be customized using the
-status_code parameter, which takes an integer value :
-httpx_mock.add_response(url="<https://api.example.com/notfound>",
-status_code=404)
-httpx_mock.add_response(url="<https://api.example.com/created>",
-status_code=201, method="POST")
+`status_code` parameter, which takes an integer value:
+
+```python
+httpx_mock.add_response(url="https://api.example.com/notfound", status_code=404)
+httpx_mock.add_response(
+    url="https://api.example.com/created", status_code=201, method="POST"
+)
+```
 
 Defining the content of the mocked response is crucial. pytest-httpx offers
 several convenient parameters for this:
@@ -218,16 +233,19 @@ response. | headers={"X-API-KEY": "secret"} | | http_version | str | HTTP
 version string for the response (e.g., "HTTP/1.1", "HTTP/2.0"). Defaults to
 "HTTP/1.1". | http_version="HTTP/2.0" | This table centralizes information that
 is otherwise distributed across various examples , serving as a quick reference.
-5\. Advanced Request Matching Beyond basic URL and method matching, pytest-httpx
-provides a rich set of parameters to define more specific criteria for when a
-mock response should be applied. This precision is vital for ensuring that tests
-accurately reflect the intended interactions with external services and for
-robust contract testing. The url parameter itself offers advanced capabilities.
-It can accept an exact string, a Python re.Pattern object for regular expression
-matching, or an httpx.URL instance. Matching is performed on the full URL,
-including any query parameters. The order of query parameters in the request URL
-string generally does not affect matching; however, for parameters that can have
-multiple values, the order of those values is significant.
+
+## 5. Advanced Request Matching
+
+Beyond basic URL and method matching, pytest-httpx provides a rich set of
+parameters to define more specific criteria for when a mock response should be
+applied. This precision is vital for ensuring that tests accurately reflect the
+intended interactions with external services and for robust contract testing.
+The `url` parameter itself offers advanced capabilities. It can accept an exact
+string, a Python re.Pattern object for regular expression matching, or an
+httpx.URL instance. Matching is performed on the full URL, including any query
+parameters. The order of query parameters in the request URL string generally
+does not affect matching; however, for parameters that can have multiple values,
+the order of those values is significant.
 
 ```python
 import re

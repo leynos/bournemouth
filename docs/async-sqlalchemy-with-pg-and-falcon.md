@@ -1,6 +1,6 @@
-# **A Comprehensive Guide to Asynchronous SQLAlchemy 2.0 with PostgreSQL and Falcon**
+# A Comprehensive Guide to Asynchronous SQLAlchemy 2.0 with PostgreSQL and Falcon
 
-## **I. Introduction: Embracing Asynchronicity in Modern Web Services**
+## I. Introduction: Embracing Asynchronicity in Modern Web Services
 
 The evolution of web frameworks and database interaction libraries has
 increasingly emphasized asynchronous operations to build high-performance,
@@ -42,19 +42,19 @@ A typical engine setup for PostgreSQL with asyncpg is as follows:
 
 ```python
 
-from sqlalchemy.ext.asyncio import create_async_engine\
+from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.pool import AsyncAdaptedQueuePool
 
 DATABASE_URL = "postgresql+asyncpg://user:password@host:port/dbname"
 
-engine = create_async_engine(\
-DATABASE_URL,\
-poolclass=AsyncAdaptedQueuePool,\
-pool_size=10,\
-max_overflow=20,\
-pool_recycle=3600, # Recycle connections every hour\
-pool_pre_ping=True, # Check connection liveness\
-echo=False # Set to True for SQL logging in development\
+engine = create_async_engine(
+    DATABASE_URL,
+    poolclass=AsyncAdaptedQueuePool,
+    pool_size=10,
+    max_overflow=20,
+    pool_recycle=3600,  # Recycle connections every hour
+    pool_pre_ping=True,  # Check connection liveness
+    echo=False,  # Set to True for SQL logging in development
 )
 ```
 
@@ -108,12 +108,12 @@ for ORM operations in an asynchronous context.
 
 from sqlalchemy.ext.asyncio import async_sessionmaker, AsyncSession
 
-\# Assuming 'engine' is the create_async_engine instance from above\
-async_session_factory = async_sessionmaker(\
-bind=engine,\
-class\_=AsyncSession,\
-expire_on_commit=False,\
-autoflush=False\
+# Assuming 'engine' is the create_async_engine instance from above
+async_session_factory = async_sessionmaker(
+    bind=engine,
+    class_=AsyncSession,
+    expire_on_commit=False,
+    autoflush=False,
 )
 ```
 

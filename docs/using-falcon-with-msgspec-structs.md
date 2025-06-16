@@ -54,7 +54,7 @@ Falcon provides a `falcon.media.JSONHandler` that can be configured to use
 `msgspec.json.encode` and `msgspec.json.decode` can be supplied as the `dumps`
 and `loads` arguments, respectively.1
 
-````python
+```python
 import msgspec
 import falcon.media
 
@@ -62,7 +62,7 @@ json_handler = falcon.media.JSONHandler(
     dumps=msgspec.json.encode,
     loads=msgspec.json.decode,
 )
-```python
+```
 
 However, for optimal performance, it is recommended to use preconstructed
 `msgspec.json.Encoder` and `msgspec.json.Decoder` instances.1 This approach
@@ -72,7 +72,6 @@ lightweight objects, can accumulate significant overhead in high-throughput
 scenarios, partly due to the Global Interpreter Lock (GIL) and the general cost
 of Python object management. Pre-constructing these instances amortizes this
 cost to application startup.
-
 
 ```python
 # At module level or app initialization
@@ -84,7 +83,7 @@ json_handler_optimized = falcon.media.JSONHandler(
     dumps=_msgspec_json_encoder.encode,
     loads=_msgspec_json_decoder.decode,
 )
-```python
+```
 
 ### 2.2. Handling MessagePack (and other formats) with a Custom `BaseHandler`
 
@@ -95,7 +94,6 @@ handler by subclassing `falcon.media.BaseHandler`.1 This involves defining
 
 The following example demonstrates a custom handler for MessagePack using
 `msgspec.msgpack`:
-
 
 ```python
 from typing import Optional
@@ -118,7 +116,7 @@ class MsgspecMessagePackHandler(media.BaseHandler):
         return msgpack.encode(media)
 
 msgpack_handler = MsgspecMessagePackHandler()
-```python
+```
 
 The `deserialize` method reads the raw byte stream from the request and uses
 `msgpack.decode` to convert it into a Python object. Conversely, `serialize`
@@ -147,7 +145,6 @@ dictionaries in `app.req_options` (for requests) and `app.resp_options` (for
 responses).1 This replaces Falcon's default handlers for the specified media
 types.
 
-
 ```python
 # Assuming 'app' is an instance of falcon.App or falcon.asgi.App
 # And json_handler_optimized and msgpack_handler are defined as above
@@ -160,7 +157,7 @@ app.resp_options.media_handlers = json_handler_optimized
 # The key 'application/msgpack' is the standard MIME type for MessagePack.
 app.req_options.media_handlers['application/msgpack'] = msgpack_handler
 app.resp_options.media_handlers['application/msgpack'] = msgpack_handler
-```python
+```
 
 By configuring these handlers, all incoming requests with
 `Content-Type: application/json` or `application/msgpack` will be processed by
@@ -182,7 +179,6 @@ optimized for `msgspec`'s performance characteristics.
 
 Examples of `msgspec.Struct` definitions:
 
-
 ```python
 import msgspec
 from typing import Optional, List
@@ -198,7 +194,7 @@ class UserCreate(msgspec.Struct, forbid_unknown_fields=True):
     age: Optional[int] = None
     address: Optional[Address] = None
     tags: Optional[List[str]] = None
-```python
+```
 
 Using `forbid_unknown_fields=True` is a recommended practice for creating strict
 data contracts, ensuring that requests with unexpected fields are rejected.
@@ -219,8 +215,7 @@ request media, validates and converts it using `msgspec.convert`, and injects
 the resulting typed `Struct` instance into the `params` dictionary for use by
 the resource method.
 
-
-```python
+````python
 import msgspec
 from falcon import Request, Response, HTTPUnprocessableEntity
 
