@@ -83,9 +83,15 @@ class ChatResource:
         self,
         service: OpenRouterService,
         session_factory: typing.Callable[[], AsyncSession],
+        *,
+        stream_answer_func: typing.Callable[
+            [OpenRouterService, str, list[ChatMessage], typing.Any],
+            typing.AsyncIterator[StreamChunk],
+        ] = stream_answer,
     ) -> None:
         self._service = service
         self._session_factory = session_factory
+        self._stream_answer = stream_answer_func
 
     def _build_history(self, request: ChatWsRequest) -> list[ChatMessage]:
         hist = request.history or []
@@ -113,7 +119,7 @@ class ChatResource:
         """Stream chat completions back to the client."""
 
         try:
-            async for chunk in stream_answer(
+            async for chunk in self._stream_answer(
                 self._service,
                 api_key,
                 history,

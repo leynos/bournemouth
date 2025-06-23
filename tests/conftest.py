@@ -2,6 +2,10 @@ import sys
 import typing
 from pathlib import Path
 
+BASE_DIR = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(BASE_DIR / "src"))
+sys.path.insert(0, str(BASE_DIR))
+
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
@@ -10,8 +14,6 @@ from sqlalchemy.ext.asyncio import (
 )
 
 from bournemouth.models import Base, UserAccount
-
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 pytest_plugins = ["pytest_httpx"]
 

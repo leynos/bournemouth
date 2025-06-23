@@ -22,6 +22,7 @@ from .msgspec_support import (
     json_handler,
 )
 from .openrouter_service import OpenRouterService
+from .chat_service import stream_answer as default_stream_answer
 from .resources import (
     ChatResource,
     ChatStateResource,
@@ -39,6 +40,10 @@ def create_app(
     login_password: str | None = None,
     openrouter_service: OpenRouterService | None = None,
     db_session_factory: typing.Callable[[], AsyncSession] | None = None,
+    chat_stream_answer: typing.Callable[
+        [OpenRouterService, str, list[typing.Any], typing.Any],
+        typing.AsyncIterator[typing.Any],
+    ] = default_stream_answer,
 ) -> asgi.App:
     """Configure and return the Falcon ASGI app.
 
@@ -80,7 +85,14 @@ def create_app(
     service = openrouter_service or OpenRouterService.from_env()
     if db_session_factory is None:
         raise ValueError("db_session_factory is required")
-    app.add_route("/chat", ChatResource(service, db_session_factory))
+    app.add_route(
+        "/chat",
+        ChatResource(
+            service,
+            db_session_factory,
+            stream_answer_func=chat_stream_answer,
+        ),
+    )
     app.add_route("/chat/state", ChatStateResource(service, db_session_factory))
     app.add_route("/auth/openrouter-token", OpenRouterTokenResource(db_session_factory))
     app.add_route("/health", HealthResource())

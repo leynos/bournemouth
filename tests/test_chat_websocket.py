@@ -5,6 +5,7 @@ import typing
 import pytest
 from falcon import asgi, testing
 from httpx import ASGITransport, AsyncClient
+import msgspec
 from msgspec import json as msgspec_json
 from pytest_httpx import HTTPXMock
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from bournemouth.app import create_app
 from bournemouth.openrouter import ResponseDelta, StreamChoice, StreamChunk
 from bournemouth.resources import ChatWsRequest, ChatWsResponse
+from tests.ws_helpers import ws_collector
 
 type SessionFactory = typing.Callable[[], AsyncSession]
 
@@ -35,6 +37,53 @@ async def _login(client: AsyncClient) -> str:
     return typing.cast("str", resp.cookies.get("session"))
 
 
+def _patch_stream() -> typing.Callable[..., typing.AsyncIterator[StreamChunk]]:
+    first_started = asyncio.Event()
+    second_started = asyncio.Event()
+
+    async def fake_stream(
+        service: typing.Any,
+        api_key: str,
+        history: list[typing.Any],
+        model: str | None,
+    ) -> typing.AsyncIterator[StreamChunk]:
+        idx = 2 if first_started.is_set() else 1
+        if idx == 1:
+            first_started.set()
+            await second_started.wait()
+            await asyncio.sleep(0.01)
+        else:
+            second_started.set()
+            await first_started.wait()
+        yield StreamChunk(
+            id=str(idx),
+            object="chat.completion.chunk",
+            created=1,
+            model="m",
+            choices=[
+                StreamChoice(
+                    index=0,
+                    delta=ResponseDelta(content="a" if idx == 1 else "b"),
+                )
+            ],
+        )
+        yield StreamChunk(
+            id=str(idx),
+            object="chat.completion.chunk",
+            created=1,
+            model="m",
+            choices=[
+                StreamChoice(
+                    index=0,
+                    delta=ResponseDelta(),
+                    finish_reason="stop",
+                )
+            ],
+        )
+
+    return fake_stream
+
+
 @pytest.mark.timeout(5)
 @pytest.mark.asyncio
 async def test_websocket_streams_chat(
@@ -46,7 +95,7 @@ async def test_websocket_streams_chat(
         b'"delta": {"content": "hi"}}]}\n'
         b'data: {"id": "1", "object": "chat.completion.chunk", '
         b'"created": 1, "model": "m", "choices": [{"index": 0, '
-        b'"delta": {}, "finish_reason": "stop"}}]}\n'
+        b'"delta": {}, "finish_reason": "stop"}]}\n'
         b"data: \n"
     )
     httpx_mock.add_response(
@@ -75,67 +124,14 @@ async def test_websocket_streams_chat(
 @pytest.mark.timeout(5)
 @pytest.mark.asyncio
 async def test_websocket_multiplexes_requests(
-    app: asgi.App, conductor: testing.ASGIConductor, monkeypatch: pytest.MonkeyPatch
+    db_session_factory: SessionFactory,
 ) -> None:
-    first_started = asyncio.Event()
-    second_started = asyncio.Event()
-
-    async def fake_stream(
-        service: typing.Any,
-        api_key: str,
-        history: list[typing.Any],
-        *,
-        model: str | None = None,
-    ) -> typing.AsyncIterator[StreamChunk]:
-        if not first_started.is_set():
-            first_started.set()
-            await second_started.wait()
-            await asyncio.sleep(0.01)
-            yield StreamChunk(
-                id="1",
-                object="chat.completion.chunk",
-                created=1,
-                model="m",
-                choices=[StreamChoice(index=0, delta=ResponseDelta(content="a"))],
-            )
-            yield StreamChunk(
-                id="1",
-                object="chat.completion.chunk",
-                created=1,
-                model="m",
-                choices=[
-                    StreamChoice(
-                        index=0,
-                        delta=ResponseDelta(),
-                        finish_reason="stop",
-                    )
-                ],
-            )
-        else:
-            second_started.set()
-            await first_started.wait()
-            yield StreamChunk(
-                id="2",
-                object="chat.completion.chunk",
-                created=1,
-                model="m",
-                choices=[StreamChoice(index=0, delta=ResponseDelta(content="b"))],
-            )
-            yield StreamChunk(
-                id="2",
-                object="chat.completion.chunk",
-                created=1,
-                model="m",
-                choices=[
-                    StreamChoice(
-                        index=0,
-                        delta=ResponseDelta(),
-                        finish_reason="stop",
-                    )
-                ],
-            )
-
-    monkeypatch.setattr("bournemouth.chat_service.stream_answer", fake_stream)
+    fake_stream = _patch_stream()
+    app = create_app(
+        db_session_factory=db_session_factory,
+        chat_stream_answer=fake_stream,
+    )
+    conductor = testing.ASGIConductor(app)
 
     async with AsyncClient(
         transport=ASGITransport(app=typing.cast("typing.Any", app)),
@@ -144,7 +140,10 @@ async def test_websocket_multiplexes_requests(
         cookie = await _login(client)
 
     headers = {"cookie": f"session={cookie}"}
-    async with conductor.simulate_ws("/chat", headers=headers) as ws:
+    async with (
+        conductor.simulate_ws("/chat", headers=headers) as ws,
+        ws_collector(ws) as coll,
+    ):
         await ws.send_text(
             msgspec_json.encode(
                 ChatWsRequest(transaction_id="t1", message="a")
@@ -155,18 +154,18 @@ async def test_websocket_multiplexes_requests(
                 ChatWsRequest(transaction_id="t2", message="b")
             ).decode()
         )
-        first = msgspec_json.decode(
-            await asyncio.wait_for(ws.receive_text(), 1), type=ChatWsResponse
+        raw_msgs = await coll.collect_until(
+            lambda m: m.get("finished") and m.get("transaction_id") == "t2",
+            timeout=5,
         )
-        second = msgspec_json.decode(
-            await asyncio.wait_for(ws.receive_text(), 1), type=ChatWsResponse
+        raw_msgs.extend(
+            await coll.collect_until(
+                lambda m: m.get("finished") and m.get("transaction_id") == "t1",
+                timeout=5,
+            )
         )
-        third = msgspec_json.decode(
-            await asyncio.wait_for(ws.receive_text(), 1), type=ChatWsResponse
-        )
-        fourth = msgspec_json.decode(
-            await asyncio.wait_for(ws.receive_text(), 1), type=ChatWsResponse
-        )
+        responses = [msgspec.convert(m, ChatWsResponse) for m in raw_msgs]
+        first, second, third, fourth = responses
 
     results = [first, second, third, fourth]
     ids = {r.transaction_id for r in results}
