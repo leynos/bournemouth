@@ -70,23 +70,26 @@ class _Pump:
             return await self.q.get()
         return await asyncio.wait_for(self.q.get(), timeout)
 
+    def _remaining(self, deadline: float | None) -> float | None:
+        if deadline is None:
+            return None
+        left = deadline - asyncio.get_event_loop().time()
+        if left <= 0:
+            raise TimeoutError("deadline reached")
+        return left
+
+    async def _get_next(self, left: float | None) -> Any:
+        try:
+            return await self.next(timeout=left)
+        except asyncio.TimeoutError as exc:  # pragma: no cover - defensive
+            raise TimeoutError("deadline reached") from exc
+
     async def collect(self, n: int | None = None, *, timeout: float | None = None) -> list[Any]:
-        deadline: float | None = (
-            asyncio.get_event_loop().time() + timeout if timeout else None
-        )
+        deadline = asyncio.get_event_loop().time() + timeout if timeout else None
         out: list[Any] = []
         while n is None or len(out) < n:
-            if deadline is not None:
-                left = deadline - asyncio.get_event_loop().time()
-                if left <= 0:
-                    raise TimeoutError("deadline reached")
-            else:
-                left = None
-            try:
-                msg = await self.next(timeout=left)
-            except asyncio.TimeoutError as e:
-                raise TimeoutError("deadline reached") from e
-            out.append(msg)
+            left = self._remaining(deadline)
+            out.append(await self._get_next(left))
             if self.done.is_set() and self.q.empty():
                 break
         return out
