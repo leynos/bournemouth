@@ -10,6 +10,7 @@ import uuid  # noqa: TC003
 
 import falcon
 import falcon.asgi
+from falcon_pachinko import WebSocketResource, handles_message
 import msgspec
 from msgspec import json as msgspec_json
 from sqlalchemy import update
@@ -234,6 +235,108 @@ class ChatResource:
             for task in tasks:
                 task.cancel()
             await asyncio.gather(*tasks, return_exceptions=True)
+
+
+class ChatWsPachinkoResource(WebSocketResource):
+    """Stateless chat using ``falcon-pachinko``."""
+
+    service: OpenRouterService
+    session_factory: typing.Callable[[], AsyncSession]
+
+    def __init__(self) -> None:
+        self._encoder = msgspec_json.Encoder()
+        self._send_lock: asyncio.Lock | None = None
+        self._user: str | None = None
+
+    async def on_connect(
+        self, req: falcon.asgi.Request, ws: falcon.asgi.WebSocket, **_: typing.Any
+    ) -> bool:
+        self._send_lock = asyncio.Lock()
+        self._user = typing.cast("str", req.context["user"])
+        await ws.accept()
+        return True
+
+    async def _get_api_key(self) -> str | None:
+        assert self._user is not None
+        try:
+            _, api_key = await load_user_and_api_key(self.session_factory, self._user)
+        except falcon.HTTPUnauthorized:
+            return None
+        return api_key
+
+    def _build_history(self, request: ChatWsRequest) -> list[ChatMessage]:
+        hist = request.history or []
+        history = [ChatMessage(role=m.role, content=m.content) for m in hist]
+        history.append(ChatMessage(role="user", content=request.message))
+        return history
+
+    async def _stream_chat(
+        self,
+        ws: falcon.asgi.WebSocket,
+        encoder: msgspec_json.Encoder,
+        send_lock: asyncio.Lock,
+        transaction_id: str,
+        api_key: str,
+        history: list[ChatMessage],
+        model: str | None,
+    ) -> None:
+        try:
+            async for chunk in stream_answer(
+                self.service,
+                api_key,
+                history,
+                model,
+            ):
+                choice: StreamChoice = chunk.choices[0]
+                if choice.delta.content:
+                    async with send_lock:
+                        raw = encoder.encode(
+                            ChatWsResponse(
+                                transaction_id=transaction_id,
+                                fragment=choice.delta.content,
+                            )
+                        )
+                        await ws.send_text(raw.decode())
+                if choice.finish_reason is not None:
+                    async with send_lock:
+                        raw = encoder.encode(
+                            ChatWsResponse(
+                                transaction_id=transaction_id,
+                                fragment="",
+                                finished=True,
+                            )
+                        )
+                        await ws.send_text(raw.decode())
+                    break
+        except (falcon.HTTPGatewayTimeout, falcon.HTTPBadGateway) as exc:
+            _logger.exception("closing websocket due to upstream error", exc_info=exc)
+            await ws.close(code=1011)
+
+    @handles_message("chat")
+    async def handle_chat(self, ws: falcon.asgi.WebSocket, payload: ChatWsRequest) -> None:
+        assert self._send_lock is not None
+        history = self._build_history(payload)
+        api_key = await self._get_api_key()
+        if api_key is None:
+            async with self._send_lock:
+                raw = self._encoder.encode(
+                    ChatWsResponse(
+                        transaction_id=payload.transaction_id,
+                        fragment="missing OpenRouter token",
+                        finished=True,
+                    )
+                )
+                await ws.send_text(raw.decode())
+            return
+        await self._stream_chat(
+            ws,
+            self._encoder,
+            self._send_lock,
+            payload.transaction_id,
+            api_key,
+            history,
+            payload.model,
+        )
 
 
 class ChatStateResource:
