@@ -35,6 +35,58 @@ async def _login(client: AsyncClient) -> str:
     return typing.cast("str", resp.cookies.get("session"))
 
 
+def _patch_stream(
+    monkeypatch: pytest.MonkeyPatch,
+) -> tuple[asyncio.Event, asyncio.Event]:
+    first_started = asyncio.Event()
+    second_started = asyncio.Event()
+
+    async def fake_stream(
+        service: typing.Any,
+        api_key: str,
+        history: list[typing.Any],
+        *,
+        model: str | None = None,
+    ) -> typing.AsyncIterator[StreamChunk]:
+        idx = 1 if not first_started.is_set() else 2
+        (first_started if idx == 1 else second_started).set()
+        await asyncio.sleep(0.01)
+        yield StreamChunk(
+            id=str(idx),
+            object="chat.completion.chunk",
+            created=1,
+            model="m",
+            choices=[
+                StreamChoice(
+                    index=0,
+                    delta=ResponseDelta(content="a" if idx == 1 else "b"),
+                )
+            ],
+        )
+        yield StreamChunk(
+            id=str(idx),
+            object="chat.completion.chunk",
+            created=1,
+            model="m",
+            choices=[
+                StreamChoice(
+                    index=0,
+                    delta=ResponseDelta(),
+                    finish_reason="stop",
+                )
+            ],
+        )
+
+    monkeypatch.setattr("bournemouth.chat_service.stream_answer", fake_stream)
+    monkeypatch.setattr("bournemouth.resources.stream_answer", fake_stream)
+    import bournemouth.resources as r
+    monkeypatch.setitem(
+        r.ChatResource._stream_chat.__globals__, "stream_answer", fake_stream
+    )
+
+    return first_started, second_started
+
+
 @pytest.mark.timeout(5)
 @pytest.mark.asyncio
 async def test_websocket_streams_chat(
@@ -77,68 +129,7 @@ async def test_websocket_streams_chat(
 async def test_websocket_multiplexes_requests(
     app: asgi.App, conductor: testing.ASGIConductor, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    first_started = asyncio.Event()
-    second_started = asyncio.Event()
-
-    async def fake_stream(
-        service: typing.Any,
-        api_key: str,
-        history: list[typing.Any],
-        *,
-        model: str | None = None,
-    ) -> typing.AsyncIterator[StreamChunk]:
-        if not first_started.is_set():
-            first_started.set()
-            await second_started.wait()
-            await asyncio.sleep(0.01)
-            yield StreamChunk(
-                id="1",
-                object="chat.completion.chunk",
-                created=1,
-                model="m",
-                choices=[StreamChoice(index=0, delta=ResponseDelta(content="a"))],
-            )
-            yield StreamChunk(
-                id="1",
-                object="chat.completion.chunk",
-                created=1,
-                model="m",
-                choices=[
-                    StreamChoice(
-                        index=0,
-                        delta=ResponseDelta(),
-                        finish_reason="stop",
-                    )
-                ],
-            )
-        else:
-            second_started.set()
-            await first_started.wait()
-            yield StreamChunk(
-                id="2",
-                object="chat.completion.chunk",
-                created=1,
-                model="m",
-                choices=[StreamChoice(index=0, delta=ResponseDelta(content="b"))],
-            )
-            yield StreamChunk(
-                id="2",
-                object="chat.completion.chunk",
-                created=1,
-                model="m",
-                choices=[
-                    StreamChoice(
-                        index=0,
-                        delta=ResponseDelta(),
-                        finish_reason="stop",
-                    )
-                ],
-            )
-
-    monkeypatch.setattr("bournemouth.chat_service.stream_answer", fake_stream)
-    monkeypatch.setattr("bournemouth.resources.stream_answer", fake_stream)
-    import bournemouth.resources as r
-    monkeypatch.setitem(r.ChatResource._stream_chat.__globals__, "stream_answer", fake_stream)
+    _patch_stream(monkeypatch)
 
     async with AsyncClient(
         transport=ASGITransport(app=typing.cast("typing.Any", app)),
