@@ -113,7 +113,7 @@ async def get_or_create_conversation(
             raise falcon.HTTPNotFound()
     if conv is None:
         conv = Conversation(
-            id=typing.cast("uuid.UUID", uuid7(as_type="uuid")),
+            id=typing.cast("uuid.UUID", uuid7(return_type="uuid")),
             user_id=user_id,
         )
         session.add(conv)

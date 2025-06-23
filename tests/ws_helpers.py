@@ -5,7 +5,7 @@ Key idea
 --------
 Spin up a background *pump* task that feeds every incoming frame into
 an asyncio.Queue.  Tests interact purely with that queue, so we never
-block the event-loop on an unknown recv() – and we only apply a
+block the event-loop on an unknown recv() - and we only apply a
 deadline once per logical expectation, not on every frame.
 
 Usage
@@ -25,8 +25,11 @@ import contextlib
 import json
 from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass, field
+import logging
 from types import TracebackType
 from typing import Any, Self
+
+_logger = logging.getLogger(__name__)
 
 _T = Callable[[Any], bool]
 
@@ -60,12 +63,16 @@ class _Pump:
                 except Exception:
                     msg = raw
                 await self.q.put(msg)
-        except Exception:
-            pass
+        except Exception:  # pragma: no cover - defensive
+            _logger.debug(
+                "WebSocket pump terminated due to exception",
+                exc_info=True,
+            )
         finally:
             self.done.set()
 
     async def next(self, *, timeout: float | None = None) -> Any:
+        """Return the next frame from the queue within ``timeout`` seconds."""
         if timeout is None:
             return await self.q.get()
         return await asyncio.wait_for(self.q.get(), timeout)
@@ -85,6 +92,7 @@ class _Pump:
             raise TimeoutError("deadline reached") from exc
 
     async def collect(self, n: int | None = None, *, timeout: float | None = None) -> list[Any]:
+        """Collect up to ``n`` messages until ``timeout`` or EOF."""
         deadline = asyncio.get_event_loop().time() + timeout if timeout else None
         out: list[Any] = []
         while n is None or len(out) < n:
@@ -97,6 +105,7 @@ class _Pump:
     async def collect_until(
         self, predicate: _T, *, timeout: float | None = 5.0
     ) -> list[Any]:
+        """Collect messages until ``predicate`` returns ``True`` or times out."""
         msgs: list[Any] = []
         deadline: float | None = (
             asyncio.get_event_loop().time() + timeout if timeout else None
@@ -114,6 +123,7 @@ class _Pump:
                 return msgs
 
     async def aclose(self) -> None:
+        """Stop the pump task and close the WebSocket."""
         if self._task and not self._task.done():
             self._task.cancel()
             with contextlib.suppress(asyncio.CancelledError):

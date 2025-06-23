@@ -140,7 +140,10 @@ async def test_websocket_multiplexes_requests(
         cookie = await _login(client)
 
     headers = {"cookie": f"session={cookie}"}
-    async with conductor.simulate_ws("/chat", headers=headers) as ws, ws_collector(ws) as coll:
+    async with (
+        conductor.simulate_ws("/chat", headers=headers) as ws,
+        ws_collector(ws) as coll,
+    ):
         await ws.send_text(
             msgspec_json.encode(
                 ChatWsRequest(transaction_id="t1", message="a")
