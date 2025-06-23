@@ -193,16 +193,15 @@ class ChatResource:
                     )
                     await ws.send_text(raw.decode())
                 return
-            await stream_chat_response(
+            cfg = StreamConfig(
                 self._service,
                 ws,  # pyright: ignore[reportUnknownArgumentType]
                 encoder,
                 send_lock,
-                request.transaction_id,
                 api_key,
-                history,
                 request.model,
             )
+            await stream_chat_response(cfg, request.transaction_id, history)
 
         try:
             while True:
@@ -223,10 +222,13 @@ class ChatResource:
 class ChatWsPachinkoResource(WebSocketResource):
     """Stateless chat using ``falcon-pachinko``."""
 
-    service: OpenRouterService
-    session_factory: typing.Callable[[], AsyncSession]
-
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        service: OpenRouterService,
+        session_factory: typing.Callable[[], AsyncSession],
+    ) -> None:
+        self.service = service
+        self.session_factory = session_factory
         self._encoder = msgspec_json.Encoder()
         self._send_lock: asyncio.Lock | None = None
         self._user: str | None = None
@@ -234,7 +236,13 @@ class ChatWsPachinkoResource(WebSocketResource):
     async def on_connect(
         self, req: falcon.asgi.Request, ws: falcon.asgi.WebSocket, **_: typing.Any
     ) -> bool:
-        """Accept the WebSocket connection and store the user."""
+        """Accept the connection and store the user.
+
+        Returns
+        -------
+        bool
+            ``True`` to confirm that the connection should remain open.
+        """
         self._send_lock = asyncio.Lock()
         self._user = typing.cast("str", req.context["user"])
         await ws.accept()
@@ -251,7 +259,10 @@ class ChatWsPachinkoResource(WebSocketResource):
 
 
     @handles_message("chat")
-    async def handle_chat(self, ws: falcon.asgi.WebSocket, payload: ChatWsRequest) -> None:
+    async def handle_chat(
+        self, ws: falcon.asgi.WebSocket, payload: ChatWsRequest
+    ) -> None:
+        """Handle incoming chat messages over WebSocket."""
         if self._send_lock is None:
             raise RuntimeError("on_connect must be called before handle_chat")
         history = build_chat_history(payload.message, payload.history)
@@ -267,16 +278,15 @@ class ChatWsPachinkoResource(WebSocketResource):
                 )
                 await ws.send_text(raw.decode())
             return
-        await stream_chat_response(
+        cfg = StreamConfig(
             self.service,
             ws,
             self._encoder,
             self._send_lock,
-            payload.transaction_id,
             api_key,
-            history,
             payload.model,
         )
+        await stream_chat_response(cfg, payload.transaction_id, history)
 
 
 class ChatStateResource:

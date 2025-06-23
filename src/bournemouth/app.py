@@ -11,12 +11,6 @@ import msgspec
 from falcon import asgi
 from falcon_pachinko import install as install_websockets
 
-
-class PachinkoApp(asgi.App):
-    """Falcon app subclass with ``falcon-pachinko`` support."""
-
-    __slots__ = ("__dict__",)
-
 if typing.TYPE_CHECKING:  # pragma: no cover - for type checking only
     from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -38,6 +32,12 @@ from .resources import (
     OpenRouterTokenResource,
 )
 from .session import SessionManager
+
+
+class PachinkoApp(asgi.App):
+    """Falcon app subclass with ``falcon-pachinko`` support."""
+
+    __slots__ = ("__dict__",)
 
 
 def create_app(
@@ -105,7 +105,10 @@ def create_app(
         ),
     )
     app.add_route("/chat/state", ChatStateResource(service, db_session_factory))
-    app.add_websocket_route("/ws/chat", ChatWsPachinkoResource)
+    app.add_websocket_route(
+        "/ws/chat",
+        ChatWsPachinkoResource(service, db_session_factory),
+    )
     app.add_route("/auth/openrouter-token", OpenRouterTokenResource(db_session_factory))
     app.add_route("/health", HealthResource())
     app.add_route("/login", LoginResource(session, user, password))
