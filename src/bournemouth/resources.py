@@ -10,8 +10,8 @@ import uuid  # noqa: TC003
 
 import falcon
 import falcon.asgi
-from falcon_pachinko import WebSocketResource, handles_message
 import msgspec
+from falcon_pachinko import WebSocketResource, handles_message
 from msgspec import json as msgspec_json
 from sqlalchemy import update
 
@@ -25,10 +25,15 @@ from .chat_service import (
     get_or_create_conversation,
     list_conversation_messages,
     load_user_and_api_key,
-    stream_answer,
+)
+from .chat_utils import (
+    ChatWsRequest,
+    ChatWsResponse,
+    build_chat_history,
+    stream_chat_response,
 )
 from .models import Message, MessageRole, UserAccount
-from .openrouter import ChatMessage, Role, StreamChoice
+from .openrouter import ChatMessage, Role
 
 _logger = logging.getLogger(__name__)
 
@@ -44,19 +49,6 @@ class ChatRequest(msgspec.Struct):
     message: str
     history: list[HttpMessage] | None = None
     model: str | None = None
-
-
-class ChatWsRequest(msgspec.Struct):
-    transaction_id: str
-    message: str
-    model: str | None = None
-    history: list[HttpMessage] | None = None
-
-
-class ChatWsResponse(msgspec.Struct):
-    transaction_id: str
-    fragment: str
-    finished: bool = False
 
 
 class TokenRequest(msgspec.Struct):
@@ -93,12 +85,6 @@ class ChatResource:
         self._service = service
         self._session_factory = session_factory
         self._stream_answer = stream_answer_func
-
-    def _build_history(self, request: ChatWsRequest) -> list[ChatMessage]:
-        hist = request.history or []
-        history = [ChatMessage(role=m.role, content=m.content) for m in hist]
-        history.append(ChatMessage(role="user", content=request.message))
-        return history
 
     async def _get_api_key(self, user: str) -> str | None:
         try:
@@ -158,11 +144,7 @@ class ChatResource:
         *,
         body: ChatRequest,
     ) -> None:
-        msg = body.message
-        history = [
-            ChatMessage(role=m.role, content=m.content) for m in (body.history or [])
-        ]
-        history.append(ChatMessage(role="user", content=msg))
+        history = build_chat_history(body.message, body.history)
         model = body.model
 
         user = typing.cast("str", req.context["user"])
@@ -197,7 +179,7 @@ class ChatResource:
                 task.result()
 
         async def handle(request: ChatWsRequest) -> None:
-            history = self._build_history(request)
+            history = build_chat_history(request.message, request.history)
             user = typing.cast("str", req.context["user"])
             api_key = await self._get_api_key(user)
             if api_key is None:
@@ -211,7 +193,8 @@ class ChatResource:
                     )
                     await ws.send_text(raw.decode())
                 return
-            await self._stream_chat(
+            await stream_chat_response(
+                self._service,
                 ws,  # pyright: ignore[reportUnknownArgumentType]
                 encoder,
                 send_lock,
@@ -251,71 +234,27 @@ class ChatWsPachinkoResource(WebSocketResource):
     async def on_connect(
         self, req: falcon.asgi.Request, ws: falcon.asgi.WebSocket, **_: typing.Any
     ) -> bool:
+        """Accept the WebSocket connection and store the user."""
         self._send_lock = asyncio.Lock()
         self._user = typing.cast("str", req.context["user"])
         await ws.accept()
         return True
 
     async def _get_api_key(self) -> str | None:
-        assert self._user is not None
+        if self._user is None:
+            raise RuntimeError("User must be set before calling _get_api_key")
         try:
             _, api_key = await load_user_and_api_key(self.session_factory, self._user)
         except falcon.HTTPUnauthorized:
             return None
         return api_key
 
-    def _build_history(self, request: ChatWsRequest) -> list[ChatMessage]:
-        hist = request.history or []
-        history = [ChatMessage(role=m.role, content=m.content) for m in hist]
-        history.append(ChatMessage(role="user", content=request.message))
-        return history
-
-    async def _stream_chat(
-        self,
-        ws: falcon.asgi.WebSocket,
-        encoder: msgspec_json.Encoder,
-        send_lock: asyncio.Lock,
-        transaction_id: str,
-        api_key: str,
-        history: list[ChatMessage],
-        model: str | None,
-    ) -> None:
-        try:
-            async for chunk in stream_answer(
-                self.service,
-                api_key,
-                history,
-                model,
-            ):
-                choice: StreamChoice = chunk.choices[0]
-                if choice.delta.content:
-                    async with send_lock:
-                        raw = encoder.encode(
-                            ChatWsResponse(
-                                transaction_id=transaction_id,
-                                fragment=choice.delta.content,
-                            )
-                        )
-                        await ws.send_text(raw.decode())
-                if choice.finish_reason is not None:
-                    async with send_lock:
-                        raw = encoder.encode(
-                            ChatWsResponse(
-                                transaction_id=transaction_id,
-                                fragment="",
-                                finished=True,
-                            )
-                        )
-                        await ws.send_text(raw.decode())
-                    break
-        except (falcon.HTTPGatewayTimeout, falcon.HTTPBadGateway) as exc:
-            _logger.exception("closing websocket due to upstream error", exc_info=exc)
-            await ws.close(code=1011)
 
     @handles_message("chat")
     async def handle_chat(self, ws: falcon.asgi.WebSocket, payload: ChatWsRequest) -> None:
-        assert self._send_lock is not None
-        history = self._build_history(payload)
+        if self._send_lock is None:
+            raise RuntimeError("on_connect must be called before handle_chat")
+        history = build_chat_history(payload.message, payload.history)
         api_key = await self._get_api_key()
         if api_key is None:
             async with self._send_lock:
@@ -328,7 +267,8 @@ class ChatWsPachinkoResource(WebSocketResource):
                 )
                 await ws.send_text(raw.decode())
             return
-        await self._stream_chat(
+        await stream_chat_response(
+            self.service,
             ws,
             self._encoder,
             self._send_lock,

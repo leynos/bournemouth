@@ -13,6 +13,8 @@ from falcon_pachinko import install as install_websockets
 
 
 class PachinkoApp(asgi.App):
+    """Falcon app subclass with ``falcon-pachinko`` support."""
+
     __slots__ = ("__dict__",)
 
 if typing.TYPE_CHECKING:  # pragma: no cover - for type checking only
