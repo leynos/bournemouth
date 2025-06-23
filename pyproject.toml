@@ -17,6 +17,7 @@ dependencies = [
   "msgspec>=0.19,<0.20",
   "aiosqlite>=0.21.0",
   "uuid7>=0.1",
+  "falcon-pachinko==0.1.0a1",
 ]
 
 [dependency-groups]
@@ -47,6 +48,9 @@ build-backend = "setuptools.build_meta"
 
 [tool.uv]
 package = true
+
+[tool.uv.sources]
+falcon-pachinko = { url = "https://github.com/leynos/falcon-pachinko/releases/download/v0.1.0-alpha1/falcon_pachinko-0.1.0a1-py3-none-any.whl" }
 
 [tool.pyright]
 typeCheckingMode = "strict"
