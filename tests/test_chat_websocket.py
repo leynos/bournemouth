@@ -5,6 +5,7 @@ import typing
 import pytest
 from falcon import asgi, testing
 from httpx import ASGITransport, AsyncClient
+import msgspec
 from msgspec import json as msgspec_json
 from pytest_httpx import HTTPXMock
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from bournemouth.app import create_app
 from bournemouth.openrouter import ResponseDelta, StreamChoice, StreamChunk
 from bournemouth.resources import ChatWsRequest, ChatWsResponse
+from tests.ws_helpers import ws_collector
 
 type SessionFactory = typing.Callable[[], AsyncSession]
 
@@ -138,7 +140,7 @@ async def test_websocket_multiplexes_requests(
         cookie = await _login(client)
 
     headers = {"cookie": f"session={cookie}"}
-    async with conductor.simulate_ws("/chat", headers=headers) as ws:
+    async with conductor.simulate_ws("/chat", headers=headers) as ws, ws_collector(ws) as coll:
         await ws.send_text(
             msgspec_json.encode(
                 ChatWsRequest(transaction_id="t1", message="a")
@@ -149,18 +151,12 @@ async def test_websocket_multiplexes_requests(
                 ChatWsRequest(transaction_id="t2", message="b")
             ).decode()
         )
-        first = msgspec_json.decode(
-            await asyncio.wait_for(ws.receive_text(), 2), type=ChatWsResponse
+        raw_msgs = await coll.collect_until(
+            lambda m: m.get("finished") and m.get("transaction_id") == "t2",
+            timeout=5,
         )
-        second = msgspec_json.decode(
-            await asyncio.wait_for(ws.receive_text(), 2), type=ChatWsResponse
-        )
-        third = msgspec_json.decode(
-            await asyncio.wait_for(ws.receive_text(), 2), type=ChatWsResponse
-        )
-        fourth = msgspec_json.decode(
-            await asyncio.wait_for(ws.receive_text(), 2), type=ChatWsResponse
-        )
+        responses = [msgspec.convert(m, ChatWsResponse) for m in raw_msgs]
+        first, second, third, fourth = responses
 
     results = [first, second, third, fourth]
     ids = {r.transaction_id for r in results}
