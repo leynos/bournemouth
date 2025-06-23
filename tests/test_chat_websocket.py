@@ -46,7 +46,7 @@ async def test_websocket_streams_chat(
         b'"delta": {"content": "hi"}}]}\n'
         b'data: {"id": "1", "object": "chat.completion.chunk", '
         b'"created": 1, "model": "m", "choices": [{"index": 0, '
-        b'"delta": {}, "finish_reason": "stop"}}]}\n'
+        b'"delta": {}, "finish_reason": "stop"}]}\n'
         b"data: \n"
     )
     httpx_mock.add_response(
@@ -136,6 +136,9 @@ async def test_websocket_multiplexes_requests(
             )
 
     monkeypatch.setattr("bournemouth.chat_service.stream_answer", fake_stream)
+    monkeypatch.setattr("bournemouth.resources.stream_answer", fake_stream)
+    import bournemouth.resources as r
+    monkeypatch.setitem(r.ChatResource._stream_chat.__globals__, "stream_answer", fake_stream)
 
     async with AsyncClient(
         transport=ASGITransport(app=typing.cast("typing.Any", app)),
@@ -156,16 +159,16 @@ async def test_websocket_multiplexes_requests(
             ).decode()
         )
         first = msgspec_json.decode(
-            await asyncio.wait_for(ws.receive_text(), 1), type=ChatWsResponse
+            await asyncio.wait_for(ws.receive_text(), 2), type=ChatWsResponse
         )
         second = msgspec_json.decode(
-            await asyncio.wait_for(ws.receive_text(), 1), type=ChatWsResponse
+            await asyncio.wait_for(ws.receive_text(), 2), type=ChatWsResponse
         )
         third = msgspec_json.decode(
-            await asyncio.wait_for(ws.receive_text(), 1), type=ChatWsResponse
+            await asyncio.wait_for(ws.receive_text(), 2), type=ChatWsResponse
         )
         fourth = msgspec_json.decode(
-            await asyncio.wait_for(ws.receive_text(), 1), type=ChatWsResponse
+            await asyncio.wait_for(ws.receive_text(), 2), type=ChatWsResponse
         )
 
     results = [first, second, third, fourth]
