@@ -69,6 +69,7 @@ dependencies = [
     { name = "aiosqlite" },
     { name = "asyncpg" },
     { name = "falcon" },
+    { name = "falcon-pachinko" },
     { name = "httpx" },
     { name = "itsdangerous" },
     { name = "msgspec" },
@@ -101,6 +102,7 @@ requires-dist = [
     { name = "aiosqlite", specifier = ">=0.21.0" },
     { name = "asyncpg", specifier = ">=0.29" },
     { name = "falcon", specifier = ">=3.1" },
+    { name = "falcon-pachinko", url = "https://github.com/leynos/falcon-pachinko/releases/download/v0.1.0-alpha1/falcon_pachinko-0.1.0a1-py3-none-any.whl" },
     { name = "httpx", specifier = ">=0.27" },
     { name = "itsdangerous", specifier = ">=2.1" },
     { name = "msgspec", specifier = ">=0.19,<0.20" },
@@ -205,6 +207,29 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/bf/c7/268cddb1f84ebe5b402acdf116083658f3fb0dd38a75571e0ee703cef212/falcon-4.0.2-cp313-cp313-win_amd64.whl", hash = "sha256:a410e4023999a74ccf615fafa646b112044b987ef5901c8e5c5b79b163f2b3ba", size = 2052994, upload-time = "2024-11-06T19:51:01.138Z" },
     { url = "https://files.pythonhosted.org/packages/20/e2/ef821224a9ca9d4bb81d6e7ba60c6fbf3eae2e0dc10d806e6ff21b6dfdc5/falcon-4.0.2-py3-none-any.whl", hash = "sha256:077b2abf001940c6128c9b5872ae8147fe13f6ca333f928d8045d7601a5e847e", size = 318356, upload-time = "2024-11-06T19:21:18.29Z" },
 ]
+
+[[package]]
+name = "falcon-pachinko"
+version = "0.1.0a1"
+source = { url = "https://github.com/leynos/falcon-pachinko/releases/download/v0.1.0-alpha1/falcon_pachinko-0.1.0a1-py3-none-any.whl" }
+dependencies = [
+    { name = "falcon" },
+    { name = "msgspec" },
+]
+wheels = [
+    { url = "https://github.com/leynos/falcon-pachinko/releases/download/v0.1.0-alpha1/falcon_pachinko-0.1.0a1-py3-none-any.whl", hash = "sha256:9fe6aa937587b0f275c2fb654c73d0796888e7c721383cb7e36a6823e4a584d0" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "falcon" },
+    { name = "msgspec", specifier = ">=0.18" },
+    { name = "pyright", marker = "extra == 'dev'" },
+    { name = "pytest", marker = "extra == 'dev'" },
+    { name = "pytest-asyncio", marker = "extra == 'dev'" },
+    { name = "ruff", marker = "extra == 'dev'" },
+]
+provides-extras = ["dev"]
 
 [[package]]
 name = "freezegun"
