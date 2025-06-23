@@ -37,9 +37,7 @@ async def _login(client: AsyncClient) -> str:
     return typing.cast("str", resp.cookies.get("session"))
 
 
-def _patch_stream(
-    monkeypatch: pytest.MonkeyPatch,
-) -> tuple[asyncio.Event, asyncio.Event]:
+def _patch_stream() -> typing.Callable[..., typing.AsyncIterator[StreamChunk]]:
     first_started = asyncio.Event()
     second_started = asyncio.Event()
 
@@ -47,12 +45,16 @@ def _patch_stream(
         service: typing.Any,
         api_key: str,
         history: list[typing.Any],
-        *,
-        model: str | None = None,
+        model: str | None,
     ) -> typing.AsyncIterator[StreamChunk]:
         idx = 1 if not first_started.is_set() else 2
-        (first_started if idx == 1 else second_started).set()
-        await asyncio.sleep(0.01)
+        if idx == 1:
+            first_started.set()
+            await second_started.wait()
+            await asyncio.sleep(0.01)
+        else:
+            second_started.set()
+            await first_started.wait()
         yield StreamChunk(
             id=str(idx),
             object="chat.completion.chunk",
@@ -79,14 +81,7 @@ def _patch_stream(
             ],
         )
 
-    monkeypatch.setattr("bournemouth.chat_service.stream_answer", fake_stream)
-    monkeypatch.setattr("bournemouth.resources.stream_answer", fake_stream)
-    import bournemouth.resources as r
-    monkeypatch.setitem(
-        r.ChatResource._stream_chat.__globals__, "stream_answer", fake_stream
-    )
-
-    return first_started, second_started
+    return fake_stream
 
 
 @pytest.mark.timeout(5)
@@ -129,9 +124,14 @@ async def test_websocket_streams_chat(
 @pytest.mark.timeout(5)
 @pytest.mark.asyncio
 async def test_websocket_multiplexes_requests(
-    app: asgi.App, conductor: testing.ASGIConductor, monkeypatch: pytest.MonkeyPatch
+    db_session_factory: SessionFactory,
 ) -> None:
-    _patch_stream(monkeypatch)
+    fake_stream = _patch_stream()
+    app = create_app(
+        db_session_factory=db_session_factory,
+        chat_stream_answer=fake_stream,
+    )
+    conductor = testing.ASGIConductor(app)
 
     async with AsyncClient(
         transport=ASGITransport(app=typing.cast("typing.Any", app)),
@@ -154,6 +154,12 @@ async def test_websocket_multiplexes_requests(
         raw_msgs = await coll.collect_until(
             lambda m: m.get("finished") and m.get("transaction_id") == "t2",
             timeout=5,
+        )
+        raw_msgs.extend(
+            await coll.collect_until(
+                lambda m: m.get("finished") and m.get("transaction_id") == "t1",
+                timeout=5,
+            )
         )
         responses = [msgspec.convert(m, ChatWsResponse) for m in raw_msgs]
         first, second, third, fourth = responses
