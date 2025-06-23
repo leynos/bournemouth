@@ -76,6 +76,7 @@ dependencies = [
     { name = "neo4j" },
     { name = "requests" },
     { name = "sqlalchemy" },
+    { name = "uuid-v7" },
     { name = "uuid7" },
 ]
 
@@ -109,6 +110,7 @@ requires-dist = [
     { name = "neo4j", specifier = ">=5.20" },
     { name = "requests", specifier = ">=2.31" },
     { name = "sqlalchemy", specifier = ">=2.0" },
+    { name = "uuid-v7", specifier = ">=1.0.0" },
     { name = "uuid7", specifier = ">=0.1" },
 ]
 
@@ -840,6 +842,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/8a/78/16493d9c386d8e60e442a35feac5e00f0913c0f4b7c217c11e8ec2ff53e0/urllib3-2.4.0.tar.gz", hash = "sha256:414bc6535b787febd7567804cc015fee39daab8ad86268f1310a9250697de466", size = 390672, upload-time = "2025-04-10T15:23:39.232Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/6b/11/cc635220681e93a0183390e26485430ca2c7b5f9d33b15c74c2861cb8091/urllib3-2.4.0-py3-none-any.whl", hash = "sha256:4e16665048960a0900c702d4a66415956a584919c03361cac9f1df5c5dd7e813", size = 128680, upload-time = "2025-04-10T15:23:37.377Z" },
+]
+
+[[package]]
+name = "uuid-v7"
+version = "1.0.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/a1/94/b7c21adccab9cc3b5d7f7bf86855e9648cbdb93962a16c68f67d51af212d/uuid_v7-1.0.0.tar.gz", hash = "sha256:56eb79baa5c6c5cf02e9e8ce7652bda666bd7671a49fc9a3c3d4565aa7e0ba3b", size = 5093, upload-time = "2024-02-15T11:00:05.341Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/2e/8b/cbcb38c01d1fd9682043f3d7a3ef5eb0a628a2d7c917fec21b04ffc2cf98/uuid_v7-1.0.0-py3-none-any.whl", hash = "sha256:b27f8e1a90ad5c81577f8eaebf9ef67ab8b4dc8d0838c4fcc2e57fd52ebf7fff", size = 4665, upload-time = "2024-02-15T11:00:01.471Z" },
 ]
 
 [[package]]

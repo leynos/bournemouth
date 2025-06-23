@@ -18,6 +18,7 @@ dependencies = [
   "aiosqlite>=0.21.0",
   "uuid7>=0.1",
   "falcon-pachinko==0.1.0a1",
+  "uuid-v7>=1.0.0",
 ]
 
 [dependency-groups]
