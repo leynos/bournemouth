@@ -9,6 +9,4 @@ except Exception:  # pragma: no cover
 
 def uuid7(*, as_type: str | None = None) -> uuid.UUID | str:
     u = _uuid7()
-    if as_type == "uuid":
-        return u
-    return str(u)
+    return u if as_type == "uuid" else str(u)

@@ -47,7 +47,7 @@ def _patch_stream() -> typing.Callable[..., typing.AsyncIterator[StreamChunk]]:
         history: list[typing.Any],
         model: str | None,
     ) -> typing.AsyncIterator[StreamChunk]:
-        idx = 1 if not first_started.is_set() else 2
+        idx = 2 if first_started.is_set() else 1
         if idx == 1:
             first_started.set()
             await second_started.wait()
