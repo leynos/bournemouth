@@ -36,15 +36,15 @@ def _dumps(obj: typing.Any) -> str:
     """
     Serialises a Python object to a JSON string using msgspec.
     
-    Parameters:
-    	obj: The Python object to serialise.
+    Parameters
+    ----------
+    obj : typing.Any
+        The Python object to serialise.
     
-    Returns:
-    	A JSON-formatted string representation of the object.
-    """
-    return _ENCODER.encode(obj).decode("utf-8")
-
-
+    Returns
+    -------
+    str
+        A JSON-formatted string representation of the object.
 json_handler = falcon.media.JSONHandler(
     dumps=_dumps,
     loads=_msgspec_loads_json_robust,
@@ -66,6 +66,17 @@ class AsyncMsgspecMiddleware:
         
         If the resource defines a schema attribute for the current HTTP method (e.g., POST_SCHEMA) that is a subclass of msgspec.Struct, the request body is parsed and strictly validated against this schema. The validated object is injected into the params dictionary under the "body" key.
         """
+
+        Parameters
+        ----------
+        req : falcon.Request
+            The incoming HTTP request.
+        resp : falcon.Response
+            The HTTP response object.
+        resource : object
+            The resource object being processed.
+        params : dict[str, typing.Any]
+            The parameters dictionary where the validated body will be injected.
         schema_attr = f"{req.method.upper()}_SCHEMA"
         schema = getattr(resource, schema_attr, None)
         if schema is None:
@@ -77,6 +88,27 @@ class AsyncMsgspecMiddleware:
         params["body"] = validated
 
 
+
+    Parameters
+    ----------
+    req : falcon.Request
+        The HTTP request object.
+    resp : falcon.Response
+        The HTTP response object.
+    ex : msgspec.ValidationError
+        The validation error that occurred.
+    params : dict[str, typing.Any]
+        The request parameters.
+
+    Raises
+
+        Parameters
+        ----------
+        protocol : str, default="json"
+            The protocol to use for WebSocket communication.
+    ------
+    falcon.HTTPUnprocessableEntity
+        Always raised with the validation error details.
 async def handle_msgspec_validation_error(
     req: falcon.Request,
     resp: falcon.Response,
@@ -87,6 +119,17 @@ async def handle_msgspec_validation_error(
     Raises an HTTP 422 Unprocessable Entity response when a msgspec validation error occurs.
     
     The response includes the validation error message in the description.
+
+        Parameters
+        ----------
+        req : falcon.asgi.Request
+            The ASGI request object.
+        ws : falcon.asgi.WebSocket
+            The WebSocket connection object.
+        resource : object
+            The WebSocket resource being processed.
+        params : dict[str, typing.Any]
+            The request parameters.
     """
     raise falcon.HTTPUnprocessableEntity(
         title="Validation Error",
@@ -101,8 +144,10 @@ class MsgspecWebSocketMiddleware:
         """
         Initialises the middleware for msgspec-based WebSocket integration, supporting only the "json" protocol.
         
-        Raises:
-            ValueError: If a protocol other than "json" is specified.
+        Raises
+        ------
+        ValueError
+            If a protocol other than "json" is specified.
         """
         if protocol != "json":
             raise ValueError(f"Unsupported msgspec protocol: {protocol}")

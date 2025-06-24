@@ -41,11 +41,16 @@ class OpenRouterService:
         """
         Initialises the service with default configuration for OpenRouter API clients.
         
-        Parameters:
-            default_model (str): The default model to use for chat completions.
-            base_url (str): The base URL for the OpenRouter API.
-            timeout_config (httpx.Timeout | None): Optional timeout configuration for API requests.
-            max_clients (int): Maximum number of cached client instances.
+        Parameters
+        ----------
+        default_model : str
+            The default model to use for chat completions.
+        base_url : str
+            The base URL for the OpenRouter API.
+        timeout_config : httpx.Timeout | None
+            Optional timeout configuration for API requests.
+        max_clients : int
+            Maximum number of cached client instances.
         """
         self.default_model = default_model
         self.base_url = base_url
@@ -62,8 +67,10 @@ class OpenRouterService:
         """
         Instantiate an OpenRouterService using environment variables for model and base URL.
         
-        Returns:
-            OpenRouterService: A service instance configured with values from ``OPENROUTER_MODEL`` and ``OPENROUTER_BASE_URL``, or their defaults if unset.
+        Returns
+        -------
+        OpenRouterService
+            A service instance configured with values from ``OPENROUTER_MODEL`` and ``OPENROUTER_BASE_URL``, or their defaults if unset.
         """
         model = os.getenv("OPENROUTER_MODEL") or DEFAULT_MODEL
         base_url = os.getenv("OPENROUTER_BASE_URL") or DEFAULT_BASE_URL
@@ -82,8 +89,10 @@ class OpenRouterService:
         """
         Enter the asynchronous context manager for the service, ensuring resources are prepared for use.
         
-        Returns:
-            OpenRouterService: The service instance with context management enabled.
+        Returns
+        -------
+        OpenRouterService
+            The service instance with context management enabled.
         """
         await self._ensure_stack()
         return self
@@ -116,11 +125,15 @@ class OpenRouterService:
         
         If the cache exceeds the maximum allowed clients, the least recently used client is removed and closed before adding a new client.
         
-        Parameters:
-            api_key (str): The API key used to identify and authenticate the client.
+        Parameters
+        ----------
+        api_key : str
+            The API key used to identify and authenticate the client.
         
-        Returns:
-            OpenRouterAsyncClient: The cached or newly created client associated with the provided API key.
+        Returns
+        -------
+        OpenRouterAsyncClient
+            The cached or newly created client associated with the provided API key.
         """
         await self._ensure_stack()
         async with self._lock:
@@ -144,8 +157,10 @@ class OpenRouterService:
         """
         Remove and close the cached OpenRouter client associated with the given API key.
         
-        Parameters:
-            api_key (str): The API key identifying the client to remove.
+        Parameters
+        ----------
+        api_key : str
+            The API key identifying the client to remove.
         """
         async with self._lock:
             client = self._clients.pop(api_key, None)
@@ -162,13 +177,19 @@ class OpenRouterService:
         """
         Request a non-streaming chat completion from OpenRouter using the cached client for the specified API key.
         
-        Parameters:
-            api_key (str): The API key used to select or create the OpenRouter client.
-            messages (list[ChatMessage]): The conversation history to send to the model.
-            model (str, optional): The model to use for completion. If not provided, the default model is used.
+        Parameters
+        ----------
+        api_key : str
+            The API key used to select or create the OpenRouter client.
+        messages : list[ChatMessage]
+            The conversation history to send to the model.
+        model : str, optional
+            The model to use for completion. If not provided, the default model is used.
         
-        Returns:
-            ChatCompletionResponse: The response from the OpenRouter API containing the chat completion.
+        Returns
+        -------
+        ChatCompletionResponse
+            The response from the OpenRouter API containing the chat completion.
         """
         request = ChatCompletionRequest(
             model=model or self.default_model,
@@ -186,9 +207,20 @@ class OpenRouterService:
     ) -> typing.AsyncIterator[StreamChunk]:
         """
         Stream chat completion responses from OpenRouter for the given API key and messages.
+
+        Parameters
+        ----------
+        api_key : str
+            The API key used for authentication.
+        messages : list[ChatMessage]
+            The conversation history to send to the model.
+        model : str, optional
+            The model to use for completion. If not provided, the default model is used.
         
-        Yields:
-            StreamChunk: Chunks of the streamed chat completion response as they are received.
+        Yields
+        ------
+        StreamChunk
+            Chunks of the streamed chat completion response as they are received.
         """
         request = ChatCompletionRequest(
             model=model or self.default_model,
@@ -221,6 +253,11 @@ async def chat_with_service(
 ) -> ChatCompletionResponse:
     """
     Invoke the chat completion method of the service, mapping client errors to service-specific exceptions.
+
+    Parameters
+    ----------
+    service : OpenRouterService
+        The service instance to use for the chat completion.
     
     Parameters:
         api_key (str): The API key used to select the cached client.
@@ -251,6 +288,11 @@ async def stream_chat_with_service(
 ) -> typing.AsyncIterator[StreamChunk]:
     """
     Invoke the service's streaming chat completion method and yield response chunks, mapping client errors to service-specific exceptions.
+
+    Parameters
+    ----------
+    service : OpenRouterService
+        The service instance to use for streaming chat completion.
     
     Yields:
         StreamChunk: Chunks of the streaming chat completion response.
