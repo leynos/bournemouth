@@ -64,8 +64,7 @@ def build_chat_history(
     message: str, history: list[ChatMessage] | None
 ) -> list[ChatMessage]:
     """Return chat history with the user message appended."""
-    hist = history or []
-    new_history = [ChatMessage(role=m.role, content=m.content) for m in hist]
+    new_history = list(history or [])
     new_history.append(ChatMessage(role="user", content=message))
     return new_history
 
