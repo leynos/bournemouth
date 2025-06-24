@@ -195,15 +195,15 @@ class ChatResource:
                     )
                     await ws.send_text(raw.decode())
                 return
-            cfg = StreamConfig(
-                self._service,
-                ws,  # pyright: ignore[reportUnknownArgumentType]
+            await self._stream_chat(
+                ws,
                 encoder,
                 send_lock,
+                request.transaction_id,
                 api_key,
+                history,
                 request.model,
             )
-            await stream_chat_response(cfg, request.transaction_id, history)
 
         try:
             while True:
