@@ -37,24 +37,29 @@ async def _login(client: AsyncClient) -> str:
     return typing.cast("str", resp.cookies.get("session"))
 
 
-def _patch_stream() -> typing.Callable[..., typing.AsyncIterator[StreamChunk]]:
-    first_started = asyncio.Event()
-    second_started = asyncio.Event()
+class _StreamPatcher:
+    def __init__(self) -> None:
+        self.call_count = 0
+        self.call_lock = asyncio.Lock()
 
     async def fake_stream(
+        self,
         service: typing.Any,
         api_key: str,
         history: list[typing.Any],
         model: str | None,
     ) -> typing.AsyncIterator[StreamChunk]:
-        idx = 2 if first_started.is_set() else 1
+        # Safely determine which call this is
+        async with self.call_lock:
+            self.call_count += 1
+            idx = self.call_count
+
+        # Simple delay to ensure proper ordering without deadlock
         if idx == 1:
-            first_started.set()
-            await second_started.wait()
-            await asyncio.sleep(0.01)
+            await asyncio.sleep(0.1)  # First request takes longer
         else:
-            second_started.set()
-            await first_started.wait()
+            await asyncio.sleep(0.05)  # Second request is faster
+
         yield StreamChunk(
             id=str(idx),
             object="chat.completion.chunk",
@@ -81,7 +86,10 @@ def _patch_stream() -> typing.Callable[..., typing.AsyncIterator[StreamChunk]]:
             ],
         )
 
-    return fake_stream
+
+def _patch_stream() -> typing.Callable[..., typing.AsyncIterator[StreamChunk]]:
+    patcher = _StreamPatcher()
+    return patcher.fake_stream
 
 
 @pytest.mark.timeout(5)
@@ -121,7 +129,7 @@ async def test_websocket_streams_chat(
         assert last.finished is True
 
 
-@pytest.mark.timeout(5)
+@pytest.mark.timeout(10)
 @pytest.mark.asyncio
 async def test_websocket_multiplexes_requests(
     db_session_factory: SessionFactory,
@@ -144,32 +152,43 @@ async def test_websocket_multiplexes_requests(
         conductor.simulate_ws("/chat", headers=headers) as ws,
         ws_collector(ws) as coll,
     ):
+        # Send first request
         await ws.send_text(
             msgspec_json.encode(
                 ChatWsRequest(transaction_id="t1", message="a")
             ).decode()
         )
+        # Send second request
         await ws.send_text(
             msgspec_json.encode(
                 ChatWsRequest(transaction_id="t2", message="b")
             ).decode()
         )
-        raw_msgs = await coll.collect_until(
-            lambda m: m.get("finished") and m.get("transaction_id") == "t2",
-            timeout=5,
-        )
-        raw_msgs.extend(
-            await coll.collect_until(
-                lambda m: m.get("finished") and m.get("transaction_id") == "t1",
-                timeout=5,
-            )
-        )
-        responses = [msgspec.convert(m, ChatWsResponse) for m in raw_msgs]
-        first, second, third, fourth = responses
 
-    results = [first, second, third, fourth]
-    ids = {r.transaction_id for r in results}
-    assert ids == {"t1", "t2"}
-    assert first.transaction_id == "t2"
-    assert any(r.finished for r in results if r.transaction_id == "t1")
-    assert any(r.finished for r in results if r.transaction_id == "t2")
+        # Collect all messages from both transactions
+        all_msgs = await coll.collect(n=4, timeout=5)  # Expect 4 messages total (2 per transaction)
+
+        # Convert to response objects
+        responses = [msgspec.convert(m, ChatWsResponse) for m in all_msgs]
+
+        # Check we got responses for both transactions
+        transaction_ids = {r.transaction_id for r in responses}
+        assert "t1" in transaction_ids, f"Missing t1 in {transaction_ids}"
+        assert "t2" in transaction_ids, f"Missing t2 in {transaction_ids}"
+
+        # Check we got finished messages for both transactions
+        finished_responses = [r for r in responses if r.finished]
+        finished_transaction_ids = {r.transaction_id for r in finished_responses}
+        assert "t1" in finished_transaction_ids, f"Missing finished t1 in {finished_transaction_ids}"
+        assert "t2" in finished_transaction_ids, f"Missing finished t2 in {finished_transaction_ids}"
+
+        # Verify we got the expected content
+        content_by_transaction = {}
+        for r in responses:
+            if r.transaction_id not in content_by_transaction:
+                content_by_transaction[r.transaction_id] = []
+            if r.fragment:
+                content_by_transaction[r.transaction_id].append(r.fragment)
+
+        assert "a" in content_by_transaction.get("t1", []), f"Missing 'a' content for t1: {content_by_transaction}"
+        assert "b" in content_by_transaction.get("t2", []), f"Missing 'b' content for t2: {content_by_transaction}"

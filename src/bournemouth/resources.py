@@ -11,6 +11,7 @@ import uuid  # noqa: TC003
 import falcon
 import falcon.asgi
 import msgspec
+from falcon_pachinko import WebSocketResource, handles_message
 from msgspec import json as msgspec_json
 from sqlalchemy import update
 
@@ -26,8 +27,15 @@ from .chat_service import (
     load_user_and_api_key,
     stream_answer,
 )
+from .chat_utils import (
+    ChatWsRequest,
+    ChatWsResponse,
+    StreamConfig,
+    build_chat_history,
+    stream_chat_response,
+)
 from .models import Message, MessageRole, UserAccount
-from .openrouter import ChatMessage, Role, StreamChoice
+from .openrouter import ChatMessage, Role, StreamChunk, StreamChoice
 
 _logger = logging.getLogger(__name__)
 
@@ -43,19 +51,6 @@ class ChatRequest(msgspec.Struct):
     message: str
     history: list[HttpMessage] | None = None
     model: str | None = None
-
-
-class ChatWsRequest(msgspec.Struct):
-    transaction_id: str
-    message: str
-    model: str | None = None
-    history: list[HttpMessage] | None = None
-
-
-class ChatWsResponse(msgspec.Struct):
-    transaction_id: str
-    fragment: str
-    finished: bool = False
 
 
 class TokenRequest(msgspec.Struct):
@@ -92,12 +87,6 @@ class ChatResource:
         self._service = service
         self._session_factory = session_factory
         self._stream_answer = stream_answer_func
-
-    def _build_history(self, request: ChatWsRequest) -> list[ChatMessage]:
-        hist = request.history or []
-        history = [ChatMessage(role=m.role, content=m.content) for m in hist]
-        history.append(ChatMessage(role="user", content=request.message))
-        return history
 
     async def _get_api_key(self, user: str) -> str | None:
         try:
@@ -157,11 +146,14 @@ class ChatResource:
         *,
         body: ChatRequest,
     ) -> None:
-        msg = body.message
-        history = [
-            ChatMessage(role=m.role, content=m.content) for m in (body.history or [])
-        ]
-        history.append(ChatMessage(role="user", content=msg))
+        # Convert HttpMessage to ChatMessage for compatibility
+        chat_history: list[ChatMessage] | None = None
+        if body.history:
+            chat_history = [
+                ChatMessage(role=msg.role, content=msg.content)
+                for msg in body.history
+            ]
+        history = build_chat_history(body.message, chat_history)
         model = body.model
 
         user = typing.cast("str", req.context["user"])
@@ -196,7 +188,7 @@ class ChatResource:
                 task.result()
 
         async def handle(request: ChatWsRequest) -> None:
-            history = self._build_history(request)
+            history = build_chat_history(request.message, request.history)
             user = typing.cast("str", req.context["user"])
             api_key = await self._get_api_key(user)
             if api_key is None:
@@ -211,7 +203,7 @@ class ChatResource:
                     await ws.send_text(raw.decode())
                 return
             await self._stream_chat(
-                ws,  # pyright: ignore[reportUnknownArgumentType]
+                ws,
                 encoder,
                 send_lock,
                 request.transaction_id,
@@ -234,6 +226,74 @@ class ChatResource:
             for task in tasks:
                 task.cancel()
             await asyncio.gather(*tasks, return_exceptions=True)
+
+
+class ChatWsPachinkoResource(WebSocketResource):
+    """Stateless chat using ``falcon-pachinko``."""
+
+    # Class attributes set by create_app()
+    service: typing.ClassVar[OpenRouterService]
+    session_factory: typing.ClassVar[typing.Callable[[], AsyncSession]]
+
+    def __init__(self) -> None:
+        self._encoder = msgspec_json.Encoder()
+        self._send_lock: asyncio.Lock | None = None
+        self._user: str | None = None
+
+    async def on_connect(
+        self, req: falcon.asgi.Request, ws: falcon.asgi.WebSocket, **_: typing.Any
+    ) -> bool:
+        """Accept the connection and store the user.
+
+        Returns
+        -------
+        bool
+            ``True`` to confirm that the connection should remain open.
+        """
+        self._send_lock = asyncio.Lock()
+        self._user = typing.cast("str", req.context["user"])
+        await ws.accept()
+        return True
+
+    async def _get_api_key(self) -> str | None:
+        if self._user is None:
+            raise RuntimeError("User must be set before calling _get_api_key")
+        try:
+            _, api_key = await load_user_and_api_key(self.session_factory, self._user)
+        except falcon.HTTPUnauthorized:
+            return None
+        return api_key
+
+
+    @handles_message("chat")
+    async def handle_chat(
+        self, ws: falcon.asgi.WebSocket, payload: ChatWsRequest
+    ) -> None:
+        """Handle incoming chat messages over WebSocket."""
+        if self._send_lock is None:
+            raise RuntimeError("on_connect must be called before handle_chat")
+        history = build_chat_history(payload.message, payload.history)
+        api_key = await self._get_api_key()
+        if api_key is None:
+            async with self._send_lock:
+                raw = self._encoder.encode(
+                    ChatWsResponse(
+                        transaction_id=payload.transaction_id,
+                        fragment="missing OpenRouter token",
+                        finished=True,
+                    )
+                )
+                await ws.send_text(raw.decode())
+            return
+        cfg = StreamConfig(
+            self.service,
+            ws,
+            self._encoder,
+            self._send_lock,
+            api_key,
+            payload.model,
+        )
+        await stream_chat_response(cfg, payload.transaction_id, history)
 
 
 class ChatStateResource:
@@ -348,4 +408,5 @@ class HealthResource:
     """Basic health check."""
 
     async def on_get(self, req: falcon.Request, resp: falcon.Response) -> None:
+        del req  # Unused parameter
         resp.media = {"status": "ok"}

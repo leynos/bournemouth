@@ -9,6 +9,7 @@ import typing
 import falcon
 import msgspec
 from falcon import asgi
+from falcon_pachinko import install as install_websockets
 
 if typing.TYPE_CHECKING:  # pragma: no cover - for type checking only
     from sqlalchemy.ext.asyncio import AsyncSession
@@ -26,10 +27,17 @@ from .chat_service import stream_answer as default_stream_answer
 from .resources import (
     ChatResource,
     ChatStateResource,
+    ChatWsPachinkoResource,
     HealthResource,
     OpenRouterTokenResource,
 )
 from .session import SessionManager
+
+
+class PachinkoApp(asgi.App):
+    """Falcon app subclass with ``falcon-pachinko`` support."""
+
+    __slots__ = ("__dict__",)
 
 
 def create_app(
@@ -76,7 +84,10 @@ def create_app(
         AsyncMsgspecMiddleware(),
         MsgspecWebSocketMiddleware(),
     ]
-    app = asgi.App(middleware=middleware)
+    app = PachinkoApp(middleware=middleware)
+    install_websockets(app)
+    # Type checker doesn't know about dynamically added methods
+    app_with_ws = typing.cast("typing.Any", app)
     app.add_error_handler(falcon.HTTPError, handle_http_error)
     app.add_error_handler(Exception, handle_unexpected_error)
     app.add_error_handler(msgspec.ValidationError, handle_msgspec_validation_error)
@@ -85,6 +96,8 @@ def create_app(
     service = openrouter_service or OpenRouterService.from_env()
     if db_session_factory is None:
         raise ValueError("db_session_factory is required")
+    ChatWsPachinkoResource.service = service
+    ChatWsPachinkoResource.session_factory = db_session_factory
     app.add_route(
         "/chat",
         ChatResource(
@@ -94,6 +107,10 @@ def create_app(
         ),
     )
     app.add_route("/chat/state", ChatStateResource(service, db_session_factory))
+    app_with_ws.add_websocket_route(
+        "/ws/chat",
+        ChatWsPachinkoResource,
+    )
     app.add_route("/auth/openrouter-token", OpenRouterTokenResource(db_session_factory))
     app.add_route("/health", HealthResource())
     app.add_route("/login", LoginResource(session, user, password))

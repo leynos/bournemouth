@@ -6,6 +6,10 @@ import typing
 
 import pytest
 
+# Skip all tests in this module if CLI dependencies are not available
+pytest.importorskip("typer", reason="CLI dependency group not installed")
+pytest.importorskip("textual", reason="CLI dependency group not installed")
+
 from bournemouth import cli
 
 if typing.TYPE_CHECKING:
@@ -47,7 +51,7 @@ async def test_token_posts_correctly(httpx_mock: HTTPXMock) -> None:
     assert req.headers["cookie"] == "session=abc123"
     assert typing.cast(
         "dict[str, typing.Any]",
-        json.loads(typing.cast("bytes", req.content).decode()),
+        json.loads(req.content.decode()),
     ) == {"api_key": "tok"}
 
 
@@ -65,7 +69,7 @@ async def test_chat_sends_history(httpx_mock: HTTPXMock) -> None:
     req = httpx_mock.get_requests()[0]
     sent = typing.cast(
         "dict[str, typing.Any]",
-        json.loads(typing.cast("bytes", req.content).decode()),
+        json.loads(req.content.decode()),
     )
     assert sent["message"] == "hi"
     assert sent["history"] == history

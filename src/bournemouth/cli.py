@@ -140,7 +140,7 @@ class ChatApp(App):  # pyright: ignore[reportUntypedBaseClass, reportMissingType
         yield Input(placeholder="Message", id="input")
 
     async def on_input_submitted(self, event: Input.Submitted) -> None:  # pyright: ignore[reportUnknownArgumentType]
-        text = typing.cast("str", event.value)  # pyright: ignore[reportUnnecessaryCast]
+        text = event.value
         log = self.query_one("#log", Log)  # pyright: ignore[reportUnknownArgumentType]
         log.write(f"You: {text}")
         answer = await chat_request(self.session, text, self.history)
