@@ -18,6 +18,7 @@ dependencies = [
   "aiosqlite>=0.21.0",
   "falcon-pachinko==0.1.0a1",
   "uuid-v7>=1.0.0",
+  "greenlet>=3.2.2",
 ]
 
 [dependency-groups]
@@ -35,8 +36,8 @@ docs = [
 ]
 
 cli = [
-  "typer>=0.12",
-  "textual>=0.51",
+    "textual>=3.5.0",
+    "typer>=0.16.0",
 ]
 
 [project.scripts]

@@ -6,6 +6,10 @@ import typing
 
 import pytest
 
+# Skip all tests in this module if CLI dependencies are not available
+pytest.importorskip("typer", reason="CLI dependency group not installed")
+pytest.importorskip("textual", reason="CLI dependency group not installed")
+
 from bournemouth import cli
 
 if typing.TYPE_CHECKING:

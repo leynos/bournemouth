@@ -25,15 +25,17 @@ from .chat_service import (
     get_or_create_conversation,
     list_conversation_messages,
     load_user_and_api_key,
+    stream_answer,
 )
 from .chat_utils import (
     ChatWsRequest,
     ChatWsResponse,
+    StreamConfig,
     build_chat_history,
     stream_chat_response,
 )
 from .models import Message, MessageRole, UserAccount
-from .openrouter import ChatMessage, Role
+from .openrouter import ChatMessage, Role, StreamChunk, StreamChoice
 
 _logger = logging.getLogger(__name__)
 
@@ -222,13 +224,11 @@ class ChatResource:
 class ChatWsPachinkoResource(WebSocketResource):
     """Stateless chat using ``falcon-pachinko``."""
 
-    def __init__(
-        self,
-        service: OpenRouterService,
-        session_factory: typing.Callable[[], AsyncSession],
-    ) -> None:
-        self.service = service
-        self.session_factory = session_factory
+    # Class attributes set by create_app()
+    service: OpenRouterService
+    session_factory: typing.Callable[[], AsyncSession]
+
+    def __init__(self) -> None:
         self._encoder = msgspec_json.Encoder()
         self._send_lock: asyncio.Lock | None = None
         self._user: str | None = None
