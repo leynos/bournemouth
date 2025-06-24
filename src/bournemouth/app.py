@@ -86,6 +86,8 @@ def create_app(
     ]
     app = PachinkoApp(middleware=middleware)
     install_websockets(app)
+    # Type checker doesn't know about dynamically added methods
+    app_with_ws = typing.cast("typing.Any", app)
     app.add_error_handler(falcon.HTTPError, handle_http_error)
     app.add_error_handler(Exception, handle_unexpected_error)
     app.add_error_handler(msgspec.ValidationError, handle_msgspec_validation_error)
@@ -105,7 +107,7 @@ def create_app(
         ),
     )
     app.add_route("/chat/state", ChatStateResource(service, db_session_factory))
-    app.add_websocket_route(
+    app_with_ws.add_websocket_route(
         "/ws/chat",
         ChatWsPachinkoResource,
     )

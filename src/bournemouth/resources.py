@@ -146,7 +146,14 @@ class ChatResource:
         *,
         body: ChatRequest,
     ) -> None:
-        history = build_chat_history(body.message, body.history)
+        # Convert HttpMessage to ChatMessage for compatibility
+        chat_history: list[ChatMessage] | None = None
+        if body.history:
+            chat_history = [
+                ChatMessage(role=msg.role, content=msg.content)
+                for msg in body.history
+            ]
+        history = build_chat_history(body.message, chat_history)
         model = body.model
 
         user = typing.cast("str", req.context["user"])
@@ -225,8 +232,8 @@ class ChatWsPachinkoResource(WebSocketResource):
     """Stateless chat using ``falcon-pachinko``."""
 
     # Class attributes set by create_app()
-    service: OpenRouterService
-    session_factory: typing.Callable[[], AsyncSession]
+    service: typing.ClassVar[OpenRouterService]
+    session_factory: typing.ClassVar[typing.Callable[[], AsyncSession]]
 
     def __init__(self) -> None:
         self._encoder = msgspec_json.Encoder()
@@ -401,4 +408,5 @@ class HealthResource:
     """Basic health check."""
 
     async def on_get(self, req: falcon.Request, resp: falcon.Response) -> None:
+        del req  # Unused parameter
         resp.media = {"status": "ok"}

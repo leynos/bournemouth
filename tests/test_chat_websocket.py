@@ -37,22 +37,22 @@ async def _login(client: AsyncClient) -> str:
     return typing.cast("str", resp.cookies.get("session"))
 
 
-def _patch_stream() -> typing.Callable[..., typing.AsyncIterator[StreamChunk]]:
-    call_count = 0
-    call_lock = asyncio.Lock()
+class _StreamPatcher:
+    def __init__(self) -> None:
+        self.call_count = 0
+        self.call_lock = asyncio.Lock()
 
     async def fake_stream(
+        self,
         service: typing.Any,
         api_key: str,
         history: list[typing.Any],
         model: str | None,
     ) -> typing.AsyncIterator[StreamChunk]:
-        nonlocal call_count
-
         # Safely determine which call this is
-        async with call_lock:
-            call_count += 1
-            idx = call_count
+        async with self.call_lock:
+            self.call_count += 1
+            idx = self.call_count
 
         # Simple delay to ensure proper ordering without deadlock
         if idx == 1:
@@ -86,7 +86,10 @@ def _patch_stream() -> typing.Callable[..., typing.AsyncIterator[StreamChunk]]:
             ],
         )
 
-    return fake_stream
+
+def _patch_stream() -> typing.Callable[..., typing.AsyncIterator[StreamChunk]]:
+    patcher = _StreamPatcher()
+    return patcher.fake_stream
 
 
 @pytest.mark.timeout(5)
