@@ -53,7 +53,19 @@ class AsyncMsgspecMiddleware:
         resource: object,
         params: dict[str, typing.Any],
     ) -> None:
-        """Convert JSON request bodies to ``msgspec.Struct`` instances."""
+        """Convert JSON request bodies to ``msgspec.Struct`` instances.
+
+        Parameters
+        ----------
+        req:
+            Incoming HTTP request.
+        resp:
+            HTTP response object (unused).
+        resource:
+            The resource handling the request.
+        params:
+            Parameter dictionary passed to the resource.
+        """
         schema_attr = f"{req.method.upper()}_SCHEMA"
         schema = getattr(resource, schema_attr, None)
         if schema is None:
@@ -71,7 +83,19 @@ async def handle_msgspec_validation_error(
     ex: msgspec.ValidationError,
     params: dict[str, typing.Any],
 ) -> None:
-    """Return a ``422`` response when msgspec validation fails."""
+    """Return a ``422`` response when msgspec validation fails.
+
+    Parameters
+    ----------
+    req:
+        Request that triggered the validation error.
+    resp:
+        Response object used to send the error.
+    ex:
+        The validation error raised by ``msgspec``.
+    params:
+        Parameters dictionary passed to the handler.
+    """
     raise falcon.HTTPUnprocessableEntity(
         title="Validation Error",
         description=str(ex),
@@ -94,6 +118,18 @@ class MsgspecWebSocketMiddleware:
         resource: object,
         params: dict[str, typing.Any],
     ) -> None:
-        """Expose encoder and decoder classes via ``req.context``."""
+        """Expose encoder and decoder classes via ``req.context``.
+
+        Parameters
+        ----------
+        req:
+            Incoming WebSocket request.
+        ws:
+            WebSocket connection instance.
+        resource:
+            The websocket resource.
+        params:
+            Parameter dictionary passed to the resource.
+        """
         req.context.msgspec_encoder = self.encoder
         req.context.msgspec_decoder_cls = self.decoder_cls

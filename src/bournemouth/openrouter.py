@@ -255,14 +255,16 @@ class OpenRouterClientError(Exception):
 
 
 class OpenRouterNetworkError(OpenRouterClientError):
-    pass
+    """Raised when a network failure prevents contacting the API."""
 
 
 class OpenRouterTimeoutError(OpenRouterNetworkError):
-    pass
+    """Raised when an HTTP request exceeds the timeout."""
 
 
 class OpenRouterAPIError(OpenRouterClientError):
+    """Base class for HTTP errors returned by OpenRouter."""
+
     def __init__(
         self,
         message: str,
@@ -270,45 +272,56 @@ class OpenRouterAPIError(OpenRouterClientError):
         status_code: int | None = None,
         error_details: OpenRouterAPIErrorDetails | None = None,
     ) -> None:
+        """Initialize the exception with error metadata.
+
+        Parameters
+        ----------
+        message:
+            Human-readable description of the error.
+        status_code:
+            HTTP status code returned by the API.
+        error_details:
+            Parsed ``error`` object from the response, if available.
+        """
         super().__init__(message)
         self.status_code = status_code
         self.error_details = error_details
 
 
 class OpenRouterAuthenticationError(OpenRouterAPIError):
-    pass
+    """Raised when the API key is invalid or unauthorized."""
 
 
 class OpenRouterRateLimitError(OpenRouterAPIError):
-    pass
+    """Raised when the client exceeds its rate limit."""
 
 
 class OpenRouterInvalidRequestError(OpenRouterAPIError):
-    pass
+    """Raised when the request payload is malformed."""
 
 
 class OpenRouterPermissionError(OpenRouterAPIError):
-    pass
+    """Raised when the API key lacks permission for the operation."""
 
 
 class OpenRouterInsufficientCreditsError(OpenRouterAPIError):
-    pass
+    """Raised when the account has insufficient credits."""
 
 
 class OpenRouterServerError(OpenRouterAPIError):
-    pass
+    """Raised when OpenRouter encounters an internal error."""
 
 
 class OpenRouterDataValidationError(OpenRouterClientError):
-    pass
+    """Raised when request or response data fails validation."""
 
 
 class OpenRouterRequestDataValidationError(OpenRouterDataValidationError):
-    pass
+    """Raised when encoding a request fails validation."""
 
 
 class OpenRouterResponseDataValidationError(OpenRouterDataValidationError):
-    pass
+    """Raised when decoding a response fails validation."""
 
 
 _STATUS_MAP = {
@@ -321,8 +334,18 @@ _STATUS_MAP = {
 
 
 def _map_status_to_error(status: int) -> type[OpenRouterAPIError]:
-    """Map an HTTP status to a client error type."""
+    """Map an HTTP status to a client error type.
 
+    Parameters
+    ----------
+    status:
+        HTTP status code returned by the API.
+
+    Returns
+    -------
+    type[OpenRouterAPIError]
+        Exception class that best represents the status code.
+    """
     try:
         status_enum = HTTPStatus(status)
     except ValueError:
@@ -352,6 +375,21 @@ class OpenRouterAsyncClient:
         default_headers: dict[str, str] | None = None,
         transport: httpx.AsyncBaseTransport | None = None,
     ) -> None:
+        """Create a new API client.
+
+        Parameters
+        ----------
+        api_key:
+            OpenRouter API key used for authentication.
+        base_url:
+            Base URL for the API. Defaults to ``DEFAULT_BASE_URL``.
+        timeout_config:
+            Optional ``httpx.Timeout`` settings.
+        default_headers:
+            Extra headers to include with every request.
+        transport:
+            Custom HTTP transport for testing.
+        """
         self.api_key = api_key
         self.base_url = base_url or DEFAULT_BASE_URL
         self.timeout = timeout_config
@@ -360,6 +398,7 @@ class OpenRouterAsyncClient:
         self._transport = transport
 
     async def __aenter__(self) -> typing.Self:
+        """Open the underlying ``httpx`` client and return ``self``."""
         headers = {"Authorization": f"Bearer {self.api_key}"} | self._user_headers
         self._client = httpx.AsyncClient(
             base_url=self.base_url,
@@ -375,6 +414,7 @@ class OpenRouterAsyncClient:
         exc: BaseException | None,
         tb: typing.Any,
     ) -> None:
+        """Close the underlying ``httpx`` client."""
         if not self._client:
             return
         await self._client.aclose()
@@ -435,6 +475,18 @@ class OpenRouterAsyncClient:
     async def create_chat_completion(
         self, request: ChatCompletionRequest
     ) -> ChatCompletionResponse:
+        """Send a completion request and return the parsed response.
+
+        Parameters
+        ----------
+        request:
+            Data structure describing the completion request.
+
+        Returns
+        -------
+        ChatCompletionResponse
+            Parsed response object.
+        """
         if request.stream:
             data = msgspec.to_builtins(request)
             data["stream"] = False
@@ -449,6 +501,18 @@ class OpenRouterAsyncClient:
     async def stream_chat_completion(
         self, request: ChatCompletionRequest
     ) -> cabc.AsyncIterator[StreamChunk]:
+        """Send a streaming request and yield chunks as they arrive.
+
+        Parameters
+        ----------
+        request:
+            Data structure describing the completion request.
+
+        Yields
+        ------
+        StreamChunk
+            Parsed stream chunks from OpenRouter.
+        """
         if not request.stream:
             data = msgspec.to_builtins(request)
             data["stream"] = True
