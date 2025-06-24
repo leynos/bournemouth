@@ -35,7 +35,7 @@ from .chat_utils import (
     stream_chat_response,
 )
 from .models import Message, MessageRole, UserAccount
-from .openrouter import ChatMessage, Role, StreamChunk, StreamChoice
+from .openrouter import ChatMessage, Role, StreamChoice, StreamChunk
 
 _logger = logging.getLogger(__name__)
 
@@ -106,7 +106,6 @@ class ChatResource:
         model: str | None,
     ) -> None:
         """Stream chat completions back to the client."""
-
         try:
             async for chunk in self._stream_answer(
                 self._service,
@@ -231,11 +230,13 @@ class ChatResource:
 class ChatWsPachinkoResource(WebSocketResource):
     """Stateless chat using ``falcon-pachinko``."""
 
-    # Class attributes set by create_app()
-    service: typing.ClassVar[OpenRouterService]
-    session_factory: typing.ClassVar[typing.Callable[[], AsyncSession]]
-
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        service: OpenRouterService,
+        session_factory: typing.Callable[[], AsyncSession],
+    ) -> None:
+        self._service = service
+        self._session_factory = session_factory
         self._encoder = msgspec_json.Encoder()
         self._send_lock: asyncio.Lock | None = None
         self._user: str | None = None
@@ -259,7 +260,7 @@ class ChatWsPachinkoResource(WebSocketResource):
         if self._user is None:
             raise RuntimeError("User must be set before calling _get_api_key")
         try:
-            _, api_key = await load_user_and_api_key(self.session_factory, self._user)
+            _, api_key = await load_user_and_api_key(self._session_factory, self._user)
         except falcon.HTTPUnauthorized:
             return None
         return api_key
@@ -286,7 +287,7 @@ class ChatWsPachinkoResource(WebSocketResource):
                 await ws.send_text(raw.decode())
             return
         cfg = StreamConfig(
-            self.service,
+            self._service,
             ws,
             self._encoder,
             self._send_lock,

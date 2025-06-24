@@ -15,6 +15,7 @@ if typing.TYPE_CHECKING:  # pragma: no cover - for type checking only
     from sqlalchemy.ext.asyncio import AsyncSession
 
 from .auth import AuthMiddleware, LoginResource
+from .chat_service import stream_answer as default_stream_answer
 from .errors import handle_http_error, handle_unexpected_error
 from .msgspec_support import (
     AsyncMsgspecMiddleware,
@@ -23,7 +24,6 @@ from .msgspec_support import (
     json_handler,
 )
 from .openrouter_service import OpenRouterService
-from .chat_service import stream_answer as default_stream_answer
 from .resources import (
     ChatResource,
     ChatStateResource,
@@ -96,8 +96,6 @@ def create_app(
     service = openrouter_service or OpenRouterService.from_env()
     if db_session_factory is None:
         raise ValueError("db_session_factory is required")
-    ChatWsPachinkoResource.service = service
-    ChatWsPachinkoResource.session_factory = db_session_factory
     app.add_route(
         "/chat",
         ChatResource(
@@ -109,7 +107,7 @@ def create_app(
     app.add_route("/chat/state", ChatStateResource(service, db_session_factory))
     app_with_ws.add_websocket_route(
         "/ws/chat",
-        ChatWsPachinkoResource,
+        ChatWsPachinkoResource(service, db_session_factory),
     )
     app.add_route("/auth/openrouter-token", OpenRouterTokenResource(db_session_factory))
     app.add_route("/health", HealthResource())
