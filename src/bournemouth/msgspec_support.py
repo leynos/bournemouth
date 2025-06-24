@@ -1,3 +1,5 @@
+"""Integrate msgspec serialization with Falcon."""
+
 from __future__ import annotations
 
 import typing
@@ -32,7 +34,6 @@ def _msgspec_loads_json_robust(content: bytes | str) -> typing.Any:
 
 def _dumps(obj: typing.Any) -> str:
     """Encode ``obj`` as JSON using msgspec's encoder."""
-
     return _ENCODER.encode(obj).decode("utf-8")
 
 
@@ -43,6 +44,8 @@ json_handler = falcon.media.JSONHandler(
 
 
 class AsyncMsgspecMiddleware:
+    """Validate request bodies using msgspec schemas."""
+
     async def process_resource(
         self,
         req: falcon.Request,
@@ -50,6 +53,7 @@ class AsyncMsgspecMiddleware:
         resource: object,
         params: dict[str, typing.Any],
     ) -> None:
+        """Convert JSON request bodies to ``msgspec.Struct`` instances."""
         schema_attr = f"{req.method.upper()}_SCHEMA"
         schema = getattr(resource, schema_attr, None)
         if schema is None:
@@ -67,6 +71,7 @@ async def handle_msgspec_validation_error(
     ex: msgspec.ValidationError,
     params: dict[str, typing.Any],
 ) -> None:
+    """Return a ``422`` response when msgspec validation fails."""
     raise falcon.HTTPUnprocessableEntity(
         title="Validation Error",
         description=str(ex),
@@ -74,6 +79,8 @@ async def handle_msgspec_validation_error(
 
 
 class MsgspecWebSocketMiddleware:
+    """Attach msgspec encoder/decoder to websocket requests."""
+
     def __init__(self, protocol: str = "json") -> None:
         if protocol != "json":
             raise ValueError(f"Unsupported msgspec protocol: {protocol}")
@@ -87,5 +94,6 @@ class MsgspecWebSocketMiddleware:
         resource: object,
         params: dict[str, typing.Any],
     ) -> None:
+        """Expose encoder and decoder classes via ``req.context``."""
         req.context.msgspec_encoder = self.encoder
         req.context.msgspec_decoder_cls = self.decoder_cls
