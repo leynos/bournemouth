@@ -225,7 +225,10 @@ class ChatResource:
 
 
 class ChatWsPachinkoResource(WebSocketResource):
-    """Stateless chat using ``falcon-pachinko``."""
+    """Stateless chat using ``falcon-pachinko``.
+
+    Dependencies are supplied at construction time to avoid shared state.
+    """
 
     def __init__(
         self,
