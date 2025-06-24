@@ -107,7 +107,9 @@ def create_app(
     app.add_route("/chat/state", ChatStateResource(service, db_session_factory))
     app_with_ws.add_websocket_route(
         "/ws/chat",
-        ChatWsPachinkoResource(service, db_session_factory),
+        ChatWsPachinkoResource,
+        service,
+        db_session_factory,
     )
     app.add_route("/auth/openrouter-token", OpenRouterTokenResource(db_session_factory))
     app.add_route("/health", HealthResource())

@@ -103,7 +103,7 @@ requires-dist = [
     { name = "aiosqlite", specifier = ">=0.21.0" },
     { name = "asyncpg", specifier = ">=0.29" },
     { name = "falcon", specifier = ">=3.1" },
-    { name = "falcon-pachinko", url = "https://github.com/leynos/falcon-pachinko/releases/download/v0.1.0-alpha1/falcon_pachinko-0.1.0a1-py3-none-any.whl" },
+    { name = "falcon-pachinko", url = "https://github.com/leynos/falcon-pachinko/releases/download/v0.1.0-alpha2/falcon_pachinko-0.1.0a2-py3-none-any.whl" },
     { name = "greenlet", specifier = ">=3.2.2" },
     { name = "httpx", specifier = ">=0.27" },
     { name = "itsdangerous", specifier = ">=2.1" },
@@ -212,14 +212,14 @@ wheels = [
 
 [[package]]
 name = "falcon-pachinko"
-version = "0.1.0a1"
-source = { url = "https://github.com/leynos/falcon-pachinko/releases/download/v0.1.0-alpha1/falcon_pachinko-0.1.0a1-py3-none-any.whl" }
+version = "0.1.0a2"
+source = { url = "https://github.com/leynos/falcon-pachinko/releases/download/v0.1.0-alpha2/falcon_pachinko-0.1.0a2-py3-none-any.whl" }
 dependencies = [
     { name = "falcon" },
     { name = "msgspec" },
 ]
 wheels = [
-    { url = "https://github.com/leynos/falcon-pachinko/releases/download/v0.1.0-alpha1/falcon_pachinko-0.1.0a1-py3-none-any.whl", hash = "sha256:9fe6aa937587b0f275c2fb654c73d0796888e7c721383cb7e36a6823e4a584d0" },
+    { url = "https://github.com/leynos/falcon-pachinko/releases/download/v0.1.0-alpha2/falcon_pachinko-0.1.0a2-py3-none-any.whl", hash = "sha256:e3ab1e20b24316a8e1ba11b806a8117d74157ca151ca22651eb3c21e377dafcb" },
 ]
 
 [package.metadata]

@@ -172,11 +172,7 @@ class ChatResource:
         self, req: falcon.asgi.Request, ws: falcon.asgi.WebSocket
     ) -> None:
         encoder = typing.cast("msgspec_json.Encoder", req.context.msgspec_encoder)
-        decoder_cls = typing.cast(
-            "type[msgspec_json.Decoder[ChatWsRequest]]",
-            req.context.msgspec_decoder_cls,
-        )
-        decoder = decoder_cls(ChatWsRequest)
+        decoder = msgspec_json.Decoder()
         await ws.accept()
         send_lock = asyncio.Lock()
         tasks: set[asyncio.Task[None]] = set()
@@ -215,7 +211,8 @@ class ChatResource:
             while True:
                 raw = await ws.receive_text()
                 raw_bytes: bytes = raw.encode()
-                decoded_request = decoder.decode(raw_bytes)
+                data = typing.cast(dict[str, typing.Any], decoder.decode(raw_bytes))
+                decoded_request = ChatWsRequest(**data)
                 task = asyncio.create_task(handle(decoded_request))
                 tasks.add(task)
                 task.add_done_callback(_finalize_task)
