@@ -49,18 +49,21 @@ Role = typing.Literal["system", "user", "assistant", "tool"]
 
 class ImageUrl(msgspec.Struct, array_like=True):
     """URL and resolution hint for an image content part."""
+
     url: str
     detail: typing.Literal["auto", "low", "high"] = "auto"
 
 
 class ImageContentPart(msgspec.Struct):
     """Represents an image in a chat message."""
+
     image_url: ImageUrl
     type: typing.Literal["image_url"] = "image_url"
 
 
 class TextContentPart(msgspec.Struct):
     """Represents plain text in a chat message."""
+
     text: str
     type: typing.Literal["text"] = "text"
 
@@ -70,6 +73,7 @@ ContentPart = TextContentPart | ImageContentPart
 
 class ChatMessage(msgspec.Struct):
     """A single chat message sent to or returned from OpenRouter."""
+
     role: Role
     content: str | list[ContentPart]
     name: str | None = None
@@ -77,6 +81,7 @@ class ChatMessage(msgspec.Struct):
     tool_calls: typing.Any | None = None
 
     def __post_init__(self) -> None:  # pragma: no cover - executed by msgspec
+        """Validate message content and metadata."""
         if self.role == "tool" and not self.tool_call_id:
             raise ValueError("tool messages must include tool_call_id")
         if self.role != "user" and isinstance(self.content, list):
@@ -85,6 +90,7 @@ class ChatMessage(msgspec.Struct):
 
 class FunctionDescription(msgspec.Struct):
     """Description of a callable tool function."""
+
     name: str
     parameters: dict[str, typing.Any]
     description: str | None = None
@@ -92,17 +98,20 @@ class FunctionDescription(msgspec.Struct):
 
 class Tool(msgspec.Struct):
     """Tool definition that can be called by the model."""
+
     function: FunctionDescription
     type: typing.Literal["function"] = "function"
 
 
 class ToolChoiceFunction(msgspec.Struct):
     """Specify a single function to call."""
+
     name: str
 
 
 class ToolChoiceObject(msgspec.Struct):
     """Structured ``tool_choice`` parameter."""
+
     type: typing.Literal["function"]
     function: ToolChoiceFunction
 
@@ -112,15 +121,16 @@ ToolChoice = typing.Literal["none", "auto", "required"] | ToolChoiceObject
 
 class ResponseFormat(msgspec.Struct):
     """Preferred format for the assistant's response."""
+
     type: typing.Literal["text", "json_object"]
 
 
 class ProviderPreferences(msgspec.Struct, array_like=True, forbid_unknown_fields=False):
     """Placeholder for OpenRouter provider routing preferences."""
 
-
 class ChatCompletionRequest(msgspec.Struct, forbid_unknown_fields=True):
     """Payload for ``/chat/completions`` requests."""
+
     model: str
     messages: list[ChatMessage]
     stream: bool = False
@@ -145,12 +155,14 @@ class ChatCompletionRequest(msgspec.Struct, forbid_unknown_fields=True):
 
 class FunctionCall(msgspec.Struct):
     """Function call returned by the assistant."""
+
     name: str
     arguments: str
 
 
 class ToolCall(msgspec.Struct):
     """Invocation of a tool within a message."""
+
     id: str
     function: FunctionCall
     type: typing.Literal["function"] = "function"
@@ -158,6 +170,7 @@ class ToolCall(msgspec.Struct):
 
 class ResponseMessage(msgspec.Struct):
     """Full message object returned in non-streaming responses."""
+
     role: str
     content: str | None = None
     tool_calls: list[ToolCall] | None = None
@@ -165,6 +178,7 @@ class ResponseMessage(msgspec.Struct):
 
 class ResponseDelta(msgspec.Struct):
     """Partial message content used in streaming responses."""
+
     role: str | None = None
     content: str | None = None
     tool_calls: list[ToolCall] | None = None
@@ -172,6 +186,7 @@ class ResponseDelta(msgspec.Struct):
 
 class ChatCompletionChoice(msgspec.Struct):
     """Choice object from a non-streaming completion."""
+
     index: int
     message: ResponseMessage
     finish_reason: str | None = None
@@ -180,6 +195,7 @@ class ChatCompletionChoice(msgspec.Struct):
 
 class StreamChoice(msgspec.Struct):
     """Choice object from a streamed chunk."""
+
     index: int
     delta: ResponseDelta
     finish_reason: str | None = None
@@ -188,6 +204,7 @@ class StreamChoice(msgspec.Struct):
 
 class UsageStats(msgspec.Struct):
     """Token usage information returned by the API."""
+
     prompt_tokens: int
     completion_tokens: int
     total_tokens: int
@@ -195,6 +212,7 @@ class UsageStats(msgspec.Struct):
 
 class ChatCompletionResponse(msgspec.Struct, forbid_unknown_fields=False):
     """Response body for non-streaming chat completion requests."""
+
     id: str
     object: typing.Literal["chat.completion"]
     created: int
@@ -206,6 +224,7 @@ class ChatCompletionResponse(msgspec.Struct, forbid_unknown_fields=False):
 
 class StreamChunk(msgspec.Struct, forbid_unknown_fields=False):
     """A single chunk from a streaming completion."""
+
     id: str
     object: typing.Literal["chat.completion.chunk"]
     created: int
@@ -217,6 +236,7 @@ class StreamChunk(msgspec.Struct, forbid_unknown_fields=False):
 
 class OpenRouterAPIErrorDetails(msgspec.Struct, forbid_unknown_fields=False):
     """Details section in an error response."""
+
     message: str
     code: str | int | None = None
     param: str | None = None
@@ -226,6 +246,7 @@ class OpenRouterAPIErrorDetails(msgspec.Struct, forbid_unknown_fields=False):
 
 class OpenRouterErrorResponse(msgspec.Struct, forbid_unknown_fields=False):
     """Wrapper for API error information."""
+
     error: OpenRouterAPIErrorDetails
 
 

@@ -165,7 +165,15 @@ async def chat_with_service(
     *,
     model: str | None = None,
 ) -> ChatCompletionResponse:
-    """Safely call ``service.chat_completion`` and map errors."""
+    """Safely call ``service.chat_completion`` and map errors.
+
+    Raises
+    ------
+    OpenRouterServiceTimeoutError
+        If the request times out.
+    OpenRouterServiceBadGatewayError
+        When OpenRouter returns a network, server, or API-level error.
+    """
     try:
         return await service.chat_completion(api_key, messages, model=model)
     except OpenRouterTimeoutError as exc:
@@ -181,7 +189,15 @@ async def stream_chat_with_service(
     *,
     model: str | None = None,
 ) -> typing.AsyncIterator[StreamChunk]:
-    """Safely call ``service.stream_chat_completion`` and map errors."""
+    """Safely call ``service.stream_chat_completion`` and map errors.
+
+    Raises
+    ------
+    OpenRouterServiceTimeoutError
+        If the request times out.
+    OpenRouterServiceBadGatewayError
+        When OpenRouter returns a network, server, or API-level error.
+    """
     try:
         async for chunk in service.stream_chat_completion(
             api_key, messages, model=model
