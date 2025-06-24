@@ -48,16 +48,22 @@ Role = typing.Literal["system", "user", "assistant", "tool"]
 
 
 class ImageUrl(msgspec.Struct, array_like=True):
+    """URL and resolution hint for an image content part."""
+
     url: str
     detail: typing.Literal["auto", "low", "high"] = "auto"
 
 
 class ImageContentPart(msgspec.Struct):
+    """Represents an image in a chat message."""
+
     image_url: ImageUrl
     type: typing.Literal["image_url"] = "image_url"
 
 
 class TextContentPart(msgspec.Struct):
+    """Represents plain text in a chat message."""
+
     text: str
     type: typing.Literal["text"] = "text"
 
@@ -66,6 +72,8 @@ ContentPart = TextContentPart | ImageContentPart
 
 
 class ChatMessage(msgspec.Struct):
+    """A single chat message sent to or returned from OpenRouter."""
+
     role: Role
     content: str | list[ContentPart]
     name: str | None = None
@@ -73,6 +81,7 @@ class ChatMessage(msgspec.Struct):
     tool_calls: typing.Any | None = None
 
     def __post_init__(self) -> None:  # pragma: no cover - executed by msgspec
+        """Validate message content and metadata."""
         if self.role == "tool" and not self.tool_call_id:
             raise ValueError("tool messages must include tool_call_id")
         if self.role != "user" and isinstance(self.content, list):
@@ -80,21 +89,29 @@ class ChatMessage(msgspec.Struct):
 
 
 class FunctionDescription(msgspec.Struct):
+    """Description of a callable tool function."""
+
     name: str
     parameters: dict[str, typing.Any]
     description: str | None = None
 
 
 class Tool(msgspec.Struct):
+    """Tool definition that can be called by the model."""
+
     function: FunctionDescription
     type: typing.Literal["function"] = "function"
 
 
 class ToolChoiceFunction(msgspec.Struct):
+    """Specify a single function to call."""
+
     name: str
 
 
 class ToolChoiceObject(msgspec.Struct):
+    """Structured ``tool_choice`` parameter."""
+
     type: typing.Literal["function"]
     function: ToolChoiceFunction
 
@@ -103,14 +120,17 @@ ToolChoice = typing.Literal["none", "auto", "required"] | ToolChoiceObject
 
 
 class ResponseFormat(msgspec.Struct):
+    """Preferred format for the assistant's response."""
+
     type: typing.Literal["text", "json_object"]
 
 
 class ProviderPreferences(msgspec.Struct, array_like=True, forbid_unknown_fields=False):
-    pass
-
+    """Placeholder for OpenRouter provider routing preferences."""
 
 class ChatCompletionRequest(msgspec.Struct, forbid_unknown_fields=True):
+    """Payload for ``/chat/completions`` requests."""
+
     model: str
     messages: list[ChatMessage]
     stream: bool = False
@@ -134,29 +154,39 @@ class ChatCompletionRequest(msgspec.Struct, forbid_unknown_fields=True):
 
 
 class FunctionCall(msgspec.Struct):
+    """Function call returned by the assistant."""
+
     name: str
     arguments: str
 
 
 class ToolCall(msgspec.Struct):
+    """Invocation of a tool within a message."""
+
     id: str
     function: FunctionCall
     type: typing.Literal["function"] = "function"
 
 
 class ResponseMessage(msgspec.Struct):
+    """Full message object returned in non-streaming responses."""
+
     role: str
     content: str | None = None
     tool_calls: list[ToolCall] | None = None
 
 
 class ResponseDelta(msgspec.Struct):
+    """Partial message content used in streaming responses."""
+
     role: str | None = None
     content: str | None = None
     tool_calls: list[ToolCall] | None = None
 
 
 class ChatCompletionChoice(msgspec.Struct):
+    """Choice object from a non-streaming completion."""
+
     index: int
     message: ResponseMessage
     finish_reason: str | None = None
@@ -164,6 +194,8 @@ class ChatCompletionChoice(msgspec.Struct):
 
 
 class StreamChoice(msgspec.Struct):
+    """Choice object from a streamed chunk."""
+
     index: int
     delta: ResponseDelta
     finish_reason: str | None = None
@@ -171,12 +203,16 @@ class StreamChoice(msgspec.Struct):
 
 
 class UsageStats(msgspec.Struct):
+    """Token usage information returned by the API."""
+
     prompt_tokens: int
     completion_tokens: int
     total_tokens: int
 
 
 class ChatCompletionResponse(msgspec.Struct, forbid_unknown_fields=False):
+    """Response body for non-streaming chat completion requests."""
+
     id: str
     object: typing.Literal["chat.completion"]
     created: int
@@ -187,6 +223,8 @@ class ChatCompletionResponse(msgspec.Struct, forbid_unknown_fields=False):
 
 
 class StreamChunk(msgspec.Struct, forbid_unknown_fields=False):
+    """A single chunk from a streaming completion."""
+
     id: str
     object: typing.Literal["chat.completion.chunk"]
     created: int
@@ -197,6 +235,8 @@ class StreamChunk(msgspec.Struct, forbid_unknown_fields=False):
 
 
 class OpenRouterAPIErrorDetails(msgspec.Struct, forbid_unknown_fields=False):
+    """Details section in an error response."""
+
     message: str
     code: str | int | None = None
     param: str | None = None
@@ -205,6 +245,8 @@ class OpenRouterAPIErrorDetails(msgspec.Struct, forbid_unknown_fields=False):
 
 
 class OpenRouterErrorResponse(msgspec.Struct, forbid_unknown_fields=False):
+    """Wrapper for API error information."""
+
     error: OpenRouterAPIErrorDetails
 
 
@@ -213,14 +255,16 @@ class OpenRouterClientError(Exception):
 
 
 class OpenRouterNetworkError(OpenRouterClientError):
-    pass
+    """Raised when a network failure prevents contacting the API."""
 
 
 class OpenRouterTimeoutError(OpenRouterNetworkError):
-    pass
+    """Raised when an HTTP request exceeds the timeout."""
 
 
 class OpenRouterAPIError(OpenRouterClientError):
+    """Base class for HTTP errors returned by OpenRouter."""
+
     def __init__(
         self,
         message: str,
@@ -228,45 +272,56 @@ class OpenRouterAPIError(OpenRouterClientError):
         status_code: int | None = None,
         error_details: OpenRouterAPIErrorDetails | None = None,
     ) -> None:
+        """Initialize the exception with error metadata.
+
+        Parameters
+        ----------
+        message:
+            Human-readable description of the error.
+        status_code:
+            HTTP status code returned by the API.
+        error_details:
+            Parsed ``error`` object from the response, if available.
+        """
         super().__init__(message)
         self.status_code = status_code
         self.error_details = error_details
 
 
 class OpenRouterAuthenticationError(OpenRouterAPIError):
-    pass
+    """Raised when the API key is invalid or unauthorized."""
 
 
 class OpenRouterRateLimitError(OpenRouterAPIError):
-    pass
+    """Raised when the client exceeds its rate limit."""
 
 
 class OpenRouterInvalidRequestError(OpenRouterAPIError):
-    pass
+    """Raised when the request payload is malformed."""
 
 
 class OpenRouterPermissionError(OpenRouterAPIError):
-    pass
+    """Raised when the API key lacks permission for the operation."""
 
 
 class OpenRouterInsufficientCreditsError(OpenRouterAPIError):
-    pass
+    """Raised when the account has insufficient credits."""
 
 
 class OpenRouterServerError(OpenRouterAPIError):
-    pass
+    """Raised when OpenRouter encounters an internal error."""
 
 
 class OpenRouterDataValidationError(OpenRouterClientError):
-    pass
+    """Raised when request or response data fails validation."""
 
 
 class OpenRouterRequestDataValidationError(OpenRouterDataValidationError):
-    pass
+    """Raised when encoding a request fails validation."""
 
 
 class OpenRouterResponseDataValidationError(OpenRouterDataValidationError):
-    pass
+    """Raised when decoding a response fails validation."""
 
 
 _STATUS_MAP = {
@@ -279,8 +334,18 @@ _STATUS_MAP = {
 
 
 def _map_status_to_error(status: int) -> type[OpenRouterAPIError]:
-    """Map an HTTP status to a client error type."""
+    """Map an HTTP status to a client error type.
 
+    Parameters
+    ----------
+    status:
+        HTTP status code returned by the API.
+
+    Returns
+    -------
+    type[OpenRouterAPIError]
+        Exception class that best represents the status code.
+    """
     try:
         status_enum = HTTPStatus(status)
     except ValueError:
@@ -310,6 +375,21 @@ class OpenRouterAsyncClient:
         default_headers: dict[str, str] | None = None,
         transport: httpx.AsyncBaseTransport | None = None,
     ) -> None:
+        """Create a new API client.
+
+        Parameters
+        ----------
+        api_key:
+            OpenRouter API key used for authentication.
+        base_url:
+            Base URL for the API. Defaults to ``DEFAULT_BASE_URL``.
+        timeout_config:
+            Optional ``httpx.Timeout`` settings.
+        default_headers:
+            Extra headers to include with every request.
+        transport:
+            Custom HTTP transport for testing.
+        """
         self.api_key = api_key
         self.base_url = base_url or DEFAULT_BASE_URL
         self.timeout = timeout_config
@@ -318,6 +398,7 @@ class OpenRouterAsyncClient:
         self._transport = transport
 
     async def __aenter__(self) -> typing.Self:
+        """Open the underlying ``httpx`` client and return ``self``."""
         headers = {"Authorization": f"Bearer {self.api_key}"} | self._user_headers
         self._client = httpx.AsyncClient(
             base_url=self.base_url,
@@ -333,6 +414,7 @@ class OpenRouterAsyncClient:
         exc: BaseException | None,
         tb: typing.Any,
     ) -> None:
+        """Close the underlying ``httpx`` client."""
         if not self._client:
             return
         await self._client.aclose()
@@ -393,6 +475,18 @@ class OpenRouterAsyncClient:
     async def create_chat_completion(
         self, request: ChatCompletionRequest
     ) -> ChatCompletionResponse:
+        """Send a completion request and return the parsed response.
+
+        Parameters
+        ----------
+        request:
+            Data structure describing the completion request.
+
+        Returns
+        -------
+        ChatCompletionResponse
+            Parsed response object.
+        """
         if request.stream:
             data = msgspec.to_builtins(request)
             data["stream"] = False
@@ -407,6 +501,18 @@ class OpenRouterAsyncClient:
     async def stream_chat_completion(
         self, request: ChatCompletionRequest
     ) -> cabc.AsyncIterator[StreamChunk]:
+        """Send a streaming request and yield chunks as they arrive.
+
+        Parameters
+        ----------
+        request:
+            Data structure describing the completion request.
+
+        Yields
+        ------
+        StreamChunk
+            Parsed stream chunks from OpenRouter.
+        """
         if not request.stream:
             data = msgspec.to_builtins(request)
             data["stream"] = True

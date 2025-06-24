@@ -1,3 +1,6 @@
+
+"""Manage cached :class:`OpenRouterAsyncClient` instances by API key."""
+
 from __future__ import annotations
 
 import asyncio
@@ -36,6 +39,19 @@ class OpenRouterService:
         timeout_config: httpx.Timeout | None = None,
         max_clients: int = 10,
     ) -> None:
+        """Initialize the service with default client configuration.
+
+        Parameters
+        ----------
+        default_model:
+            The model used when ``model`` is not supplied to chat methods.
+        base_url:
+            Base URL for OpenRouter's API.
+        timeout_config:
+            Optional timeout settings passed to ``httpx``.
+        max_clients:
+            Maximum number of cached clients.
+        """
         self.default_model = default_model
         self.base_url = base_url
         self.timeout_config = timeout_config
@@ -48,19 +64,32 @@ class OpenRouterService:
 
     @classmethod
     def from_env(cls) -> OpenRouterService:
+        """Create a service using ``OPENROUTER_*`` environment variables.
+
+        Returns
+        -------
+        OpenRouterService
+            Service configured from environment variables.
+        """
         model = os.getenv("OPENROUTER_MODEL") or DEFAULT_MODEL
         base_url = os.getenv("OPENROUTER_BASE_URL") or DEFAULT_BASE_URL
         return cls(default_model=model, base_url=base_url)
 
     async def _ensure_stack(self) -> None:
         """Enter the exit stack once in a thread-safe manner."""
-
         async with self._lock:
             if not self._entered:
                 await self._stack.__aenter__()
                 self._entered = True
 
     async def __aenter__(self) -> OpenRouterService:
+        """Enter the service's context manager.
+
+        Returns
+        -------
+        OpenRouterService
+            The service instance itself.
+        """
         await self._ensure_stack()
         return self
 
@@ -70,12 +99,14 @@ class OpenRouterService:
         exc: BaseException | None,
         tb: typing.Any,
     ) -> None:
+        """Close all clients when exiting the context manager."""
         await self._stack.aclose()
         self._clients.clear()
         self._stack = AsyncExitStack()
         self._entered = False
 
     async def aclose(self) -> None:
+        """Close all clients and reopen the context for reuse."""
         await self.__aexit__(None, None, None)
         # reopen for reuse
         await self._ensure_stack()
@@ -100,6 +131,13 @@ class OpenRouterService:
             return client
 
     async def remove_client(self, api_key: str) -> None:
+        """Remove and close the cached client for ``api_key``.
+
+        Parameters
+        ----------
+        api_key:
+            API key whose associated client should be closed and removed.
+        """
         async with self._lock:
             client = self._clients.pop(api_key, None)
         if client is not None:
@@ -112,6 +150,22 @@ class OpenRouterService:
         *,
         model: str | None = None,
     ) -> ChatCompletionResponse:
+        """Request a non-streaming chat completion from OpenRouter.
+
+        Parameters
+        ----------
+        api_key:
+            OpenRouter API key to authenticate the request.
+        messages:
+            Conversation history to send to the API.
+        model:
+            Optional model override.
+
+        Returns
+        -------
+        ChatCompletionResponse
+            Parsed response from OpenRouter.
+        """
         request = ChatCompletionRequest(
             model=model or self.default_model,
             messages=messages,
@@ -126,6 +180,22 @@ class OpenRouterService:
         *,
         model: str | None = None,
     ) -> typing.AsyncIterator[StreamChunk]:
+        """Stream a chat completion from OpenRouter.
+
+        Parameters
+        ----------
+        api_key:
+            OpenRouter API key to authenticate the request.
+        messages:
+            Conversation history to send to the API.
+        model:
+            Optional model override.
+
+        Yields
+        ------
+        StreamChunk
+            Chunks of the streamed completion.
+        """
         request = ChatCompletionRequest(
             model=model or self.default_model,
             messages=messages,
@@ -141,11 +211,11 @@ class OpenRouterServiceError(Exception):
 
 
 class OpenRouterServiceTimeoutError(OpenRouterServiceError):
-    pass
+    """Raised when the OpenRouter client times out."""
 
 
 class OpenRouterServiceBadGatewayError(OpenRouterServiceError):
-    pass
+    """Raised when OpenRouter returns a network or server error."""
 
 
 async def chat_with_service(
@@ -155,6 +225,31 @@ async def chat_with_service(
     *,
     model: str | None = None,
 ) -> ChatCompletionResponse:
+    """Safely call ``service.chat_completion`` and map errors.
+
+    Parameters
+    ----------
+    service:
+        Service instance used to perform the request.
+    api_key:
+        OpenRouter API key for authentication.
+    messages:
+        Conversation history to send to the API.
+    model:
+        Optional model override.
+
+    Returns
+    -------
+    ChatCompletionResponse
+        Parsed response from the service.
+
+    Raises
+    ------
+    OpenRouterServiceTimeoutError
+        If the request times out.
+    OpenRouterServiceBadGatewayError
+        When OpenRouter returns a network, server, or API-level error.
+    """
     try:
         return await service.chat_completion(api_key, messages, model=model)
     except OpenRouterTimeoutError as exc:
@@ -170,6 +265,31 @@ async def stream_chat_with_service(
     *,
     model: str | None = None,
 ) -> typing.AsyncIterator[StreamChunk]:
+    """Safely call ``service.stream_chat_completion`` and map errors.
+
+    Parameters
+    ----------
+    service:
+        Service instance used to perform the request.
+    api_key:
+        OpenRouter API key for authentication.
+    messages:
+        Conversation history to send to the API.
+    model:
+        Optional model override.
+
+    Yields
+    ------
+    StreamChunk
+        Chunks of the streamed completion.
+
+    Raises
+    ------
+    OpenRouterServiceTimeoutError
+        If the request times out.
+    OpenRouterServiceBadGatewayError
+        When OpenRouter returns a network, server, or API-level error.
+    """
     try:
         async for chunk in service.stream_chat_completion(
             api_key, messages, model=model

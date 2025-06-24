@@ -1,3 +1,5 @@
+"""Reusable SQLAlchemy mixins for timestamp and UUID fields."""
+
 import datetime as dt
 import uuid
 
