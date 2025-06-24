@@ -77,6 +77,38 @@ class AsyncMsgspecMiddleware:
             The resource object being processed.
         params : dict[str, typing.Any]
             The parameters dictionary where the validated body will be injected.
+
+        Parameters
+        ----------
+        req : falcon.Request
+            The incoming HTTP request.
+        resp : falcon.Response
+            The HTTP response object.
+        resource : object
+            The resource object being processed.
+        params : dict[str, typing.Any]
+            The parameters dictionary where the validated body will be injected.
+
+    Parameters
+    ----------
+    req : falcon.Request
+        The HTTP request object.
+    resp : falcon.Response
+        The HTTP response object.
+    ex : msgspec.ValidationError
+        The validation error that occurred.
+    params : dict[str, typing.Any]
+        The request parameters.
+
+    Raises
+
+        Parameters
+        ----------
+        protocol : str, default="json"
+            The protocol to use for WebSocket communication.
+    ------
+    falcon.HTTPUnprocessableEntity
+        Always raised with the validation error details.
         schema_attr = f"{req.method.upper()}_SCHEMA"
         schema = getattr(resource, schema_attr, None)
         if schema is None:
@@ -87,6 +119,17 @@ class AsyncMsgspecMiddleware:
         validated = msgspec.convert(media_data, schema, strict=True)
         params["body"] = validated
 
+
+        Parameters
+        ----------
+        req : falcon.asgi.Request
+            The ASGI request object.
+        ws : falcon.asgi.WebSocket
+            The WebSocket connection object.
+        resource : object
+            The WebSocket resource being processed.
+        params : dict[str, typing.Any]
+            The request parameters.
 
 
     Parameters

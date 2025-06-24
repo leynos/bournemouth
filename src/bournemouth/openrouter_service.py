@@ -216,6 +216,15 @@ class OpenRouterService:
             The conversation history to send to the model.
         model : str, optional
             The model to use for completion. If not provided, the default model is used.
+
+        Parameters
+        ----------
+        api_key : str
+            The API key used for authentication.
+        messages : list[ChatMessage]
+            The conversation history to send to the model.
+        model : str, optional
+            The model to use for completion. If not provided, the default model is used.
         
         Yields
         ------
@@ -258,6 +267,11 @@ async def chat_with_service(
     ----------
     service : OpenRouterService
         The service instance to use for the chat completion.
+
+    Parameters
+    ----------
+    service : OpenRouterService
+        The service instance to use for the chat completion.
     
     Parameters:
         api_key (str): The API key used to select the cached client.
@@ -288,6 +302,11 @@ async def stream_chat_with_service(
 ) -> typing.AsyncIterator[StreamChunk]:
     """
     Invoke the service's streaming chat completion method and yield response chunks, mapping client errors to service-specific exceptions.
+
+    Parameters
+    ----------
+    service : OpenRouterService
+        The service instance to use for streaming chat completion.
 
     Parameters
     ----------
