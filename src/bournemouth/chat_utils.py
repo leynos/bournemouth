@@ -37,7 +37,7 @@ class ChatWsRequest(Struct):
     transaction_id: str
     message: str
     model: str | None = None
-    history: list[typing.Any] | None = None
+    history: list[ChatMessage] | None = None
 
 
 class ChatWsResponse(Struct):
