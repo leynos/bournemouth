@@ -172,7 +172,7 @@ class ChatResource:
         self, req: falcon.asgi.Request, ws: falcon.asgi.WebSocket
     ) -> None:
         encoder = typing.cast("msgspec_json.Encoder", req.context.msgspec_encoder)
-        decoder = msgspec_json.Decoder()
+        decoder = msgspec_json.Decoder(ChatWsRequest)
         await ws.accept()
         send_lock = asyncio.Lock()
         tasks: set[asyncio.Task[None]] = set()
@@ -211,8 +211,7 @@ class ChatResource:
             while True:
                 raw = await ws.receive_text()
                 raw_bytes: bytes = raw.encode()
-                data = typing.cast(dict[str, typing.Any], decoder.decode(raw_bytes))
-                decoded_request = ChatWsRequest(**data)
+                decoded_request = decoder.decode(raw_bytes)
                 task = asyncio.create_task(handle(decoded_request))
                 tasks.add(task)
                 task.add_done_callback(_finalize_task)
@@ -235,6 +234,15 @@ class ChatWsPachinkoResource(WebSocketResource):
         service: OpenRouterService,
         session_factory: typing.Callable[[], AsyncSession],
     ) -> None:
+        """Create a new ``ChatWsPachinkoResource``.
+
+        Parameters
+        ----------
+        service:
+            Client for interacting with the OpenRouter API.
+        session_factory:
+            Callable returning an :class:`AsyncSession`.
+        """
         self._service = service
         self._session_factory = session_factory
         self._encoder = msgspec_json.Encoder()
