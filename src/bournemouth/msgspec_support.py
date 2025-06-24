@@ -33,7 +33,15 @@ def _msgspec_loads_json_robust(content: bytes | str) -> typing.Any:
 
 
 def _dumps(obj: typing.Any) -> str:
-    """Encode ``obj`` as JSON using msgspec's encoder."""
+    """
+    Serialises a Python object to a JSON string using msgspec.
+    
+    Parameters:
+    	obj: The Python object to serialise.
+    
+    Returns:
+    	A JSON-formatted string representation of the object.
+    """
     return _ENCODER.encode(obj).decode("utf-8")
 
 
@@ -53,7 +61,11 @@ class AsyncMsgspecMiddleware:
         resource: object,
         params: dict[str, typing.Any],
     ) -> None:
-        """Convert JSON request bodies to ``msgspec.Struct`` instances."""
+        """
+        Validates and converts the JSON request body to a msgspec.Struct instance based on the resource's schema attribute.
+        
+        If the resource defines a schema attribute for the current HTTP method (e.g., POST_SCHEMA) that is a subclass of msgspec.Struct, the request body is parsed and strictly validated against this schema. The validated object is injected into the params dictionary under the "body" key.
+        """
         schema_attr = f"{req.method.upper()}_SCHEMA"
         schema = getattr(resource, schema_attr, None)
         if schema is None:
@@ -71,7 +83,11 @@ async def handle_msgspec_validation_error(
     ex: msgspec.ValidationError,
     params: dict[str, typing.Any],
 ) -> None:
-    """Return a ``422`` response when msgspec validation fails."""
+    """
+    Raises an HTTP 422 Unprocessable Entity response when a msgspec validation error occurs.
+    
+    The response includes the validation error message in the description.
+    """
     raise falcon.HTTPUnprocessableEntity(
         title="Validation Error",
         description=str(ex),
@@ -82,6 +98,12 @@ class MsgspecWebSocketMiddleware:
     """Attach msgspec encoder/decoder to websocket requests."""
 
     def __init__(self, protocol: str = "json") -> None:
+        """
+        Initialises the middleware for msgspec-based WebSocket integration, supporting only the "json" protocol.
+        
+        Raises:
+            ValueError: If a protocol other than "json" is specified.
+        """
         if protocol != "json":
             raise ValueError(f"Unsupported msgspec protocol: {protocol}")
         self.encoder = msgspec_json.Encoder()
@@ -94,6 +116,8 @@ class MsgspecWebSocketMiddleware:
         resource: object,
         params: dict[str, typing.Any],
     ) -> None:
-        """Expose encoder and decoder classes via ``req.context``."""
+        """
+        Attaches the msgspec encoder instance and decoder class to the request context for use in WebSocket resource handling.
+        """
         req.context.msgspec_encoder = self.encoder
         req.context.msgspec_decoder_cls = self.decoder_cls
