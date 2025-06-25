@@ -1,20 +1,17 @@
 .PHONY: help all clean build release lint fmt check-fmt markdownlint \
         tools nixie test
 
-BUILD_JOBS ?=
 MDLINT ?= markdownlint
 NIXIE ?= nixie
 
 all: release ## Build the release artifact
 
-build: ## Build debug artifact
-	python -m build --sdist --wheel
-
-release: ## Build release artifact
+build release: ## Build artefacts (sdist & wheel)
 	python -m build --sdist --wheel
 
 clean: ## Remove build artifacts
-	rm -rf build dist *.egg-info
+	rm -rf build dist *.egg-info \
+	       .mypy_cache .pytest_cache .coverage coverage.* htmlcov
 
 define ensure_tool
 $(if $(shell command -v $(1) >/dev/null 2>&1 && echo y),,\
@@ -25,6 +22,8 @@ tools:
 	$(call ensure_tool,mdformat-all)
 	$(call ensure_tool,ruff)
 	$(call ensure_tool,ty)
+	$(call ensure_tool,$(MDLINT))
+	$(call ensure_tool,$(NIXIE))
 
 fmt: tools ## Format sources
 	ruff format
@@ -39,9 +38,11 @@ lint: ## Run linters
 	ty check
 
 markdownlint: ## Lint Markdown files
+	$(call ensure_tool,$(MDLINT))
 	find . -type f -name '*.md' -not -path './target/*' -print0 | xargs -0 $(MDLINT)
 
 nixie: ## Validate Mermaid diagrams
+	$(call ensure_tool,$(NIXIE))
 	find . -type f -name '*.md' -not -path './target/*' -print0 | xargs -0 $(NIXIE)
 
 test: ## Run tests

@@ -41,6 +41,7 @@ uv run python -m bournemouth.app
 Common development tasks are exposed via a `Makefile`:
 
 ```bash
+make tools # verify required CLI tools are installed
 make fmt   # format the codebase
 make lint  # run linters
 make test  # execute the test suite
