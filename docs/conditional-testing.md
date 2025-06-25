@@ -1,6 +1,7 @@
 # Conditional Testing for Optional Dependencies
 
-This document explains how to make tests conditional on optional dependency groups being installed.
+This document explains how to make tests conditional on optional
+dependency groups being installed.
 
 ## Problem
 
@@ -14,7 +15,8 @@ cli = [
 ]
 ```
 
-Tests for CLI functionality should only run when these dependencies are installed, but should be skipped gracefully when they're not available.
+Tests for CLI functionality should only run when these dependencies are
+installed, but should be skipped gracefully when they're not available.
 
 ## Solution 1: Using pytest.importorskip (Recommended)
 
@@ -35,12 +37,14 @@ from bournemouth import cli
 ```
 
 **Pros:**
+
 - Clean and simple
 - Skips the entire module if dependencies are missing
 - Clear error messages
 - Fails fast during test collection
 
 **Cons:**
+
 - All-or-nothing approach (entire module is skipped)
 
 ## Solution 2: Using pytest.mark.skipif with try/except
@@ -67,11 +71,13 @@ def test_cli_functionality():
 ```
 
 **Pros:**
+
 - Can skip individual tests or test classes
 - More flexible than module-level skipping
 - Can mix CLI and non-CLI tests in the same module
 
 **Cons:**
+
 - More verbose
 - Need to remember to add the decorator to each test
 
@@ -122,28 +128,35 @@ Skip CLI tests: `pytest -m "not cli"`
 
 ## Running Tests
 
-### With CLI dependencies:
+### With CLI dependencies
+
 ```bash
 uv run --group cli python -m pytest src/bournemouth/unittests/test_cli.py -v
 ```
 
-### Without CLI dependencies:
+### Without CLI dependencies
+
 ```bash
 uv run --no-group cli python -m pytest src/bournemouth/unittests/test_cli.py -v
 ```
 
-### Skip CLI tests entirely:
+### Skip CLI tests entirely
+
 ```bash
 uv run python -m pytest -m "not cli"
 ```
 
 ## Best Practices
 
-1. **Use `pytest.importorskip`** for module-level skipping when the entire test file depends on optional dependencies
-2. **Use `pytest.mark.skipif`** for individual test functions when you have mixed dependencies in one file
-3. **Provide clear skip reasons** to help developers understand why tests were skipped
+1. **Use `pytest.importorskip`** for module-level skipping when the entire
+   test file depends on optional dependencies
+2. **Use `pytest.mark.skipif`** for individual test functions when you have
+   mixed dependencies in one file
+3. **Provide clear skip reasons** to help developers understand why tests
+   were skipped
 4. **Document the dependency groups** and how to install them
-5. **Consider CI/CD implications** - you may want separate test jobs for different dependency combinations
+5. **Consider CI/CD implications** - you may want separate test jobs for
+   different dependency combinations
 
 ## Example CI Configuration
 
@@ -165,4 +178,5 @@ jobs:
       - run: uv run pytest tests/ -m cli
 ```
 
-This ensures both core functionality and CLI functionality are tested, but in separate jobs with appropriate dependencies.
+This ensures both core functionality and CLI functionality are tested,
+but in separate jobs with appropriate dependencies.
