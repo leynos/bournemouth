@@ -1,3 +1,5 @@
+"""Error-handling helpers for Falcon-based APIs."""
+
 from __future__ import annotations
 
 import logging
