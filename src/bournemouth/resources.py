@@ -126,7 +126,7 @@ class ChatResource:
     async def on_websocket(
         self, req: falcon.asgi.Request, ws: falcon.asgi.WebSocket
     ) -> None:
-        encoder: MsgEncoder = typing.cast(MsgEncoder, req.context.msgspec_encoder)
+        encoder: MsgEncoder = typing.cast("MsgEncoder", req.context.msgspec_encoder)
         decoder = msgspec_json.Decoder(ChatWsRequest)
         await ws.accept()
         send_lock = asyncio.Lock()
