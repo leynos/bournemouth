@@ -13,20 +13,17 @@ clean: ## Remove build artifacts
 	rm -rf build dist *.egg-info \
 	.mypy_cache .pytest_cache .coverage coverage.* htmlcov \
 	.venv
-	find . -type d -name '__pycache__' -exec rm -rf {} +
+	find . -type d -name '__pycache__' -exec rm -rf '{}' +
 
 define ensure_tool
 $(if $(shell command -v $(1) >/dev/null 2>&1 && echo y),,\
 $(error $(1) is required but not installed))
 endef
 
-tools:
-	$(call ensure_tool,mdformat-all)
-	$(call ensure_tool,ruff)
-	$(call ensure_tool,ty)
-	$(call ensure_tool,$(MDLINT))
-	$(call ensure_tool,$(NIXIE))
-	$(call ensure_tool,pytest)
+
+tools: ## Verify required CLI tools
+	$(foreach t,mdformat-all ruff ty $(MDLINT) $(NIXIE) pytest uv,$(call ensure_tool,$t))
+	@:
 
 fmt: tools ## Format sources
 	ruff format
