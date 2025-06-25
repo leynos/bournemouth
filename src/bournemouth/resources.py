@@ -16,6 +16,7 @@ from msgspec import json as msgspec_json
 from sqlalchemy import update
 
 if typing.TYPE_CHECKING:  # pragma: no cover
+    from falcon.asgi import WebSocket
     from sqlalchemy.ext.asyncio import AsyncSession
 
     from .openrouter_service import OpenRouterService
@@ -43,12 +44,12 @@ _logger = logging.getLogger(__name__)
 _MISSING_USER_ERROR = "on_connect must be called before handle_chat"
 
 
-class HttpMessage(msgspec.Struct):
+class HttpMessage(msgspec.Struct):  # pyright: ignore[reportUntypedBaseClass]
     role: Role
     content: str
 
 
-class ChatRequest(msgspec.Struct):
+class ChatRequest(msgspec.Struct):  # pyright: ignore[reportUntypedBaseClass]
     """Request body for the chat endpoint."""
 
     message: str
@@ -56,11 +57,11 @@ class ChatRequest(msgspec.Struct):
     model: str | None = None
 
 
-class TokenRequest(msgspec.Struct):
+class TokenRequest(msgspec.Struct):  # pyright: ignore[reportUntypedBaseClass]
     api_key: str
 
 
-class ChatStateRequest(msgspec.Struct):
+class ChatStateRequest(msgspec.Struct):  # pyright: ignore[reportUntypedBaseClass]
     """Request body for the stateful chat endpoint."""
 
     message: str
@@ -83,7 +84,7 @@ class ChatResource:
         session_factory: typing.Callable[[], AsyncSession],
         *,
         stream_answer_func: typing.Callable[
-            [OpenRouterService, str, list[ChatMessage], typing.Any],
+            [OpenRouterService, str, list[ChatMessage], str | None],
             typing.AsyncIterator[StreamChunk],
         ] = stream_answer,
     ) -> None:
@@ -152,8 +153,8 @@ class ChatResource:
                 return
             cfg = StreamConfig(
                 self._service,
-                ws,
-                encoder,
+                typing.cast("WebSocket", ws),  # pyright: ignore[reportUnknownArgumentType,reportUnnecessaryCast]
+                typing.cast("msgspec_json.Encoder", encoder),  # pyright: ignore[reportUnknownArgumentType,reportUnnecessaryCast]
                 send_lock,
                 api_key,
                 request.model,
@@ -165,7 +166,7 @@ class ChatResource:
             while True:
                 raw = await ws.receive_text()
                 raw_bytes: bytes = raw.encode()
-                decoded_request = decoder.decode(raw_bytes)
+                decoded_request = typing.cast("ChatWsRequest", decoder.decode(raw_bytes))  # pyright: ignore[reportUnnecessaryCast]
                 task = asyncio.create_task(handle(decoded_request))
                 tasks.add(task)
                 task.add_done_callback(_finalize_task)
@@ -177,7 +178,7 @@ class ChatResource:
             await asyncio.gather(*tasks, return_exceptions=True)
 
 
-class ChatWsPachinkoResource(WebSocketResource):
+class ChatWsPachinkoResource(WebSocketResource):  # pyright: ignore[reportUntypedBaseClass]
     """Stateless chat using ``falcon-pachinko``.
 
     Dependencies are supplied at construction time to avoid shared state.
@@ -219,7 +220,7 @@ class ChatWsPachinkoResource(WebSocketResource):
         return True
 
 
-    @handles_message("chat")
+    @handles_message("chat")  # pyright: ignore[reportUntypedFunctionDecorator]
     async def handle_chat(
         self, ws: falcon.asgi.WebSocket, payload: ChatWsRequest
     ) -> None:
@@ -243,8 +244,8 @@ class ChatWsPachinkoResource(WebSocketResource):
             return
         cfg = StreamConfig(
             self._service,
-            ws,
-            self._encoder,
+            typing.cast("WebSocket", ws),  # pyright: ignore[reportUnknownArgumentType,reportUnnecessaryCast]
+            typing.cast("msgspec_json.Encoder", self._encoder),  # pyright: ignore[reportUnknownArgumentType,reportUnnecessaryCast]
             self._send_lock,
             api_key,
             payload.model,
@@ -278,11 +279,17 @@ class ChatStateResource:
             raise falcon.HTTPUnauthorized(description="missing OpenRouter token")
 
         async with self._session_factory() as session:
-            async with session.begin():
+            session_typed: AsyncSession = session
+            async with session_typed.begin():
                 conv = await get_or_create_conversation(
-                    session, body.conversation_id, user_id
+                    session_typed,  # pyright: ignore[reportUnknownArgumentType]
+                    body.conversation_id,
+                    user_id,
                 )
-                history_rows = await list_conversation_messages(session, conv.id)
+                history_rows = await list_conversation_messages(
+                    session_typed,  # pyright: ignore[reportUnknownArgumentType]
+                    typing.cast("uuid.UUID", conv.id),  # pyright: ignore[reportUnnecessaryCast]
+                )
                 last_id = history_rows[-1].id if history_rows else None
 
                 user_msg = Message(
@@ -323,7 +330,10 @@ class ChatStateResource:
                 )
                 session.add(assistant_msg)
 
-            resp.media = {"answer": answer, "conversation_id": str(conv.id)}
+            resp.media = {
+                "answer": answer,
+                "conversation_id": str(typing.cast("uuid.UUID", conv.id)),  # pyright: ignore[reportUnnecessaryCast]
+            }
 
 
 class OpenRouterTokenResource:
@@ -345,6 +355,7 @@ class OpenRouterTokenResource:
         token_bytes = api_value.encode() if api_value else None
 
         async with self._session_factory() as session:
+            session_typed: AsyncSession = session
             stmt = (
                 update(UserAccount)
                 .where(
@@ -352,11 +363,11 @@ class OpenRouterTokenResource:
                 )
                 .values(openrouter_token_enc=token_bytes)
             )
-            result = await session.execute(stmt)
+            result = await session_typed.execute(stmt)
             if result.rowcount == 0:
                 resp.status = falcon.HTTP_404
                 return
-            await session.commit()
+            await session_typed.commit()
         resp.status = falcon.HTTP_NO_CONTENT
 
 

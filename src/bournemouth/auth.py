@@ -26,10 +26,11 @@ class AuthMiddleware:
         if req.path in {"/health", "/login"}:
             return
 
-        cookie = req.cookies.get("session")
-        if not cookie:
+        cookie_obj = req.cookies.get("session")
+        if not cookie_obj:
             raise falcon.HTTPUnauthorized()
 
+        cookie = typing.cast("str", cookie_obj)  # pyright: ignore[reportUnnecessaryCast]
         user = self._session.verify_cookie(cookie)
         if user is None:
             raise falcon.HTTPUnauthorized()
@@ -42,10 +43,11 @@ class AuthMiddleware:
         if req.path in {"/health", "/login"}:
             return
 
-        cookie = req.cookies.get("session")
-        if not cookie:
+        cookie_obj = req.cookies.get("session")
+        if not cookie_obj:
             raise falcon.HTTPUnauthorized()
 
+        cookie = typing.cast("str", cookie_obj)  # pyright: ignore[reportUnnecessaryCast]
         user = self._session.verify_cookie(cookie)
         if user is None:
             raise falcon.HTTPUnauthorized()
@@ -62,14 +64,14 @@ class LoginResource:
         self._password = password
 
     async def on_post(self, req: falcon.Request, resp: falcon.Response) -> None:
-        auth_header = req.get_header("Authorization") or ""
+        auth_header: str = req.get_header("Authorization") or ""
         prefix = "Basic "
         if not auth_header.startswith(prefix):
             raise falcon.HTTPUnauthorized()
 
         try:
-            encoded = auth_header[len(prefix) :]
-            decoded_bytes = base64.b64decode(encoded)
+            encoded = typing.cast("str", auth_header[len(prefix) :])  # pyright: ignore[reportUnnecessaryCast]
+            decoded_bytes = base64.b64decode(encoded.encode())
             decoded = decoded_bytes.decode()
             username, password = decoded.split(":", 1)
         except (binascii.Error, ValueError):

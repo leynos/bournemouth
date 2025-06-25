@@ -31,7 +31,7 @@ __all__ = [
 _logger = logging.getLogger(__name__)
 
 
-class ChatWsRequest(Struct):
+class ChatWsRequest(Struct):  # pyright: ignore[reportUntypedBaseClass]
     """Request payload for websocket chat."""
 
     transaction_id: str
@@ -40,7 +40,7 @@ class ChatWsRequest(Struct):
     history: list[ChatMessage] | None = None
 
 
-class ChatWsResponse(Struct):
+class ChatWsResponse(Struct):  # pyright: ignore[reportUntypedBaseClass]
     """Response fragment sent over websocket."""
 
     transaction_id: str
@@ -59,7 +59,7 @@ class StreamConfig:
     api_key: str
     model: str | None
     stream_func: typing.Callable[
-        [OpenRouterService, str, list[ChatMessage], typing.Any],
+        [OpenRouterService, str, list[ChatMessage], str | None],
         typing.AsyncIterator[StreamChunk],
     ] = stream_answer
 
@@ -113,6 +113,6 @@ async def stream_chat_response(
     ) as exc:  # pragma: no cover - passthrough
         _logger.exception(
             "closing websocket due to upstream error",
-            exc_info=exc,
+            exc_info=typing.cast("BaseException", exc),
         )
         await cfg.ws.close(code=1011)
