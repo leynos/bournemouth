@@ -35,7 +35,8 @@ from .chat_utils import (
     stream_chat_response,
 )
 from .models import Message, MessageRole, UserAccount
-from .openrouter import ChatMessage, Role, StreamChoice, StreamChunk
+from .resource_helpers import get_api_key
+from .openrouter import ChatMessage, Role, StreamChunk
 
 _logger = logging.getLogger(__name__)
 
@@ -88,56 +89,6 @@ class ChatResource:
         self._session_factory = session_factory
         self._stream_answer = stream_answer_func
 
-    async def _get_api_key(self, user: str) -> str | None:
-        try:
-            _, api_key = await load_user_and_api_key(self._session_factory, user)
-        except falcon.HTTPUnauthorized:
-            return None
-        return api_key
-
-    async def _stream_chat(
-        self,
-        ws: falcon.asgi.WebSocket,
-        encoder: msgspec_json.Encoder,
-        send_lock: asyncio.Lock,
-        transaction_id: str,
-        api_key: str,
-        history: list[ChatMessage],
-        model: str | None,
-    ) -> None:
-        """Stream chat completions back to the client."""
-        try:
-            async for chunk in self._stream_answer(
-                self._service,
-                api_key,
-                history,
-                model,
-            ):
-                choice: StreamChoice = chunk.choices[0]
-                if choice.delta.content:
-                    async with send_lock:
-                        raw = encoder.encode(
-                            ChatWsResponse(
-                                transaction_id=transaction_id,
-                                fragment=choice.delta.content,
-                            )
-                        )
-                        await ws.send_text(raw.decode())
-                if choice.finish_reason is not None:
-                    async with send_lock:
-                        raw = encoder.encode(
-                            ChatWsResponse(
-                                transaction_id=transaction_id,
-                                fragment="",
-                                finished=True,
-                            )
-                        )
-                        await ws.send_text(raw.decode())
-                    break
-        except (falcon.HTTPGatewayTimeout, falcon.HTTPBadGateway) as exc:
-            _logger.exception("closing websocket due to upstream error", exc_info=exc)
-            await ws.close(code=1011)
-
     async def on_post(
         self,
         req: falcon.Request,
@@ -156,7 +107,7 @@ class ChatResource:
         model = body.model
 
         user = typing.cast("str", req.context["user"])
-        api_key = await self._get_api_key(user)
+        api_key = await get_api_key(self._session_factory, user)
         if api_key is None:
             raise falcon.HTTPUnauthorized(description="missing OpenRouter token")
 
@@ -185,7 +136,7 @@ class ChatResource:
         async def handle(request: ChatWsRequest) -> None:
             history = build_chat_history(request.message, request.history)
             user = typing.cast("str", req.context["user"])
-            api_key = await self._get_api_key(user)
+            api_key = await get_api_key(self._session_factory, user)
             if api_key is None:
                 async with send_lock:
                     raw = encoder.encode(
@@ -197,15 +148,16 @@ class ChatResource:
                     )
                     await ws.send_text(raw.decode())
                 return
-            await self._stream_chat(
+            cfg = StreamConfig(
+                self._service,
                 ws,
                 encoder,
                 send_lock,
-                request.transaction_id,
                 api_key,
-                history,
                 request.model,
+                self._stream_answer,
             )
+            await stream_chat_response(cfg, request.transaction_id, history)
 
         try:
             while True:
@@ -264,15 +216,6 @@ class ChatWsPachinkoResource(WebSocketResource):
         await ws.accept()
         return True
 
-    async def _get_api_key(self) -> str | None:
-        if self._user is None:
-            raise RuntimeError("User must be set before calling _get_api_key")
-        try:
-            _, api_key = await load_user_and_api_key(self._session_factory, self._user)
-        except falcon.HTTPUnauthorized:
-            return None
-        return api_key
-
 
     @handles_message("chat")
     async def handle_chat(
@@ -282,7 +225,9 @@ class ChatWsPachinkoResource(WebSocketResource):
         if self._send_lock is None:
             raise RuntimeError("on_connect must be called before handle_chat")
         history = build_chat_history(payload.message, payload.history)
-        api_key = await self._get_api_key()
+        if self._user is None:
+            raise RuntimeError("on_connect must be called before handle_chat")
+        api_key = await get_api_key(self._session_factory, self._user)
         if api_key is None:
             async with self._send_lock:
                 raw = self._encoder.encode(
