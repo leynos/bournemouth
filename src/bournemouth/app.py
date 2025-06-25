@@ -15,7 +15,7 @@ if typing.TYPE_CHECKING:  # pragma: no cover - for type checking only
     from sqlalchemy.ext.asyncio import AsyncSession
 
 from .auth import AuthMiddleware, LoginResource
-from .chat_service import stream_answer as default_stream_answer
+from .chat_service import StreamFunc, stream_answer as default_stream_answer
 from .errors import handle_http_error, handle_unexpected_error
 from .msgspec_support import (
     AsyncMsgspecMiddleware,
@@ -49,10 +49,7 @@ def create_app(
     login_password: str | None = None,
     openrouter_service: OpenRouterService | None = None,
     db_session_factory: typing.Callable[[], AsyncSession] | None = None,
-    chat_stream_answer: typing.Callable[
-        [OpenRouterService, str, list[ChatMessage], str | None],
-        typing.AsyncIterator[StreamChunk],
-    ] = default_stream_answer,
+    chat_stream_answer: StreamFunc = default_stream_answer,
 ) -> asgi.App:
     """Configure and return the Falcon ASGI app.
 

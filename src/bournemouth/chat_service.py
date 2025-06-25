@@ -26,6 +26,11 @@ if typing.TYPE_CHECKING:  # pragma: no cover
 
     from .openrouter import ChatMessage, StreamChunk
 
+StreamFunc: typing.TypeAlias = typing.Callable[
+    ["OpenRouterService", str, list["ChatMessage"], str | None],
+    typing.AsyncIterator["StreamChunk"],
+]
+
 
 _logger = logging.getLogger(__name__)
 
