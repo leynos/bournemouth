@@ -35,8 +35,8 @@ from .chat_utils import (
     stream_chat_response,
 )
 from .models import Message, MessageRole, UserAccount
-from .resource_helpers import get_api_key
 from .openrouter import ChatMessage, Role, StreamChunk
+from .resource_helpers import get_api_key
 
 _logger = logging.getLogger(__name__)
 
