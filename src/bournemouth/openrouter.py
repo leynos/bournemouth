@@ -54,18 +54,16 @@ class ImageUrl(msgspec.Struct, array_like=True):
     detail: typing.Literal["auto", "low", "high"] = "auto"
 
 
-class ImageContentPart(msgspec.Struct):
+class ImageContentPart(msgspec.Struct, tag="image_url"):
     """Represents an image in a chat message."""
 
     image_url: ImageUrl
-    type: typing.Literal["image_url"] = "image_url"
 
 
-class TextContentPart(msgspec.Struct):
+class TextContentPart(msgspec.Struct, tag="text"):
     """Represents plain text in a chat message."""
 
     text: str
-    type: typing.Literal["text"] = "text"
 
 
 ContentPart = TextContentPart | ImageContentPart
