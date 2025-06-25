@@ -11,7 +11,7 @@ from msgspec import Struct
 from msgspec import json as msgspec_json
 
 from .chat_service import stream_answer
-from .openrouter import ChatMessage, StreamChoice
+from .openrouter import ChatMessage, StreamChoice, StreamChunk
 
 if typing.TYPE_CHECKING:  # pragma: no cover
     import asyncio

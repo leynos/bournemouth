@@ -40,6 +40,8 @@ from .openrouter import ChatMessage, Role, StreamChunk
 
 _logger = logging.getLogger(__name__)
 
+_MISSING_USER_ERROR = "on_connect must be called before handle_chat"
+
 
 class HttpMessage(msgspec.Struct):
     role: Role
@@ -223,10 +225,10 @@ class ChatWsPachinkoResource(WebSocketResource):
     ) -> None:
         """Handle incoming chat messages over WebSocket."""
         if self._send_lock is None:
-            raise RuntimeError("on_connect must be called before handle_chat")
+            raise RuntimeError(_MISSING_USER_ERROR)
         history = build_chat_history(payload.message, payload.history)
         if self._user is None:
-            raise RuntimeError("on_connect must be called before handle_chat")
+            raise RuntimeError(_MISSING_USER_ERROR)
         api_key = await get_api_key(self._session_factory, self._user)
         if api_key is None:
             async with self._send_lock:
