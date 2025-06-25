@@ -24,6 +24,7 @@ from .msgspec_support import (
     json_handler,
 )
 from .openrouter_service import OpenRouterService
+from .openrouter import ChatMessage, StreamChunk
 from .resources import (
     ChatResource,
     ChatStateResource,
@@ -34,7 +35,7 @@ from .resources import (
 from .session import SessionManager
 
 
-class PachinkoApp(asgi.App):
+class PachinkoApp(asgi.App):  # pyright: ignore[reportUntypedBaseClass]
     """Falcon app subclass with ``falcon-pachinko`` support."""
 
     __slots__ = ("__dict__",)
@@ -49,8 +50,8 @@ def create_app(
     openrouter_service: OpenRouterService | None = None,
     db_session_factory: typing.Callable[[], AsyncSession] | None = None,
     chat_stream_answer: typing.Callable[
-        [OpenRouterService, str, list[typing.Any], typing.Any],
-        typing.AsyncIterator[typing.Any],
+        [OpenRouterService, str, list[ChatMessage], str | None],
+        typing.AsyncIterator[StreamChunk],
     ] = default_stream_answer,
 ) -> asgi.App:
     """Configure and return the Falcon ASGI app.
