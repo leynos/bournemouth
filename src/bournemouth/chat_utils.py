@@ -11,7 +11,7 @@ from msgspec import Struct
 from msgspec import json as msgspec_json
 
 from .chat_service import stream_answer
-from .openrouter import ChatMessage, StreamChoice
+from .openrouter import ChatMessage, StreamChoice, StreamChunk
 
 if typing.TYPE_CHECKING:  # pragma: no cover
     import asyncio
@@ -58,6 +58,10 @@ class StreamConfig:
     send_lock: asyncio.Lock
     api_key: str
     model: str | None
+    stream_func: typing.Callable[
+        [OpenRouterService, str, list[ChatMessage], typing.Any],
+        typing.AsyncIterator[StreamChunk],
+    ] = stream_answer
 
 
 def build_chat_history(
@@ -76,7 +80,7 @@ async def stream_chat_response(
 ) -> None:
     """Stream chat completions back to the client."""
     try:
-        async for chunk in stream_answer(
+        async for chunk in cfg.stream_func(
             cfg.service,
             cfg.api_key,
             history,
