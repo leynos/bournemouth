@@ -137,6 +137,9 @@ uv run --no-group cli python -m pytest src/bournemouth/unittests/test_cli.py -v
 uv run python -m pytest -m "not cli"
 ```
 
+Alternatively, run `make test` to execute the entire suite using the
+configured environment.
+
 ## Best Practices
 
 1. **Use `pytest.importorskip`** for module-level skipping when the entire test file depends on optional dependencies
