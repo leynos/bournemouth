@@ -1,3 +1,5 @@
+"""Tests for the stateful chat API."""
+
 import base64
 import typing
 import uuid
@@ -17,6 +19,7 @@ from bournemouth.models import Conversation, Message, MessageRole, UserAccount
 
 @pytest.fixture()
 def app(db_session_factory: typing.Callable[[], AsyncSession]) -> asgi.App:
+    """Create an application instance for testing."""
     return create_app(db_session_factory=db_session_factory)
 
 
@@ -35,6 +38,7 @@ async def test_stateful_chat_creates_conversation(
     db_session_factory: typing.Callable[[], AsyncSession],
     httpx_mock: HTTPXMock,
 ) -> None:
+    """A new conversation is created and messages are stored."""
     httpx_mock.add_response(
         method="POST",
         url="https://openrouter.ai/api/v1/chat/completions",
@@ -80,6 +84,7 @@ async def test_stateful_chat_appends(
     db_session_factory: typing.Callable[[], AsyncSession],
     httpx_mock: HTTPXMock,
 ) -> None:
+    """Subsequent messages append to the conversation."""
     httpx_mock.add_response(
         method="POST",
         url="https://openrouter.ai/api/v1/chat/completions",
@@ -141,6 +146,7 @@ async def test_stateful_chat_appends(
 async def test_stateful_chat_missing_token(
     app: asgi.App, db_session_factory: typing.Callable[[], AsyncSession]
 ) -> None:
+    """Return 401 if the user has not stored an API token."""
     async with db_session_factory() as session:
         await session.execute(
             update(UserAccount)
@@ -164,6 +170,7 @@ async def test_stateful_chat_persists_user_message_on_timeout(
     db_session_factory: typing.Callable[[], AsyncSession],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """User messages are persisted even when the service times out."""
     async def fail(*args: typing.Any, **kwargs: typing.Any) -> typing.Any:
         raise chat_service.OpenRouterServiceTimeoutError("boom")
 
@@ -194,6 +201,7 @@ async def test_stateful_chat_handles_unexpected_error(
     db_session_factory: typing.Callable[[], AsyncSession],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """Unexpected service errors are handled gracefully."""
     async def fail(*args: typing.Any, **kwargs: typing.Any) -> typing.Any:
         raise RuntimeError("boom")
 

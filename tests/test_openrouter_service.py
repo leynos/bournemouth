@@ -1,3 +1,4 @@
+"""Tests for the ``OpenRouterService`` class."""
 import asyncio
 import typing
 
@@ -8,14 +9,18 @@ from bournemouth.openrouter_service import OpenRouterService
 
 
 class DummyClient:
+    """Simplified async client used for testing."""
+
     creations: int = 0
 
     def __init__(
         self, *, api_key: str, base_url: str, timeout_config: typing.Any
     ) -> None:
+        """Record creation of the dummy client."""
         DummyClient.creations += 1
 
     async def __aenter__(self) -> "DummyClient":
+        """Enter the async context and return ``self``."""
         return self
 
     async def __aexit__(
@@ -24,15 +29,18 @@ class DummyClient:
         exc: BaseException | None,
         tb: typing.Any,
     ) -> None:
+        """Exit the async context without error handling."""
         return
 
     async def create_chat_completion(self, request: typing.Any) -> str:
+        """Return a canned chat completion response."""
         await asyncio.sleep(0)
         return "ok"
 
 
 @pytest.mark.asyncio
 async def test_reuses_client(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The service should reuse a single client instance."""
     DummyClient.creations = 0
     monkeypatch.setattr(
         "bournemouth.openrouter_service.OpenRouterAsyncClient", DummyClient
@@ -46,6 +54,7 @@ async def test_reuses_client(monkeypatch: pytest.MonkeyPatch) -> None:
 
 @pytest.mark.asyncio
 async def test_concurrent_reuse(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Concurrent requests share the same client."""
     DummyClient.creations = 0
     monkeypatch.setattr(
         "bournemouth.openrouter_service.OpenRouterAsyncClient", DummyClient
@@ -62,6 +71,7 @@ async def test_concurrent_reuse(monkeypatch: pytest.MonkeyPatch) -> None:
 
 @pytest.mark.asyncio
 async def test_aclose_nonblocking(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Closing the service should not wait for ongoing requests."""
     started = asyncio.Event()
     finish = asyncio.Event()
 
@@ -89,6 +99,7 @@ async def test_aclose_nonblocking(monkeypatch: pytest.MonkeyPatch) -> None:
 
 @pytest.mark.asyncio
 async def test_can_reuse_after_aclose(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A new client is created after the previous one closes."""
     DummyClient.creations = 0
     monkeypatch.setattr(
         "bournemouth.openrouter_service.OpenRouterAsyncClient", DummyClient
@@ -103,6 +114,7 @@ async def test_can_reuse_after_aclose(monkeypatch: pytest.MonkeyPatch) -> None:
 
 @pytest.mark.asyncio
 async def test_remove_client(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Removing a client triggers its closure."""
     class ClosingClient(DummyClient):
         closes: int = 0
 

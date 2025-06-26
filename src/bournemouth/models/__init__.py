@@ -29,6 +29,8 @@ class Base(DeclarativeBase):
 
 
 class AuditEventType(enum.StrEnum):
+    """Categories of events captured for auditing."""
+
     CHAT_REQUEST = enum.auto()
     CHAT_RESPONSE = enum.auto()
     KG_UPDATE_ENQUEUED = enum.auto()
@@ -38,6 +40,8 @@ class AuditEventType(enum.StrEnum):
 
 
 class KgChangeType(enum.StrEnum):
+    """Types of changes applied to the knowledge graph."""
+
     NODE_CREATED = enum.auto()
     NODE_UPDATED = enum.auto()
     REL_CREATED = enum.auto()
@@ -46,12 +50,16 @@ class KgChangeType(enum.StrEnum):
 
 
 class MessageRole(enum.StrEnum):
+    """Roles associated with chat messages."""
+
     USER = "user"
     ASSISTANT = "assistant"
     SYSTEM = "system"
 
 
 class UserAccount(Base, UuidPKMixin, TimestampMixin):
+    """Persisted user profile and authentication data."""
+
     __tablename__ = "user_account"
 
     google_sub: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
@@ -74,6 +82,8 @@ class UserAccount(Base, UuidPKMixin, TimestampMixin):
 
 
 class AuditEvent(Base, CreatedAtMixin):
+    """Record of user activity for auditing."""
+
     __tablename__ = "audit_event"
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -93,6 +103,8 @@ class AuditEvent(Base, CreatedAtMixin):
 
 
 class KgChange(Base):
+    """Change made to the knowledge graph."""
+
     __tablename__ = "kg_change"
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -118,6 +130,8 @@ class KgChange(Base):
 
 
 class EncKeyHistory(Base, CreatedAtMixin):
+    """History of encryption keys used to store tokens."""
+
     __tablename__ = "enc_key_history"
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -127,6 +141,8 @@ class EncKeyHistory(Base, CreatedAtMixin):
 
 
 class Conversation(Base, UuidPKMixin, TimestampMixin):
+    """Thread of related chat messages for a user."""
+
     __tablename__ = "conversation"
 
     user_id: Mapped[uuid.UUID | None] = mapped_column(
@@ -152,6 +168,8 @@ class Conversation(Base, UuidPKMixin, TimestampMixin):
 
 
 class Message(Base, UuidPKMixin, CreatedAtMixin):
+    """Individual chat message within a conversation."""
+
     __tablename__ = "message"
 
     conversation_id: Mapped[uuid.UUID | None] = mapped_column(

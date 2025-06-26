@@ -20,9 +20,30 @@ class AuthMiddleware:
     """Require a valid session cookie for all routes except health and login."""
 
     def __init__(self, session: SessionManager) -> None:
+        """Create middleware with a session manager.
+
+        Parameters
+        ----------
+        session : SessionManager
+            Object used to verify signed session cookies.
+        """
         self._session = session
 
     async def process_request(self, req: falcon.Request, resp: falcon.Response) -> None:
+        """Validate a session cookie for HTTP requests.
+
+        Parameters
+        ----------
+        req : falcon.Request
+            The incoming request.
+        resp : falcon.Response
+            The outgoing response.
+
+        Raises
+        ------
+        falcon.HTTPUnauthorized
+            If the session cookie is missing or invalid.
+        """
         if req.path in {"/health", "/login"}:
             return
 
@@ -40,6 +61,20 @@ class AuthMiddleware:
     async def process_request_ws(
         self, req: falcon.Request, ws: falcon.asgi.WebSocket
     ) -> None:
+        """Validate a session cookie for WebSocket connections.
+
+        Parameters
+        ----------
+        req : falcon.Request
+            The HTTP request associated with the WebSocket.
+        ws : falcon.asgi.WebSocket
+            The WebSocket connection.
+
+        Raises
+        ------
+        falcon.HTTPUnauthorized
+            If the session cookie is missing or invalid.
+        """
         if req.path in {"/health", "/login"}:
             return
 
@@ -59,11 +94,36 @@ class LoginResource:
     """Authenticate via Basic Auth and set a signed session cookie."""
 
     def __init__(self, session: SessionManager, user: str, password: str) -> None:
+        """Initialize the resource with credentials and session manager.
+
+        Parameters
+        ----------
+        session : SessionManager
+            Manager used to create signed cookies.
+        user : str
+            Username permitted to log in.
+        password : str
+            Password for ``user``.
+        """
         self._session = session
         self._user = user
         self._password = password
 
     async def on_post(self, req: falcon.Request, resp: falcon.Response) -> None:
+        """Authenticate using Basic Auth and set a session cookie.
+
+        Parameters
+        ----------
+        req : falcon.Request
+            The incoming request containing the ``Authorization`` header.
+        resp : falcon.Response
+            The HTTP response object to populate.
+
+        Raises
+        ------
+        falcon.HTTPUnauthorized
+            If credentials are missing or invalid.
+        """
         auth_header: str = req.get_header("Authorization") or ""
         prefix = "Basic "
         if not auth_header.startswith(prefix):
