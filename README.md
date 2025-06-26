@@ -38,6 +38,17 @@ Run the API locally with:
 uv run python -m bournemouth.app
 ```
 
+Common development tasks are exposed via a `Makefile`:
+
+```bash
+make tools # verify required CLI tools are installed
+make fmt   # format the codebase
+make lint  # run linters
+make test  # execute the test suite
+```
+
+Run `make help` to see all available targets.
+
 The server exposes a `/login` endpoint that accepts HTTP Basic Auth credentials.
 On success it returns a signed `session` cookie used by the middleware to guard
 all other routes except `/health`. The credentials, session secret and timeout

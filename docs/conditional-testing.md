@@ -146,6 +146,9 @@ uv run --no-group cli python -m pytest src/bournemouth/unittests/test_cli.py -v
 uv run python -m pytest -m "not cli"
 ```
 
+Alternatively, run `make test` to execute the entire suite using the
+configured environment.
+
 ## Best Practices
 
 1. **Use `pytest.importorskip`** for module-level skipping when the entire
@@ -169,7 +172,7 @@ jobs:
       - uses: actions/checkout@v4
       - run: uv sync
       - run: uv run pytest tests/ -m "not cli"
-  
+
   test-cli:
     runs-on: ubuntu-latest
     steps:
