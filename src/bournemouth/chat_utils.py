@@ -7,10 +7,10 @@ import logging
 import typing
 
 import falcon
-from msgspec import Struct
+import msgspec
 from msgspec import json as msgspec_json
 
-from .chat_service import stream_answer
+from .chat_service import StreamFunc, stream_answer
 from .openrouter import ChatMessage, StreamChoice, StreamChunk
 
 if typing.TYPE_CHECKING:  # pragma: no cover
@@ -31,7 +31,10 @@ __all__ = [
 _logger = logging.getLogger(__name__)
 
 
-class ChatWsRequest(Struct):  # pyright: ignore[reportUntypedBaseClass]
+Struct = msgspec.Struct  # pyright: ignore[reportUntypedBaseClass]
+
+
+class ChatWsRequest(Struct):
     """Request payload for websocket chat."""
 
     transaction_id: str
@@ -40,7 +43,7 @@ class ChatWsRequest(Struct):  # pyright: ignore[reportUntypedBaseClass]
     history: list[ChatMessage] | None = None
 
 
-class ChatWsResponse(Struct):  # pyright: ignore[reportUntypedBaseClass]
+class ChatWsResponse(Struct):
     """Response fragment sent over websocket."""
 
     transaction_id: str
@@ -58,10 +61,7 @@ class StreamConfig:
     send_lock: asyncio.Lock
     api_key: str
     model: str | None
-    stream_func: typing.Callable[
-        [OpenRouterService, str, list[ChatMessage], str | None],
-        typing.AsyncIterator[StreamChunk],
-    ] = stream_answer
+    stream_func: StreamFunc = stream_answer
 
 
 def build_chat_history(

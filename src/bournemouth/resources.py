@@ -16,10 +16,13 @@ from msgspec import json as msgspec_json
 from sqlalchemy import update
 
 if typing.TYPE_CHECKING:  # pragma: no cover
-    from falcon.asgi import WebSocket
     from sqlalchemy.ext.asyncio import AsyncSession
 
     from .openrouter_service import OpenRouterService
+
+Struct = msgspec.Struct  # pyright: ignore[reportUntypedBaseClass]
+WebSocket = falcon.asgi.WebSocket  # pyright: ignore[reportUnknownArgumentType]
+MsgEncoder = msgspec_json.Encoder  # pyright: ignore[reportUnknownArgumentType]
 
 from .chat_service import (
     generate_answer,
@@ -27,6 +30,7 @@ from .chat_service import (
     list_conversation_messages,
     load_user_and_api_key,
     stream_answer,
+    StreamFunc,
 )
 from .chat_utils import (
     ChatWsRequest,
@@ -44,14 +48,15 @@ _logger = logging.getLogger(__name__)
 _MISSING_USER_ERROR = "on_connect must be called before handle_chat"
 
 
-class HttpMessage(msgspec.Struct):  # pyright: ignore[reportUntypedBaseClass]
+
+class HttpMessage(Struct):
     """A chat message received via HTTP."""
 
     role: Role
     content: str
 
 
-class ChatRequest(msgspec.Struct):  # pyright: ignore[reportUntypedBaseClass]
+class ChatRequest(Struct):
     """Request body for the chat endpoint."""
 
     message: str
@@ -59,13 +64,13 @@ class ChatRequest(msgspec.Struct):  # pyright: ignore[reportUntypedBaseClass]
     model: str | None = None
 
 
-class TokenRequest(msgspec.Struct):  # pyright: ignore[reportUntypedBaseClass]
+class TokenRequest(Struct):
     """Payload for saving an OpenRouter API token."""
 
     api_key: str
 
 
-class ChatStateRequest(msgspec.Struct):  # pyright: ignore[reportUntypedBaseClass]
+class ChatStateRequest(Struct):
     """Request body for the stateful chat endpoint."""
 
     message: str
@@ -87,10 +92,7 @@ class ChatResource:
         service: OpenRouterService,
         session_factory: typing.Callable[[], AsyncSession],
         *,
-        stream_answer_func: typing.Callable[
-            [OpenRouterService, str, list[ChatMessage], str | None],
-            typing.AsyncIterator[StreamChunk],
-        ] = stream_answer,
+        stream_answer_func: StreamFunc = stream_answer,
     ) -> None:
         """Create a new ``ChatResource``.
 
@@ -142,7 +144,8 @@ class ChatResource:
         self, req: falcon.asgi.Request, ws: falcon.asgi.WebSocket
     ) -> None:
         """Stream chat responses over WebSocket."""
-        encoder = typing.cast("msgspec_json.Encoder", req.context.msgspec_encoder)
+        
+        encoder: MsgEncoder = typing.cast("MsgEncoder", req.context.msgspec_encoder)
         decoder = msgspec_json.Decoder(ChatWsRequest)
         await ws.accept()
         send_lock = asyncio.Lock()
@@ -170,8 +173,8 @@ class ChatResource:
                 return
             cfg = StreamConfig(
                 self._service,
-                typing.cast("WebSocket", ws),  # pyright: ignore[reportUnknownArgumentType,reportUnnecessaryCast]
-                typing.cast("msgspec_json.Encoder", encoder),  # pyright: ignore[reportUnknownArgumentType,reportUnnecessaryCast]
+                ws,
+                encoder,
                 send_lock,
                 api_key,
                 request.model,
@@ -183,7 +186,7 @@ class ChatResource:
             while True:
                 raw = await ws.receive_text()
                 raw_bytes: bytes = raw.encode()
-                decoded_request = typing.cast("ChatWsRequest", decoder.decode(raw_bytes))  # pyright: ignore[reportUnnecessaryCast]
+                decoded_request = decoder.decode(raw_bytes)
                 task = asyncio.create_task(handle(decoded_request))
                 tasks.add(task)
                 task.add_done_callback(_finalize_task)
@@ -270,8 +273,8 @@ class ChatWsPachinkoResource(WebSocketResource):  # pyright: ignore[reportUntype
             return
         cfg = StreamConfig(
             self._service,
-            typing.cast("WebSocket", ws),  # pyright: ignore[reportUnknownArgumentType,reportUnnecessaryCast]
-            typing.cast("msgspec_json.Encoder", self._encoder),  # pyright: ignore[reportUnknownArgumentType,reportUnnecessaryCast]
+            ws,
+            self._encoder,
             self._send_lock,
             api_key,
             payload.model,

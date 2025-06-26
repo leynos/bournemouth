@@ -26,6 +26,24 @@ if typing.TYPE_CHECKING:  # pragma: no cover
 
     from .openrouter import ChatMessage, StreamChunk
 
+#: Type alias for the streaming function used in OpenRouterService.
+#: 
+#: StreamFunc represents an asynchronous callable with the following signature:
+#:   (service: OpenRouterService, model: str, messages: list[ChatMessage], system_prompt: str | None)
+#:     -> AsyncIterator[StreamChunk]
+#:
+#: - service: The OpenRouterService instance invoking the function.
+#: - model: The model name to use for the chat.
+#: - messages: The list of chat messages to process.
+#: - system_prompt: An optional system prompt string.
+#: - Returns: An async iterator yielding StreamChunk objects.
+#:
+#: If the function signature changes, update this type alias and its documentation accordingly.
+StreamFunc: typing.TypeAlias = typing.Callable[
+    ["OpenRouterService", str, list["ChatMessage"], str | None],
+    typing.AsyncIterator["StreamChunk"],
+]
+
 
 _logger = logging.getLogger(__name__)
 
