@@ -106,6 +106,13 @@ class MsgspecWebSocketMiddleware:
     """Attach msgspec encoder/decoder to websocket requests."""
 
     def __init__(self, protocol: str = "json") -> None:
+        """Create middleware for encoding and decoding WebSocket payloads.
+
+        Parameters
+        ----------
+        protocol : str, optional
+            Encoding protocol to use. Only ``"json"`` is supported.
+        """
         if protocol != "json":
             raise ValueError(f"Unsupported msgspec protocol: {protocol}")
         self.encoder = msgspec_json.Encoder()

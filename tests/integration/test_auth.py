@@ -1,3 +1,4 @@
+"""Integration tests for authentication and session handling."""
 from __future__ import annotations
 
 import base64
@@ -25,6 +26,7 @@ type SessionFactory = typing.Callable[[], AsyncSession]
 async def test_login_sets_cookie(
     db_session_factory: SessionFactory,
 ) -> None:
+    """Valid credentials should set a session cookie."""
     app = create_app(db_session_factory=db_session_factory)
     credentials = base64.b64encode(b"admin:adminpass").decode()
     async with AsyncClient(
@@ -42,6 +44,7 @@ async def test_login_sets_cookie(
 async def test_login_rejects_bad_credentials(
     db_session_factory: SessionFactory,
 ) -> None:
+    """Incorrect credentials result in 401."""
     app = create_app(db_session_factory=db_session_factory)
     credentials = base64.b64encode(b"admin:wrong").decode()
     async with AsyncClient(
@@ -58,6 +61,7 @@ async def test_login_rejects_bad_credentials(
 async def test_protected_endpoint_requires_cookie(
     db_session_factory: SessionFactory,
 ) -> None:
+    """Protected endpoints require authentication."""
     app = create_app(db_session_factory=db_session_factory)
     async with AsyncClient(
         transport=ASGITransport(app=typing.cast("typing.Any", app)),  # pyright: ignore[reportUnknownArgumentType]
@@ -71,6 +75,7 @@ async def test_protected_endpoint_requires_cookie(
 async def test_empty_session_cookie_rejected(
     db_session_factory: SessionFactory,
 ) -> None:
+    """Empty session cookies are treated as invalid."""
     app = create_app(db_session_factory=db_session_factory)
     async with AsyncClient(
         transport=ASGITransport(app=typing.cast("typing.Any", app)),
@@ -86,6 +91,7 @@ async def test_chat_with_valid_session(
     httpx_mock: HTTPXMock,
     db_session_factory: SessionFactory,
 ) -> None:
+    """Chat endpoint works when a valid session is provided."""
     app = create_app(db_session_factory=db_session_factory)
     credentials = base64.b64encode(b"admin:adminpass").decode()
     httpx_mock.add_response(
@@ -118,6 +124,7 @@ async def test_chat_with_valid_session(
 async def test_health_does_not_require_auth(
     db_session_factory: SessionFactory,
 ) -> None:
+    """Health checks should be accessible without authentication."""
     app = create_app(db_session_factory=db_session_factory)
     async with AsyncClient(
         transport=ASGITransport(app=typing.cast("typing.Any", app)),  # pyright: ignore[reportUnknownArgumentType]

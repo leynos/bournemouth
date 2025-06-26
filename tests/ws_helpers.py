@@ -1,20 +1,18 @@
-"""
-Light-weight utilities for asserting against WebSocket streams in pytest.
+"""Utilities for asserting against WebSocket streams in pytest.
 
-Key idea
---------
-Spin up a background *pump* task that feeds every incoming frame into
-an asyncio.Queue.  Tests interact purely with that queue, so we never
-block the event-loop on an unknown recv() - and we only apply a
-deadline once per logical expectation, not on every frame.
+Spin up a background *pump* task that feeds every incoming frame into an
+``asyncio.Queue``. Tests interact with that queue so the event loop is never
+blocked waiting for a frame and deadlines are applied once per expectation.
 
 Usage
 -----
+```
 async with ws_collector(ws) as coll:
     await ws.send_json({"prompt": "Hello"})
     msgs = await coll.collect_until(lambda m: m.get("event") == "done")
     assert "".join(m["content"] for m in msgs if m["event"] == "chunk") \
-           .startswith("Hello")
+        .startswith("Hello")
+```
 
 Licence: ISC (same as project)
 """
@@ -134,5 +132,6 @@ class _Pump:
 
 @contextlib.asynccontextmanager
 async def ws_collector(ws: Any) -> AsyncIterator[_Pump]:
+    """Collect messages from a WebSocket into a queue."""
     async with _Pump(ws) as pump:
         yield pump

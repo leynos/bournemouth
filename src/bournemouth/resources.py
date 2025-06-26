@@ -48,7 +48,10 @@ _logger = logging.getLogger(__name__)
 _MISSING_USER_ERROR = "on_connect must be called before handle_chat"
 
 
+
 class HttpMessage(Struct):
+    """A chat message received via HTTP."""
+
     role: Role
     content: str
 
@@ -62,6 +65,8 @@ class ChatRequest(Struct):
 
 
 class TokenRequest(Struct):
+    """Payload for saving an OpenRouter API token."""
+
     api_key: str
 
 
@@ -89,6 +94,17 @@ class ChatResource:
         *,
         stream_answer_func: StreamFunc = stream_answer,
     ) -> None:
+        """Create a new ``ChatResource``.
+
+        Parameters
+        ----------
+        service : OpenRouterService
+            Client used to communicate with OpenRouter.
+        session_factory : Callable[[], AsyncSession]
+            Callable returning an :class:`AsyncSession`.
+        stream_answer_func : Callable
+            Callable to stream chat completions.
+        """
         self._service = service
         self._session_factory = session_factory
         self._stream_answer = stream_answer_func
@@ -100,6 +116,7 @@ class ChatResource:
         *,
         body: ChatRequest,
     ) -> None:
+        """Handle a chat request and return a response."""
         # Convert HttpMessage to ChatMessage for compatibility
         chat_history: list[ChatMessage] | None = None
         if body.history:
@@ -126,6 +143,8 @@ class ChatResource:
     async def on_websocket(
         self, req: falcon.asgi.Request, ws: falcon.asgi.WebSocket
     ) -> None:
+        """Stream chat responses over WebSocket."""
+        
         encoder: MsgEncoder = typing.cast("MsgEncoder", req.context.msgspec_encoder)
         decoder = msgspec_json.Decoder(ChatWsRequest)
         await ws.accept()
@@ -210,10 +229,19 @@ class ChatWsPachinkoResource(WebSocketResource):  # pyright: ignore[reportUntype
     ) -> bool:
         """Accept the connection and store the user.
 
+        Parameters
+        ----------
+        req : falcon.asgi.Request
+            The handshake request.
+        ws : falcon.asgi.WebSocket
+            The WebSocket being connected.
+        **_ : typing.Any
+            Additional arguments ignored.
+
         Returns
         -------
         bool
-            ``True`` to confirm that the connection should remain open.
+            ``True`` to keep the connection open.
         """
         self._send_lock = asyncio.Lock()
         self._user = typing.cast("str", req.context["user"])
@@ -264,6 +292,15 @@ class ChatStateResource:
         service: OpenRouterService,
         session_factory: typing.Callable[[], AsyncSession],
     ) -> None:
+        """Create a new ``ChatStateResource``.
+
+        Parameters
+        ----------
+        service : OpenRouterService
+            Client used to communicate with OpenRouter.
+        session_factory : Callable[[], AsyncSession]
+            Callable returning an :class:`AsyncSession`.
+        """
         self._service = service
         self._session_factory = session_factory
 
@@ -274,6 +311,7 @@ class ChatStateResource:
         *,
         body: ChatStateRequest,
     ) -> None:
+        """Process a stateful chat request."""
         user_sub = typing.cast("str", req.context["user"])
         user_id, api_key = await load_user_and_api_key(self._session_factory, user_sub)
         if api_key is None:
@@ -343,6 +381,13 @@ class OpenRouterTokenResource:
     POST_SCHEMA = TokenRequest
 
     def __init__(self, session_factory: typing.Callable[[], AsyncSession]) -> None:
+        """Create a new ``OpenRouterTokenResource``.
+
+        Parameters
+        ----------
+        session_factory : Callable[[], AsyncSession]
+            Callable returning an :class:`AsyncSession`.
+        """
         self._session_factory = session_factory
 
     async def on_post(
@@ -352,6 +397,7 @@ class OpenRouterTokenResource:
         *,
         body: TokenRequest,
     ) -> None:
+        """Save the provided API token for the current user."""
         api_value = body.api_key.strip()
         token_bytes = api_value.encode() if api_value else None
 
@@ -376,5 +422,6 @@ class HealthResource:
     """Basic health check."""
 
     async def on_get(self, req: falcon.Request, resp: falcon.Response) -> None:
+        """Return a simple health status payload."""
         del req  # Unused parameter
         resp.media = {"status": "ok"}

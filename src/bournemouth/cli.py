@@ -1,3 +1,5 @@
+"""Command line interface helpers for the chat server."""
+
 from __future__ import annotations
 
 import dataclasses as dc
@@ -58,6 +60,7 @@ async def _login_request(session: Session, username: str, password: str) -> str:
 
 
 async def token_request(session: Session, token: str) -> bool:
+    """Send a token to the server and return whether it was stored."""
     resp = await _post(
         session,
         "/auth/openrouter-token",
@@ -69,6 +72,7 @@ async def token_request(session: Session, token: str) -> bool:
 async def chat_request(
     session: Session, message: str, history: list[dict[str, str]]
 ) -> str:
+    """Send a chat request and return the assistant's reply."""
     resp = await _post(
         session,
         "/chat",
@@ -83,6 +87,7 @@ async def chat_request(
 async def perform_login(
     host: str, username: str, password: str, cookie_file: Path = COOKIE_PATH
 ) -> str:
+    """Log in to the server and persist the session cookie."""
     cookie = await _login_request(Session(host), username, password)
     cookie_file.write_text(cookie)
     if os.name == "posix":

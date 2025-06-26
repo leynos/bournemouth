@@ -13,6 +13,15 @@ class SessionManager:
     """Create and verify session cookies."""
 
     def __init__(self, secret: str, timeout: int) -> None:
+        """Initialize the manager with a secret and timeout.
+
+        Parameters
+        ----------
+        secret : str
+            Secret key used to sign cookies.
+        timeout : int
+            Expiration time in seconds.
+        """
         self._serializer = URLSafeTimedSerializer(secret)
         self.timeout = timeout
 

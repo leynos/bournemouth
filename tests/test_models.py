@@ -1,3 +1,4 @@
+"""Tests for SQLAlchemy models."""
 from __future__ import annotations
 
 import uuid
@@ -19,6 +20,7 @@ from bournemouth.models import (
 
 
 def test_metadata_creates_tables() -> None:
+    """Metadata should create all expected tables."""
     engine = sa.create_engine("sqlite:///:memory:")
     Base.metadata.create_all(engine)
     inspector = sa.inspect(engine)
@@ -34,6 +36,7 @@ def test_metadata_creates_tables() -> None:
 
 
 def test_insert_user_and_message() -> None:
+    """Inserting a user and messages should persist rows."""
     engine = sa.create_engine("sqlite:///:memory:")
     Base.metadata.create_all(engine)
     with Session(engine) as session:
@@ -52,6 +55,7 @@ def test_insert_user_and_message() -> None:
 
 
 def test_unique_constraints() -> None:
+    """Duplicate values should raise ``IntegrityError``."""
     engine = sa.create_engine("sqlite:///:memory:")
     Base.metadata.create_all(engine)
     with Session(engine) as session:
@@ -70,6 +74,7 @@ def test_unique_constraints() -> None:
 
 
 def test_persistence_other_models() -> None:
+    """Other models can be inserted and retrieved."""
     engine = sa.create_engine("sqlite:///:memory:")
     Base.metadata.create_all(engine)
     with Session(engine) as session:

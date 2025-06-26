@@ -1,3 +1,4 @@
+"""Tests for the OpenRouter client implementation."""
 from __future__ import annotations
 
 import typing
@@ -39,6 +40,7 @@ CHAT_COMPLETIONS_URL = f"{DEFAULT_BASE_URL.rstrip('/')}{CHAT_COMPLETIONS_PATH}"
 
 @pytest.fixture
 def add_chat_response(httpx_mock: HTTPXMock) -> typing.Any:
+    """Return a helper to add a canned chat response."""
     def _add_response(**kwargs: typing.Any) -> None:
         httpx_mock.add_response(method="POST", url=CHAT_COMPLETIONS_URL, **kwargs)
 
@@ -47,6 +49,7 @@ def add_chat_response(httpx_mock: HTTPXMock) -> typing.Any:
 
 @pytest.fixture
 def add_chat_callback(httpx_mock: HTTPXMock) -> typing.Any:
+    """Return a helper to register a callback for chat requests."""
     def _add_callback(
         handler: cabc.Callable[[httpx.Request], httpx.Response], **kwargs: typing.Any
     ) -> None:
@@ -61,6 +64,7 @@ def add_chat_callback(httpx_mock: HTTPXMock) -> typing.Any:
 async def test_create_chat_completion_success(
     httpx_mock: HTTPXMock, add_chat_callback: cabc.Callable[..., None]
 ) -> None:
+    """Successful requests should return parsed completion data."""
     content = {
         "id": "1",
         "object": "chat.completion",
@@ -95,6 +99,7 @@ async def test_create_chat_completion_success(
 async def test_non_success_status_raises(
     httpx_mock: HTTPXMock, add_chat_response: cabc.Callable[..., None]
 ) -> None:
+    """HTTP errors from the API map to custom exceptions."""
     add_chat_response(
         status_code=HTTPStatus.UNAUTHORIZED,
         json={"error": {"message": "bad", "code": "invalid_key"}},
@@ -113,6 +118,7 @@ async def test_non_success_status_raises(
 async def test_invalid_request_status_raises(
     httpx_mock: HTTPXMock, add_chat_response: cabc.Callable[..., None]
 ) -> None:
+    """Invalid request errors raise ``OpenRouterInvalidRequestError``."""
     add_chat_response(
         status_code=HTTPStatus.BAD_REQUEST,
         json={"error": {"message": "nope"}},
@@ -131,6 +137,7 @@ async def test_invalid_request_status_raises(
 async def test_streaming_yields_chunks(
     httpx_mock: HTTPXMock, add_chat_response: cabc.Callable[..., None]
 ) -> None:
+    """Streaming responses should yield parsed chunks."""
     content = (
         b'data: {"id": "1", "object": "chat.completion.chunk", "created": 1,'
         b' "model": "m", "choices": [{"index": 0, "delta": {"content": "hi"}}]}\n'
@@ -156,6 +163,7 @@ async def test_streaming_yields_chunks(
 async def test_streaming_error_status(
     httpx_mock: HTTPXMock, add_chat_response: cabc.Callable[..., None]
 ) -> None:
+    """Streaming with an error status raises ``OpenRouterRateLimitError``."""
     add_chat_response(
         status_code=HTTPStatus.TOO_MANY_REQUESTS,
         json={"error": {"message": "slow down"}},
@@ -176,6 +184,7 @@ async def test_streaming_error_status(
 async def test_client_closes_on_exit(
     httpx_mock: HTTPXMock, add_chat_response: cabc.Callable[..., None]
 ) -> None:
+    """Client sessions should close and reject new requests."""
     add_chat_response(
         json={
             "id": "1",
@@ -201,6 +210,7 @@ async def test_client_closes_on_exit(
 
 @pytest.mark.asyncio
 async def test_network_error_maps_to_client_error(httpx_mock: HTTPXMock) -> None:
+    """Network errors raise ``OpenRouterNetworkError``."""
     httpx_mock.add_exception(
         method="POST",
         url=CHAT_COMPLETIONS_URL,
@@ -220,6 +230,7 @@ async def test_network_error_maps_to_client_error(httpx_mock: HTTPXMock) -> None
 
 @pytest.mark.asyncio
 async def test_timeout_error_maps_to_timeout_exception(httpx_mock: HTTPXMock) -> None:
+    """Timeout errors raise ``OpenRouterTimeoutError``."""
     httpx_mock.add_exception(
         method="POST",
         url=CHAT_COMPLETIONS_URL,
@@ -241,6 +252,7 @@ async def test_timeout_error_maps_to_timeout_exception(httpx_mock: HTTPXMock) ->
 async def test_create_chat_completion_ignores_stream_true(
     httpx_mock: HTTPXMock, add_chat_callback: cabc.Callable[..., None]
 ) -> None:
+    """Non-stream requests should override ``stream`` in payload."""
     content = {
         "id": "1",
         "object": "chat.completion",
@@ -270,6 +282,7 @@ async def test_create_chat_completion_ignores_stream_true(
 async def test_stream_chat_completion_sets_stream_true(
     httpx_mock: HTTPXMock, add_chat_callback: cabc.Callable[..., None]
 ) -> None:
+    """Streaming API requests should send ``stream=True``."""
     content = (
         b'data: {"id": "1", "object": "chat.completion.chunk", "created": 1, '
         b'"model": "m", "choices": [{"index": 0, "delta": {"content": "hi"}}]}\n'
@@ -301,6 +314,7 @@ async def test_stream_chat_completion_sets_stream_true(
 async def test_insufficient_credits_error(
     httpx_mock: HTTPXMock, add_chat_response: cabc.Callable[..., None]
 ) -> None:
+    """Payment required responses raise ``OpenRouterInsufficientCreditsError``."""
     add_chat_response(
         status_code=HTTPStatus.PAYMENT_REQUIRED,
         json={"error": {"message": "pay up"}},
@@ -319,6 +333,7 @@ async def test_insufficient_credits_error(
 async def test_permission_error(
     httpx_mock: HTTPXMock, add_chat_response: cabc.Callable[..., None]
 ) -> None:
+    """Forbidden responses raise ``OpenRouterPermissionError``."""
     add_chat_response(
         status_code=HTTPStatus.FORBIDDEN,
         json={"error": {"message": "no"}},
@@ -337,6 +352,7 @@ async def test_permission_error(
 async def test_server_error(
     httpx_mock: HTTPXMock, add_chat_response: cabc.Callable[..., None]
 ) -> None:
+    """Server errors raise ``OpenRouterServerError``."""
     add_chat_response(
         status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
         json={"error": {"message": "boom"}},
@@ -355,6 +371,7 @@ async def test_server_error(
 async def test_invalid_json_raises_validation_error(
     httpx_mock: HTTPXMock, add_chat_response: cabc.Callable[..., None]
 ) -> None:
+    """Invalid JSON responses raise validation errors."""
     add_chat_response(content=b"{bad json}")
 
     async with OpenRouterAsyncClient(api_key="k") as client:
@@ -370,6 +387,7 @@ async def test_invalid_json_raises_validation_error(
 async def test_stream_invalid_chunk_raises_validation_error(
     httpx_mock: HTTPXMock, add_chat_response: cabc.Callable[..., None]
 ) -> None:
+    """Invalid streamed chunks raise validation errors."""
     content = b"data: {bad json}\n"
 
     add_chat_response(
@@ -389,6 +407,7 @@ async def test_stream_invalid_chunk_raises_validation_error(
 
 
 def test_chat_message_validation_errors() -> None:
+    """ChatMessage should validate role and content types."""
     with pytest.raises(ValueError):
         ChatMessage(role="tool", content="x")
     with pytest.raises(ValueError):

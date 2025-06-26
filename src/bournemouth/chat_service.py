@@ -68,7 +68,6 @@ async def load_user_and_api_key(
     user_sub: str,
 ) -> tuple[uuid.UUID, str | None]:
     """Return the user's ID and decrypted OpenRouter API key."""
-
     async with session_factory() as session:
         stmt = select(UserAccount.id, UserAccount.openrouter_token_enc).where(
             UserAccount.google_sub == user_sub
@@ -93,7 +92,6 @@ async def generate_answer(
     model: str | None,
 ) -> str:
     """Call the chat service and return the assistant's reply."""
-
     async with _convert_service_errors():
         completion = await chat_with_service(service, api_key, messages, model=model)
 
@@ -109,7 +107,6 @@ async def stream_answer(
     model: str | None,
 ) -> typing.AsyncIterator[StreamChunk]:
     """Yield streamed chat chunks while mapping service errors to HTTP errors."""
-
     async with _convert_service_errors():
         async for chunk in stream_chat_with_service(
             service, api_key, messages, model=model
@@ -123,7 +120,6 @@ async def get_or_create_conversation(
     user_id: uuid.UUID,
 ) -> Conversation:
     """Return an existing conversation or create a new one."""
-
     conv: Conversation | None = None
     if conv_id is not None:
         conv = await session.get(Conversation, conv_id)
@@ -144,7 +140,6 @@ async def list_conversation_messages(
     conv_id: uuid.UUID,
 ) -> list[Message]:
     """Return messages for ``conv_id`` ordered by creation time."""
-
     stmt = (
         select(Message)
         .where(Message.conversation_id == conv_id)

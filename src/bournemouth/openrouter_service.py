@@ -154,11 +154,11 @@ class OpenRouterService:
 
         Parameters
         ----------
-        api_key:
+        api_key : str
             OpenRouter API key to authenticate the request.
-        messages:
+        messages : list[ChatMessage]
             Conversation history to send to the API.
-        model:
+        model : str or None, optional
             Optional model override.
 
         Returns
@@ -184,11 +184,11 @@ class OpenRouterService:
 
         Parameters
         ----------
-        api_key:
+        api_key : str
             OpenRouter API key to authenticate the request.
-        messages:
+        messages : list[ChatMessage]
             Conversation history to send to the API.
-        model:
+        model : str or None, optional
             Optional model override.
 
         Yields
@@ -229,13 +229,13 @@ async def chat_with_service(
 
     Parameters
     ----------
-    service:
+    service : OpenRouterService
         Service instance used to perform the request.
-    api_key:
+    api_key : str
         OpenRouter API key for authentication.
-    messages:
+    messages : list[ChatMessage]
         Conversation history to send to the API.
-    model:
+    model : str or None, optional
         Optional model override.
 
     Returns
@@ -248,7 +248,7 @@ async def chat_with_service(
     OpenRouterServiceTimeoutError
         If the request times out.
     OpenRouterServiceBadGatewayError
-        When OpenRouter returns a network, server, or API-level error.
+        When OpenRouter returns a network or server error.
     """
     try:
         return await service.chat_completion(api_key, messages, model=model)
@@ -269,13 +269,13 @@ async def stream_chat_with_service(
 
     Parameters
     ----------
-    service:
+    service : OpenRouterService
         Service instance used to perform the request.
-    api_key:
+    api_key : str
         OpenRouter API key for authentication.
-    messages:
+    messages : list[ChatMessage]
         Conversation history to send to the API.
-    model:
+    model : str or None, optional
         Optional model override.
 
     Yields
@@ -288,7 +288,7 @@ async def stream_chat_with_service(
     OpenRouterServiceTimeoutError
         If the request times out.
     OpenRouterServiceBadGatewayError
-        When OpenRouter returns a network, server, or API-level error.
+        When OpenRouter returns a network or server error.
     """
     try:
         async for chunk in service.stream_chat_completion(

@@ -16,11 +16,15 @@ except ImportError:  # pragma: no cover
 def uuid7(*, return_type: str | None = None) -> uuid.UUID | str:
     """Return a UUIDv7 identifier or a string representation.
 
-    Args:
-        return_type: Specify ``"uuid"`` to return a :class:`uuid.UUID` object,
-            anything else yields the hex string.
+    Parameters
+    ----------
+    return_type : str or None, optional
+        Specify ``"uuid"`` to return a :class:`uuid.UUID` object. Anything else
+        yields the hex string.
 
-    Returns:
+    Returns
+    -------
+    uuid.UUID or str
         A UUID object or string value depending on ``return_type``.
     """
     u = _uuid7()

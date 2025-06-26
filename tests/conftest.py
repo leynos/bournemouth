@@ -1,3 +1,4 @@
+"""Shared pytest fixtures for the test suite."""
 import sys
 import typing
 from pathlib import Path
@@ -22,6 +23,7 @@ pytest_plugins = ["pytest_httpx"]
 async def db_session_factory() -> typing.AsyncIterator[
     typing.Callable[[], AsyncSession]
 ]:
+    """Yield a factory that provides a new database session."""
     engine = create_async_engine("sqlite+aiosqlite:///:memory:")
     async_session_factory = async_sessionmaker(engine, expire_on_commit=False)
     async with engine.begin() as conn, async_session_factory() as session:
