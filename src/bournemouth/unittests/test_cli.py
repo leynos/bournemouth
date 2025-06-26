@@ -1,3 +1,4 @@
+"""Unit tests for CLI helper functions."""
 from __future__ import annotations
 
 import json
@@ -20,6 +21,7 @@ if typing.TYPE_CHECKING:
 
 @pytest.mark.asyncio  # pyright: ignore[reportUntypedFunctionDecorator]
 async def test_login_saves_cookie(httpx_mock: HTTPXMock, tmp_path: Path) -> None:
+    """Login should store the session cookie on disk."""
     cookie_file = tmp_path / "cookie"
     httpx_mock.add_response(
         method="POST",
@@ -39,6 +41,7 @@ async def test_login_saves_cookie(httpx_mock: HTTPXMock, tmp_path: Path) -> None
 
 @pytest.mark.asyncio  # pyright: ignore[reportUntypedFunctionDecorator]
 async def test_token_posts_correctly(httpx_mock: HTTPXMock) -> None:
+    """Token requests should post the API key with the session cookie."""
     httpx_mock.add_response(
         method="POST",
         url="http://localhost:8000/auth/openrouter-token",
@@ -57,6 +60,7 @@ async def test_token_posts_correctly(httpx_mock: HTTPXMock) -> None:
 
 @pytest.mark.asyncio  # pyright: ignore[reportUntypedFunctionDecorator]
 async def test_chat_sends_history(httpx_mock: HTTPXMock) -> None:
+    """Chat requests should include message history."""
     httpx_mock.add_response(
         method="POST",
         url="http://localhost:8000/chat",

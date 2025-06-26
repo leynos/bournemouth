@@ -336,7 +336,7 @@ def _map_status_to_error(status: int) -> type[OpenRouterAPIError]:
 
     Parameters
     ----------
-    status:
+    status : int
         HTTP status code returned by the API.
 
     Returns
@@ -477,7 +477,7 @@ class OpenRouterAsyncClient:
 
         Parameters
         ----------
-        request:
+        request : ChatCompletionRequest
             Data structure describing the completion request.
 
         Returns
@@ -503,7 +503,7 @@ class OpenRouterAsyncClient:
 
         Parameters
         ----------
-        request:
+        request : ChatCompletionRequest
             Data structure describing the completion request.
 
         Yields

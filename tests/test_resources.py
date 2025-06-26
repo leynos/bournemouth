@@ -1,3 +1,4 @@
+"""Integration tests for REST resources."""
 from __future__ import annotations
 
 import typing
@@ -23,6 +24,7 @@ from bournemouth.models import UserAccount
 
 @pytest.fixture()
 def app(db_session_factory: typing.Callable[[], AsyncSession]) -> asgi.App:
+    """Create an application instance for testing."""
     return create_app(db_session_factory=db_session_factory)
 
 
@@ -37,6 +39,7 @@ async def _login(client: AsyncClient) -> None:
 
 @pytest.mark.asyncio
 async def test_chat_returns_answer(app: asgi.App, httpx_mock: HTTPXMock) -> None:
+    """The chat endpoint should return the assistant's answer."""
     httpx_mock.add_response(
         method="POST",
         url="https://openrouter.ai/api/v1/chat/completions",
@@ -63,6 +66,7 @@ async def test_chat_returns_answer(app: asgi.App, httpx_mock: HTTPXMock) -> None
 
 @pytest.mark.asyncio
 async def test_chat_missing_message(app: asgi.App) -> None:
+    """Requests without a message should fail validation."""
     async with AsyncClient(
         transport=ASGITransport(app=typing.cast("typing.Any", app)),
         base_url="https://test",
@@ -76,6 +80,7 @@ async def test_chat_missing_message(app: asgi.App) -> None:
 async def test_store_token(
     app: asgi.App, db_session_factory: typing.Callable[[], AsyncSession]
 ) -> None:
+    """Persist an API token for the authenticated user."""
     async with AsyncClient(
         transport=ASGITransport(app=typing.cast("typing.Any", app)),
         base_url="https://test",
@@ -98,6 +103,7 @@ async def test_store_token(
 
 @pytest.mark.asyncio
 async def test_store_token_missing_key(app: asgi.App) -> None:
+    """Omitting the token should return a validation error."""
     async with AsyncClient(
         transport=ASGITransport(app=typing.cast("typing.Any", app)),
         base_url="https://test",
@@ -109,6 +115,7 @@ async def test_store_token_missing_key(app: asgi.App) -> None:
 
 @pytest.mark.asyncio
 async def test_store_token_non_string(app: asgi.App) -> None:
+    """Non-string tokens should be rejected."""
     async with AsyncClient(
         transport=ASGITransport(app=typing.cast("typing.Any", app)),
         base_url="https://test",
@@ -122,6 +129,7 @@ async def test_store_token_non_string(app: asgi.App) -> None:
 async def test_store_token_empty_string(
     app: asgi.App, db_session_factory: typing.Callable[[], AsyncSession]
 ) -> None:
+    """Empty strings should clear the stored token."""
     async with AsyncClient(
         transport=ASGITransport(app=typing.cast("typing.Any", app)),
         base_url="https://test",
@@ -144,6 +152,7 @@ async def test_store_token_empty_string(
 
 @pytest.mark.asyncio
 async def test_chat_empty_choices(app: asgi.App, httpx_mock: HTTPXMock) -> None:
+    """A lack of choices from the service results in a 502 response."""
     httpx_mock.add_response(
         method="POST",
         url="https://openrouter.ai/api/v1/chat/completions",
@@ -169,6 +178,7 @@ async def test_chat_empty_choices(app: asgi.App, httpx_mock: HTTPXMock) -> None:
 async def test_chat_missing_token(
     app: asgi.App, db_session_factory: typing.Callable[[], AsyncSession]
 ) -> None:
+    """Missing OpenRouter token should yield a 401 response."""
     async with db_session_factory() as session:
         await session.execute(
             update(UserAccount)
@@ -190,6 +200,7 @@ async def test_chat_missing_token(
 async def test_chat_unexpected_error_returns_500(
     app: asgi.App, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    """Unexpected service errors should map to HTTP 500."""
     async def fail(*args: typing.Any, **kwargs: typing.Any) -> typing.Any:
         raise RuntimeError("boom")
 

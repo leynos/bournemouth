@@ -1,3 +1,5 @@
+"""Tests for the WebSocket chat endpoint."""
+
 import asyncio
 import base64
 import typing
@@ -20,11 +22,13 @@ type SessionFactory = typing.Callable[[], AsyncSession]
 
 @pytest.fixture()
 def app(db_session_factory: SessionFactory) -> asgi.App:
+    """Create an application instance for testing."""
     return create_app(db_session_factory=db_session_factory)
 
 
 @pytest.fixture()
 def conductor(app: asgi.App) -> testing.ASGIConductor:
+    """Return an ASGI conductor for WebSocket testing."""
     return testing.ASGIConductor(app)
 
 
@@ -97,6 +101,7 @@ def _patch_stream() -> typing.Callable[..., typing.AsyncIterator[StreamChunk]]:
 async def test_websocket_streams_chat(
     app: asgi.App, conductor: testing.ASGIConductor, httpx_mock: HTTPXMock
 ) -> None:
+    """Messages should be streamed to the client over WebSocket."""
     content = (
         b'data: {"id": "1", "object": "chat.completion.chunk", '
         b'"created": 1, "model": "m", "choices": [{"index": 0, '
@@ -134,6 +139,7 @@ async def test_websocket_streams_chat(
 async def test_websocket_multiplexes_requests(
     db_session_factory: SessionFactory,
 ) -> None:
+    """Multiple concurrent requests should receive independent streams."""
     fake_stream = _patch_stream()
     app = create_app(
         db_session_factory=db_session_factory,
