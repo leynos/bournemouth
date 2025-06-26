@@ -55,6 +55,7 @@ falcon-pachinko = { url = "https://github.com/leynos/falcon-pachinko/releases/do
 
 [tool.pyright]
 typeCheckingMode = "strict"
+pythonVersion = "3.13"
 reportMissingTypeStubs = false
 reportMissingModuleSource = false
 reportMissingImports = false

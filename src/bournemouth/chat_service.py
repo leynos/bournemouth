@@ -8,6 +8,7 @@ import typing
 
 import falcon
 from sqlalchemy import select
+
 from uuid_extensions import uuid7
 
 from .models import Conversation, Message, UserAccount
@@ -26,20 +27,19 @@ if typing.TYPE_CHECKING:  # pragma: no cover
 
     from .openrouter import ChatMessage, StreamChunk
 
-#: Type alias for the streaming function used in OpenRouterService.
-#: 
-#: StreamFunc represents an asynchronous callable with the following signature:
-#:   (service: OpenRouterService, model: str, messages: list[ChatMessage], system_prompt: str | None)
-#:     -> AsyncIterator[StreamChunk]
+#: Type alias for the streaming function used in ``OpenRouterService``.
 #:
-#: - service: The OpenRouterService instance invoking the function.
-#: - model: The model name to use for the chat.
-#: - messages: The list of chat messages to process.
-#: - system_prompt: An optional system prompt string.
-#: - Returns: An async iterator yielding StreamChunk objects.
+#: ``StreamFunc`` represents an async callable with the signature::
 #:
-#: If the function signature changes, update this type alias and its documentation accordingly.
-StreamFunc: typing.TypeAlias = typing.Callable[
+#:     (
+#:         service: OpenRouterService,
+#:         model: str,
+#:         messages: list[ChatMessage],
+#:         system_prompt: str | None,
+#:     ) -> AsyncIterator[StreamChunk]
+#:
+#: Update this alias and its docs if the signature ever changes.
+type StreamFunc = typing.Callable[
     ["OpenRouterService", str, list["ChatMessage"], str | None],
     typing.AsyncIterator["StreamChunk"],
 ]
@@ -54,13 +54,13 @@ async def _convert_service_errors() -> typing.AsyncIterator[None]:
         yield
     except OpenRouterServiceTimeoutError as exc:
         _logger.exception("timeout from OpenRouter", exc_info=exc)
-        raise falcon.HTTPGatewayTimeout() from exc
+        raise falcon.HTTPGatewayTimeout from exc
     except OpenRouterServiceBadGatewayError as exc:
         _logger.exception("bad gateway from OpenRouter", exc_info=exc)
         raise falcon.HTTPBadGateway(description=str(exc)) from exc
     except Exception as exc:  # pragma: no cover - unexpected failures
         _logger.exception("unexpected error from OpenRouter", exc_info=exc)
-        raise falcon.HTTPInternalServerError() from exc
+        raise falcon.HTTPInternalServerError from exc
 
 
 async def load_user_and_api_key(
@@ -124,7 +124,7 @@ async def get_or_create_conversation(
     if conv_id is not None:
         conv = await session.get(Conversation, conv_id)
         if conv is None or conv.user_id != user_id:
-            raise falcon.HTTPNotFound()
+            raise falcon.HTTPNotFound
     if conv is None:
         conv = Conversation(
             id=typing.cast("uuid.UUID", uuid7(return_type="uuid")),

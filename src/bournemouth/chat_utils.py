@@ -7,16 +7,16 @@ import logging
 import typing
 
 import falcon
-import msgspec
-from msgspec import json as msgspec_json
 
 from .chat_service import StreamFunc, stream_answer
-from .openrouter import ChatMessage, StreamChoice, StreamChunk
+from .openrouter import ChatMessage, StreamChoice
+from .types import Struct
 
 if typing.TYPE_CHECKING:  # pragma: no cover
     import asyncio
 
     from falcon.asgi import WebSocket
+    from msgspec import json as msgspec_json
 
     from .openrouter_service import OpenRouterService
 
@@ -31,10 +31,7 @@ __all__ = [
 _logger = logging.getLogger(__name__)
 
 
-Struct = msgspec.Struct  # pyright: ignore[reportUntypedBaseClass]
-
-
-class ChatWsRequest(Struct):
+class ChatWsRequest(Struct):  # pyright: ignore[reportUntypedBaseClass]
     """Request payload for websocket chat."""
 
     transaction_id: str
@@ -43,7 +40,7 @@ class ChatWsRequest(Struct):
     history: list[ChatMessage] | None = None
 
 
-class ChatWsResponse(Struct):
+class ChatWsResponse(Struct):  # pyright: ignore[reportUntypedBaseClass]
     """Response fragment sent over websocket."""
 
     transaction_id: str

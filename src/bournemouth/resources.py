@@ -10,7 +10,6 @@ import uuid  # noqa: TC003
 
 import falcon
 import falcon.asgi
-import msgspec
 from falcon_pachinko import WebSocketResource, handles_message
 from msgspec import json as msgspec_json
 from sqlalchemy import update
@@ -20,17 +19,13 @@ if typing.TYPE_CHECKING:  # pragma: no cover
 
     from .openrouter_service import OpenRouterService
 
-Struct = msgspec.Struct  # pyright: ignore[reportUntypedBaseClass]
-WebSocket = falcon.asgi.WebSocket  # pyright: ignore[reportUnknownArgumentType]
-MsgEncoder = msgspec_json.Encoder  # pyright: ignore[reportUnknownArgumentType]
-
 from .chat_service import (
+    StreamFunc,
     generate_answer,
     get_or_create_conversation,
     list_conversation_messages,
     load_user_and_api_key,
     stream_answer,
-    StreamFunc,
 )
 from .chat_utils import (
     ChatWsRequest,
@@ -40,23 +35,26 @@ from .chat_utils import (
     stream_chat_response,
 )
 from .models import Message, MessageRole, UserAccount
-from .openrouter import ChatMessage, Role, StreamChunk
+from .openrouter import ChatMessage, Role
 from .resource_helpers import get_api_key
+from .types import Struct
+
+type WebSocket = falcon.asgi.WebSocket  # pyright: ignore[reportUnknownArgumentType]
+type MsgEncoder = msgspec_json.Encoder  # pyright: ignore[reportUnknownArgumentType]
 
 _logger = logging.getLogger(__name__)
 
 _MISSING_USER_ERROR = "on_connect must be called before handle_chat"
 
 
-
-class HttpMessage(Struct):
+class HttpMessage(Struct):  # pyright: ignore[reportUntypedBaseClass]
     """A chat message received via HTTP."""
 
     role: Role
     content: str
 
 
-class ChatRequest(Struct):
+class ChatRequest(Struct):  # pyright: ignore[reportUntypedBaseClass]
     """Request body for the chat endpoint."""
 
     message: str
@@ -64,13 +62,13 @@ class ChatRequest(Struct):
     model: str | None = None
 
 
-class TokenRequest(Struct):
+class TokenRequest(Struct):  # pyright: ignore[reportUntypedBaseClass]
     """Payload for saving an OpenRouter API token."""
 
     api_key: str
 
 
-class ChatStateRequest(Struct):
+class ChatStateRequest(Struct):  # pyright: ignore[reportUntypedBaseClass]
     """Request body for the stateful chat endpoint."""
 
     message: str
@@ -121,8 +119,7 @@ class ChatResource:
         chat_history: list[ChatMessage] | None = None
         if body.history:
             chat_history = [
-                ChatMessage(role=msg.role, content=msg.content)
-                for msg in body.history
+                ChatMessage(role=msg.role, content=msg.content) for msg in body.history
             ]
         history = build_chat_history(body.message, chat_history)
         model = body.model
@@ -144,7 +141,6 @@ class ChatResource:
         self, req: falcon.asgi.Request, ws: falcon.asgi.WebSocket
     ) -> None:
         """Stream chat responses over WebSocket."""
-        
         encoder: MsgEncoder = typing.cast("MsgEncoder", req.context.msgspec_encoder)
         decoder = msgspec_json.Decoder(ChatWsRequest)
         await ws.accept()
@@ -173,8 +169,8 @@ class ChatResource:
                 return
             cfg = StreamConfig(
                 self._service,
-                ws,
-                encoder,
+                typing.cast("WebSocket", ws),  # pyright: ignore[reportUnknownArgumentType]
+                typing.cast("MsgEncoder", encoder),  # pyright: ignore[reportUnknownArgumentType]
                 send_lock,
                 api_key,
                 request.model,
@@ -187,7 +183,9 @@ class ChatResource:
                 raw = await ws.receive_text()
                 raw_bytes: bytes = raw.encode()
                 decoded_request = decoder.decode(raw_bytes)
-                task = asyncio.create_task(handle(decoded_request))
+                task = asyncio.create_task(
+                    handle(typing.cast("ChatWsRequest", decoded_request))
+                )  # pyright: ignore[reportUnknownArgumentType]
                 tasks.add(task)
                 task.add_done_callback(_finalize_task)
         except falcon.WebSocketDisconnected:
@@ -248,7 +246,6 @@ class ChatWsPachinkoResource(WebSocketResource):  # pyright: ignore[reportUntype
         await ws.accept()
         return True
 
-
     @handles_message("chat")  # pyright: ignore[reportUntypedFunctionDecorator]
     async def handle_chat(
         self, ws: falcon.asgi.WebSocket, payload: ChatWsRequest
@@ -273,8 +270,8 @@ class ChatWsPachinkoResource(WebSocketResource):  # pyright: ignore[reportUntype
             return
         cfg = StreamConfig(
             self._service,
-            ws,
-            self._encoder,
+            typing.cast("WebSocket", ws),  # pyright: ignore[reportUnknownArgumentType]
+            typing.cast("MsgEncoder", self._encoder),  # pyright: ignore[reportUnknownArgumentType]
             self._send_lock,
             api_key,
             payload.model,
