@@ -20,9 +20,7 @@ if typing.TYPE_CHECKING:  # pragma: no cover
 
     from .openrouter_service import OpenRouterService
 
-Struct = msgspec.Struct  # pyright: ignore[reportUntypedBaseClass]
-WebSocket = falcon.asgi.WebSocket  # pyright: ignore[reportUnknownArgumentType]
-MsgEncoder = msgspec_json.Encoder  # pyright: ignore[reportUnknownArgumentType]
+from .types import Struct
 
 from .chat_service import (
     generate_answer,
@@ -43,10 +41,12 @@ from .models import Message, MessageRole, UserAccount
 from .openrouter import ChatMessage, Role, StreamChunk
 from .resource_helpers import get_api_key
 
+WebSocket = falcon.asgi.WebSocket  # pyright: ignore[reportUnknownArgumentType]
+MsgEncoder = msgspec_json.Encoder  # pyright: ignore[reportUnknownArgumentType]
+
 _logger = logging.getLogger(__name__)
 
 _MISSING_USER_ERROR = "on_connect must be called before handle_chat"
-
 
 
 class HttpMessage(Struct):
@@ -121,8 +121,7 @@ class ChatResource:
         chat_history: list[ChatMessage] | None = None
         if body.history:
             chat_history = [
-                ChatMessage(role=msg.role, content=msg.content)
-                for msg in body.history
+                ChatMessage(role=msg.role, content=msg.content) for msg in body.history
             ]
         history = build_chat_history(body.message, chat_history)
         model = body.model
@@ -144,7 +143,7 @@ class ChatResource:
         self, req: falcon.asgi.Request, ws: falcon.asgi.WebSocket
     ) -> None:
         """Stream chat responses over WebSocket."""
-        
+
         encoder: MsgEncoder = typing.cast("MsgEncoder", req.context.msgspec_encoder)
         decoder = msgspec_json.Decoder(ChatWsRequest)
         await ws.accept()
@@ -247,7 +246,6 @@ class ChatWsPachinkoResource(WebSocketResource):  # pyright: ignore[reportUntype
         self._user = typing.cast("str", req.context["user"])
         await ws.accept()
         return True
-
 
     @handles_message("chat")  # pyright: ignore[reportUntypedFunctionDecorator]
     async def handle_chat(

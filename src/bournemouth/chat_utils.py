@@ -10,6 +10,8 @@ import falcon
 import msgspec
 from msgspec import json as msgspec_json
 
+from .types import Struct
+
 from .chat_service import StreamFunc, stream_answer
 from .openrouter import ChatMessage, StreamChoice, StreamChunk
 
@@ -29,9 +31,6 @@ __all__ = [
 ]
 
 _logger = logging.getLogger(__name__)
-
-
-Struct = msgspec.Struct  # pyright: ignore[reportUntypedBaseClass]
 
 
 class ChatWsRequest(Struct):
