@@ -67,10 +67,10 @@ class _Pump:
                 raw = await self.ws.receive_text()
                 try:
                     msg = json.loads(raw)
-                except Exception:
+                except json.JSONDecodeError:
                     msg = raw
                 await self.q.put(msg)
-        except Exception:  # pragma: no cover - defensive
+        except (ConnectionError, OSError, RuntimeError):  # pragma: no cover - defensive
             _logger.debug(
                 "WebSocket pump terminated due to exception",
                 exc_info=True,
