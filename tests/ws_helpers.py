@@ -19,9 +19,9 @@ Licence: ISC (same as project)
 from __future__ import annotations
 
 import asyncio
-import collections.abc
+import collections.abc as cabc
 import contextlib
-import dataclasses
+import dataclasses as dc
 import json
 import logging
 import types
@@ -29,7 +29,7 @@ import typing
 
 _logger = logging.getLogger(__name__)
 
-_T = collections.abc.Callable[[typing.Any], bool]
+_T = cabc.Callable[[typing.Any], bool]
 
 
 class DeadlineReachedError(TimeoutError):
@@ -39,11 +39,11 @@ class DeadlineReachedError(TimeoutError):
         super().__init__("deadline reached")
 
 
-@dataclasses.dataclass(slots=True)
+@dc.dataclass(slots=True)
 class _Pump:
     ws: typing.Any
-    q: asyncio.Queue[typing.Any] = dataclasses.field(default_factory=asyncio.Queue)
-    done: asyncio.Event = dataclasses.field(default_factory=asyncio.Event)
+    q: asyncio.Queue[typing.Any] = dc.field(default_factory=asyncio.Queue)
+    done: asyncio.Event = dc.field(default_factory=asyncio.Event)
     _task: asyncio.Task[None] | None = None
 
     async def __aenter__(self) -> typing.Self:
@@ -138,7 +138,7 @@ class _Pump:
 
 
 @contextlib.asynccontextmanager
-async def ws_collector(ws: typing.Any) -> collections.abc.AsyncIterator[_Pump]:
+async def ws_collector(ws: typing.Any) -> cabc.AsyncIterator[_Pump]:
     """Collect messages from a WebSocket into a queue."""
     async with _Pump(ws) as pump:
         yield pump
