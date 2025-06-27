@@ -11,6 +11,8 @@ if typing.TYPE_CHECKING:  # pragma: no cover
 
 __all__ = ["handle_http_error", "handle_unexpected_error"]
 
+_logger = logging.getLogger(__name__)
+
 
 async def handle_http_error(
     req: Request,
@@ -30,7 +32,7 @@ async def handle_unexpected_error(
     params: dict[str, typing.Any],
 ) -> None:
     """Handle uncaught exceptions with a generic JSON payload."""
-    logging.exception("unhandled error", exc_info=exc)
+    _logger.exception("unhandled error", exc_info=exc)
     resp.status = HTTPStatus.INTERNAL_SERVER_ERROR
     resp.media = {
         "title": (
