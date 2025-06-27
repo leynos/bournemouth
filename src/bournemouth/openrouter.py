@@ -109,9 +109,9 @@ class ChatMessage(msgspec.Struct):
     def __post_init__(self) -> None:  # pragma: no cover - executed by msgspec
         """Validate message content and metadata."""
         if self.role == "tool" and not self.tool_call_id:
-            raise InvalidToolMessageError()
+            raise InvalidToolMessageError
         if self.role != "user" and isinstance(self.content, list):
-            raise InvalidContentPartsError()
+            raise InvalidContentPartsError
 
 
 class FunctionDescription(msgspec.Struct):
@@ -520,7 +520,7 @@ class OpenRouterAsyncClient:
 
     async def _post(self, path: str, *, content: bytes) -> httpx.Response:
         if not self._client:
-            raise ClientNotInitializedError()
+            raise ClientNotInitializedError
         try:
             return await self._client.post(path, content=content)
         except httpx.TimeoutException as e:
@@ -533,7 +533,7 @@ class OpenRouterAsyncClient:
         self, path: str, *, content: bytes
     ) -> cabc.AsyncIterator[httpx.Response]:
         if not self._client:
-            raise ClientNotInitializedError()
+            raise ClientNotInitializedError
         try:
             async with self._client.stream("POST", path, content=content) as resp:
                 yield resp

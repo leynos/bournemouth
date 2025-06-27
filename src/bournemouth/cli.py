@@ -76,7 +76,7 @@ async def _post(
 async def _login_request(session: Session, username: str, password: str) -> str:
     resp = await _post(session, "/login", auth=(username, password))
     if not (cookie := resp.cookies.get("session")):
-        raise MissingSessionCookieError()
+        raise MissingSessionCookieError
     return cookie
 
 
@@ -199,10 +199,10 @@ def login(
 
 async def _token_form(session: Session, *, token: str) -> str | None:
     if session.cookie is None:
-        raise MissingSessionCookieError()
+        raise MissingSessionCookieError
     ok = await token_request(session, token)
     if not ok:
-        raise TokenSaveFailedError()
+        raise TokenSaveFailedError
     return "Token saved"
 
 

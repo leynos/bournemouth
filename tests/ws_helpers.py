@@ -87,14 +87,14 @@ class _Pump:
             return None
         left = deadline - asyncio.get_event_loop().time()
         if left <= 0:
-            raise DeadlineReachedError()
+            raise DeadlineReachedError
         return left
 
     async def _get_next(self, left: float | None) -> Any:
         try:
             return await self.next(timeout=left)
         except asyncio.TimeoutError as exc:  # pragma: no cover - defensive
-            raise DeadlineReachedError() from exc
+            raise DeadlineReachedError from exc
 
     async def collect(self, n: int | None = None, *, timeout: float | None = None) -> list[Any]:
         """Collect up to ``n`` messages until ``timeout`` or EOF."""
@@ -119,7 +119,7 @@ class _Pump:
             if deadline is not None:
                 left = deadline - asyncio.get_event_loop().time()
                 if left <= 0:
-                    raise DeadlineReachedError()
+                    raise DeadlineReachedError
             else:
                 left = None
             msg = await self.next(timeout=left)
