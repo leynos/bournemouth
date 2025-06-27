@@ -96,7 +96,9 @@ class _Pump:
         except TimeoutError as exc:  # pragma: no cover - defensive
             raise DeadlineReachedError from exc
 
-    async def collect(self, n: int | None = None, *, timeout: float | None = None) -> list[typing.Any]:
+    async def collect(
+        self, n: int | None = None, *, timeout: float | None = None
+    ) -> list[typing.Any]:
         """Collect up to ``n`` messages until ``timeout`` or EOF."""
         deadline = asyncio.get_event_loop().time() + timeout if timeout else None
         out: list[typing.Any] = []

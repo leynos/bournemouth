@@ -30,7 +30,8 @@ if typing.TYPE_CHECKING:  # pragma: no cover
 #: Type alias for the streaming function used in OpenRouterService.
 #:
 #: StreamFunc represents an asynchronous callable with the following signature:
-#:   (service: OpenRouterService, model: str, messages: list[ChatMessage], system_prompt: str | None)
+#:   (service: OpenRouterService, model: str, messages: list[ChatMessage],
+#:    system_prompt: str | None)
 #:     -> AsyncIterator[StreamChunk]
 #:
 #: - service: The OpenRouterService instance invoking the function.
@@ -39,7 +40,8 @@ if typing.TYPE_CHECKING:  # pragma: no cover
 #: - system_prompt: An optional system prompt string.
 #: - Returns: An async iterator yielding StreamChunk objects.
 #:
-#: If the function signature changes, update this type alias and its documentation accordingly.
+#: If the function signature changes, update this type alias and its documentation
+#: accordingly.
 type StreamFunc = typing.Callable[
     ["OpenRouterService", str, list["ChatMessage"], str | None],
     typing.AsyncIterator["StreamChunk"],

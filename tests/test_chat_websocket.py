@@ -172,7 +172,8 @@ async def test_websocket_multiplexes_requests(
         )
 
         # Collect all messages from both transactions
-        all_msgs = await coll.collect(n=4, timeout=5)  # Expect 4 messages total (2 per transaction)
+        # Expect 4 messages total (2 per transaction)
+        all_msgs = await coll.collect(n=4, timeout=5)
 
         # Convert to response objects
         responses = [msgspec.convert(m, ChatWsResponse) for m in all_msgs]
@@ -185,8 +186,12 @@ async def test_websocket_multiplexes_requests(
         # Check we got finished messages for both transactions
         finished_responses = [r for r in responses if r.finished]
         finished_transaction_ids = {r.transaction_id for r in finished_responses}
-        assert "t1" in finished_transaction_ids, f"Missing finished t1 in {finished_transaction_ids}"
-        assert "t2" in finished_transaction_ids, f"Missing finished t2 in {finished_transaction_ids}"
+        assert "t1" in finished_transaction_ids, (
+            f"Missing finished t1 in {finished_transaction_ids}"
+        )
+        assert "t2" in finished_transaction_ids, (
+            f"Missing finished t2 in {finished_transaction_ids}"
+        )
 
         # Verify we got the expected content
         content_by_transaction = {}
@@ -196,5 +201,9 @@ async def test_websocket_multiplexes_requests(
             if r.fragment:
                 content_by_transaction[r.transaction_id].append(r.fragment)
 
-        assert "a" in content_by_transaction.get("t1", []), f"Missing 'a' content for t1: {content_by_transaction}"
-        assert "b" in content_by_transaction.get("t2", []), f"Missing 'b' content for t2: {content_by_transaction}"
+        assert "a" in content_by_transaction.get("t1", []), (
+            f"Missing 'a' content for t1: {content_by_transaction}"
+        )
+        assert "b" in content_by_transaction.get("t2", []), (
+            f"Missing 'b' content for t2: {content_by_transaction}"
+        )
