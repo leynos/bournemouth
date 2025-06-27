@@ -1,10 +1,11 @@
 """Tests for the ``OpenRouterService`` class."""
 import asyncio
-import typing
+import types
 
+import httpx
 import pytest
 
-from bournemouth.openrouter import ChatMessage
+from bournemouth.openrouter import ChatCompletionRequest, ChatMessage
 from bournemouth.openrouter_service import OpenRouterService
 
 
@@ -14,7 +15,7 @@ class DummyClient:
     creations: int = 0
 
     def __init__(
-        self, *, api_key: str, base_url: str, timeout_config: typing.Any
+        self, *, api_key: str, base_url: str, timeout_config: httpx.Timeout | None
     ) -> None:
         """Record creation of the dummy client."""
         DummyClient.creations += 1
@@ -27,12 +28,12 @@ class DummyClient:
         self,
         exc_type: type[BaseException] | None,
         exc: BaseException | None,
-        tb: typing.Any,
+        tb: types.TracebackType | None,
     ) -> None:
         """Exit the async context without error handling."""
         return
 
-    async def create_chat_completion(self, request: typing.Any) -> str:
+    async def create_chat_completion(self, request: ChatCompletionRequest) -> str:
         """Return a canned chat completion response."""
         await asyncio.sleep(0)
         return "ok"
@@ -76,7 +77,7 @@ async def test_aclose_nonblocking(monkeypatch: pytest.MonkeyPatch) -> None:
     finish = asyncio.Event()
 
     class SlowClient(DummyClient):
-        async def create_chat_completion(self, request: typing.Any) -> str:
+        async def create_chat_completion(self, request: ChatCompletionRequest) -> str:
             started.set()
             await finish.wait()
             return await super().create_chat_completion(request)
@@ -122,7 +123,7 @@ async def test_remove_client(monkeypatch: pytest.MonkeyPatch) -> None:
             self,
             exc_type: type[BaseException] | None,
             exc: BaseException | None,
-            tb: typing.Any,
+            tb: types.TracebackType | None,
         ) -> None:
             ClosingClient.closes += 1
             await super().__aexit__(exc_type, exc, tb)
