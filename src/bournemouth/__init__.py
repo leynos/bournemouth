@@ -27,6 +27,9 @@ __all__ = [
     "ChatCompletionRequest",
     "ChatCompletionResponse",
     "ChatMessage",
+    "ChatWsPachinkoResource",
+    "ChatWsRequest",
+    "ChatWsResponse",
     "OpenRouterAPIError",
     "OpenRouterAsyncClient",
     "OpenRouterAuthenticationError",
@@ -42,8 +45,5 @@ __all__ = [
     "OpenRouterServerError",
     "OpenRouterTimeoutError",
     "StreamChunk",
-    "ChatWsRequest",
-    "ChatWsResponse",
-    "ChatWsPachinkoResource",
     "create_app",
 ]
