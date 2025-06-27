@@ -319,7 +319,7 @@ class OpenRouterAPIError(OpenRouterClientError):
         status_code: int,
         *,
         error_details: OpenRouterAPIErrorDetails | None = None,
-    ) -> "OpenRouterAPIError":
+    ) -> OpenRouterAPIError:
         """Create an exception instance with formatted message from status code."""
         return cls(
             f"API error {status_code}",
