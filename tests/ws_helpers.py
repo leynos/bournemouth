@@ -19,17 +19,17 @@ Licence: ISC (same as project)
 from __future__ import annotations
 
 import asyncio
+import collections.abc
 import contextlib
+import dataclasses
 import json
 import logging
-from collections.abc import AsyncIterator, Callable
-from dataclasses import dataclass, field
-from types import TracebackType
-from typing import Any, Self
+import types
+import typing
 
 _logger = logging.getLogger(__name__)
 
-_T = Callable[[Any], bool]
+_T = collections.abc.Callable[[typing.Any], bool]
 
 
 class DeadlineReachedError(TimeoutError):
@@ -39,14 +39,14 @@ class DeadlineReachedError(TimeoutError):
         super().__init__("deadline reached")
 
 
-@dataclass(slots=True)
+@dataclasses.dataclass(slots=True)
 class _Pump:
-    ws: Any
-    q: asyncio.Queue[Any] = field(default_factory=asyncio.Queue)
-    done: asyncio.Event = field(default_factory=asyncio.Event)
+    ws: typing.Any
+    q: asyncio.Queue[typing.Any] = dataclasses.field(default_factory=asyncio.Queue)
+    done: asyncio.Event = dataclasses.field(default_factory=asyncio.Event)
     _task: asyncio.Task[None] | None = None
 
-    async def __aenter__(self) -> Self:
+    async def __aenter__(self) -> typing.Self:
         self._task = asyncio.create_task(self._run(), name="ws-pump")
         return self
 
@@ -54,7 +54,7 @@ class _Pump:
         self,
         exc_type: type[BaseException] | None,
         exc: BaseException | None,
-        tb: TracebackType | None,
+        tb: types.TracebackType | None,
     ) -> bool | None:
         await self.aclose()
         return False
@@ -76,7 +76,7 @@ class _Pump:
         finally:
             self.done.set()
 
-    async def next(self, *, timeout: float | None = None) -> Any:
+    async def next(self, *, timeout: float | None = None) -> typing.Any:
         """Return the next frame from the queue within ``timeout`` seconds."""
         if timeout is None:
             return await self.q.get()
@@ -90,16 +90,16 @@ class _Pump:
             raise DeadlineReachedError
         return left
 
-    async def _get_next(self, left: float | None) -> Any:
+    async def _get_next(self, left: float | None) -> typing.Any:
         try:
             return await self.next(timeout=left)
         except TimeoutError as exc:  # pragma: no cover - defensive
             raise DeadlineReachedError from exc
 
-    async def collect(self, n: int | None = None, *, timeout: float | None = None) -> list[Any]:
+    async def collect(self, n: int | None = None, *, timeout: float | None = None) -> list[typing.Any]:
         """Collect up to ``n`` messages until ``timeout`` or EOF."""
         deadline = asyncio.get_event_loop().time() + timeout if timeout else None
-        out: list[Any] = []
+        out: list[typing.Any] = []
         while n is None or len(out) < n:
             left = self._remaining(deadline)
             out.append(await self._get_next(left))
@@ -109,9 +109,9 @@ class _Pump:
 
     async def collect_until(
         self, predicate: _T, *, timeout: float | None = 5.0
-    ) -> list[Any]:
+    ) -> list[typing.Any]:
         """Collect messages until ``predicate`` returns ``True`` or times out."""
-        msgs: list[Any] = []
+        msgs: list[typing.Any] = []
         deadline: float | None = (
             asyncio.get_event_loop().time() + timeout if timeout else None
         )
@@ -138,7 +138,7 @@ class _Pump:
 
 
 @contextlib.asynccontextmanager
-async def ws_collector(ws: Any) -> AsyncIterator[_Pump]:
+async def ws_collector(ws: typing.Any) -> collections.abc.AsyncIterator[_Pump]:
     """Collect messages from a WebSocket into a queue."""
     async with _Pump(ws) as pump:
         yield pump
