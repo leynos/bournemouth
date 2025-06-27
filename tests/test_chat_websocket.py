@@ -4,10 +4,10 @@ import asyncio
 import base64
 import typing
 
+import msgspec
 import pytest
 from falcon import asgi, testing
 from httpx import ASGITransport, AsyncClient
-import msgspec
 from msgspec import json as msgspec_json
 from pytest_httpx import HTTPXMock
 from sqlalchemy.ext.asyncio import AsyncSession

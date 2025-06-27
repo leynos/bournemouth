@@ -15,7 +15,8 @@ if typing.TYPE_CHECKING:  # pragma: no cover - for type checking only
     from sqlalchemy.ext.asyncio import AsyncSession
 
 from .auth import AuthMiddleware, LoginResource
-from .chat_service import StreamFunc, stream_answer as default_stream_answer
+from .chat_service import StreamFunc
+from .chat_service import stream_answer as default_stream_answer
 from .errors import handle_http_error, handle_unexpected_error
 from .msgspec_support import (
     AsyncMsgspecMiddleware,
@@ -23,8 +24,8 @@ from .msgspec_support import (
     handle_msgspec_validation_error,
     json_handler,
 )
-from .openrouter_service import OpenRouterService
 from .openrouter import ChatMessage, StreamChunk
+from .openrouter_service import OpenRouterService
 from .resources import (
     ChatResource,
     ChatStateResource,

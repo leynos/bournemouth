@@ -8,6 +8,7 @@ import typing
 
 import falcon
 from sqlalchemy import select
+
 from uuid_extensions import uuid7
 
 from .models import Conversation, Message, UserAccount

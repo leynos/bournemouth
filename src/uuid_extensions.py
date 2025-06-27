@@ -5,6 +5,7 @@ falling back to :func:`uuid.uuid4` otherwise.
 """
 
 from __future__ import annotations
+
 import uuid
 
 try:

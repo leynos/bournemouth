@@ -20,15 +20,13 @@ if typing.TYPE_CHECKING:  # pragma: no cover
 
     from .openrouter_service import OpenRouterService
 
-from .types import Struct
-
 from .chat_service import (
+    StreamFunc,
     generate_answer,
     get_or_create_conversation,
     list_conversation_messages,
     load_user_and_api_key,
     stream_answer,
-    StreamFunc,
 )
 from .chat_utils import (
     ChatWsRequest,
@@ -40,6 +38,7 @@ from .chat_utils import (
 from .models import Message, MessageRole, UserAccount
 from .openrouter import ChatMessage, Role, StreamChunk
 from .resource_helpers import get_api_key
+from .types import Struct
 
 WebSocket = falcon.asgi.WebSocket  # pyright: ignore[reportUnknownArgumentType]
 MsgEncoder = msgspec_json.Encoder  # pyright: ignore[reportUnknownArgumentType]

@@ -10,10 +10,9 @@ import falcon
 import msgspec
 from msgspec import json as msgspec_json
 
-from .types import Struct
-
 from .chat_service import StreamFunc, stream_answer
 from .openrouter import ChatMessage, StreamChoice, StreamChunk
+from .types import Struct
 
 if typing.TYPE_CHECKING:  # pragma: no cover
     import asyncio

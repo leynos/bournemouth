@@ -1,7 +1,6 @@
 """Main package for bournemouth project."""
 
 from .app import create_app
-from .resources import ChatWsPachinkoResource, ChatWsRequest, ChatWsResponse
 from .openrouter import (
     ChatCompletionRequest,
     ChatCompletionResponse,
@@ -22,6 +21,7 @@ from .openrouter import (
     OpenRouterTimeoutError,
     StreamChunk,
 )
+from .resources import ChatWsPachinkoResource, ChatWsRequest, ChatWsResponse
 
 __all__ = [
     "ChatCompletionRequest",
