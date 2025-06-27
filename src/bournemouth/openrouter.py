@@ -503,12 +503,11 @@ class OpenRouterAsyncClient:
                 resp.status_code,
                 error_details=details,
             )
-        else:
-            # Use the specific exception class with class method
-            raise exc_cls.from_status_code(
-                resp.status_code,
-                error_details=details,
-            )
+        # Use the specific exception class with class method
+        raise exc_cls.from_status_code(
+            resp.status_code,
+            error_details=details,
+        )
 
     async def _decode_response(self, resp: httpx.Response) -> ChatCompletionResponse:
         await self._raise_for_status(resp)
