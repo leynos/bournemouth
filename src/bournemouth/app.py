@@ -35,6 +35,13 @@ from .resources import (
 from .session import SessionManager
 
 
+class MissingDependencyError(ValueError):
+    """Raised when a required dependency is not provided."""
+
+    def __init__(self, dependency_name: str) -> None:
+        super().__init__(f"{dependency_name} is required")
+
+
 class PachinkoApp(asgi.App):  # pyright: ignore[reportUntypedBaseClass]
     """Falcon app subclass with ``falcon-pachinko`` support."""
 
@@ -93,7 +100,7 @@ def create_app(
     app.resp_options.media_handlers["application/json"] = json_handler
     service = openrouter_service or OpenRouterService.from_env()
     if db_session_factory is None:
-        raise ValueError("db_session_factory is required")
+        raise MissingDependencyError("db_session_factory")
     app.add_route(
         "/chat",
         ChatResource(

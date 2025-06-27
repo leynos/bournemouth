@@ -17,6 +17,27 @@ if typing.TYPE_CHECKING:
     import collections.abc as cabc
 
 
+class MissingSessionCookieError(RuntimeError):
+    """Raised when a session cookie is missing."""
+
+    def __init__(self) -> None:
+        super().__init__("missing session cookie")
+
+
+class MalformedChatResponseError(RuntimeError):
+    """Raised when chat response is missing expected fields."""
+
+    def __init__(self, data: dict[str, typing.Any]) -> None:
+        super().__init__(f"Malformed chat response: missing 'answer' key in {data!r}")
+
+
+class TokenSaveFailedError(RuntimeError):
+    """Raised when token save operation fails."""
+
+    def __init__(self) -> None:
+        super().__init__("token save failed")
+
+
 @dc.dataclass(slots=True)
 class Session:
     """Connection settings for API requests."""
@@ -55,7 +76,7 @@ async def _post(
 async def _login_request(session: Session, username: str, password: str) -> str:
     resp = await _post(session, "/login", auth=(username, password))
     if not (cookie := resp.cookies.get("session")):
-        raise RuntimeError("missing session cookie")
+        raise MissingSessionCookieError()
     return cookie
 
 
@@ -80,7 +101,7 @@ async def chat_request(
     )
     data = typing.cast("dict[str, typing.Any]", resp.json())
     if "answer" not in data:
-        raise RuntimeError(f"Malformed chat response: missing 'answer' key in {data!r}")
+        raise MalformedChatResponseError(data)
     return typing.cast("str", data["answer"])
 
 
@@ -178,10 +199,10 @@ def login(
 
 async def _token_form(session: Session, *, token: str) -> str | None:
     if session.cookie is None:
-        raise RuntimeError("missing session cookie")
+        raise MissingSessionCookieError()
     ok = await token_request(session, token)
     if not ok:
-        raise RuntimeError("token save failed")
+        raise TokenSaveFailedError()
     return "Token saved"
 
 

@@ -47,6 +47,34 @@ CHAT_COMPLETIONS_PATH = "/chat/completions"
 Role = typing.Literal["system", "user", "assistant", "tool"]
 
 
+class InvalidToolMessageError(ValueError):
+    """Raised when a tool message is missing required tool_call_id."""
+
+    def __init__(self) -> None:
+        super().__init__("tool messages must include tool_call_id")
+
+
+class InvalidContentPartsError(ValueError):
+    """Raised when non-user messages contain content parts."""
+
+    def __init__(self) -> None:
+        super().__init__("only user messages may contain content parts")
+
+
+class ClientNotInitializedError(RuntimeError):
+    """Raised when client operations are attempted before initialization."""
+
+    def __init__(self) -> None:
+        super().__init__("client not initialized; use async with")
+
+
+class StreamChunkDecodeError(Exception):
+    """Raised when stream chunk decoding fails."""
+
+    def __init__(self, payload: str) -> None:
+        super().__init__(f"failed to decode stream chunk: {payload}")
+
+
 class ImageUrl(msgspec.Struct, array_like=True):
     """URL and resolution hint for an image content part."""
 
@@ -81,9 +109,9 @@ class ChatMessage(msgspec.Struct):
     def __post_init__(self) -> None:  # pragma: no cover - executed by msgspec
         """Validate message content and metadata."""
         if self.role == "tool" and not self.tool_call_id:
-            raise ValueError("tool messages must include tool_call_id")
+            raise InvalidToolMessageError()
         if self.role != "user" and isinstance(self.content, list):
-            raise ValueError("only user messages may contain content parts")
+            raise InvalidContentPartsError()
 
 
 class FunctionDescription(msgspec.Struct):
@@ -285,9 +313,39 @@ class OpenRouterAPIError(OpenRouterClientError):
         self.status_code = status_code
         self.error_details = error_details
 
+    @classmethod
+    def from_status_code(
+        cls,
+        status_code: int,
+        *,
+        error_details: OpenRouterAPIErrorDetails | None = None,
+    ) -> "OpenRouterAPIError":
+        """Create an exception instance with formatted message from status code."""
+        return cls(
+            f"API error {status_code}",
+            status_code=status_code,
+            error_details=error_details,
+        )
+
 
 class OpenRouterAuthenticationError(OpenRouterAPIError):
     """Raised when the API key is invalid or unauthorized."""
+
+
+class OpenRouterGenericAPIError(OpenRouterAPIError):
+    """Raised for generic API errors with status code."""
+
+    def __init__(
+        self,
+        status_code: int,
+        *,
+        error_details: OpenRouterAPIErrorDetails | None = None,
+    ) -> None:
+        super().__init__(
+            f"API error {status_code}",
+            status_code=status_code,
+            error_details=error_details,
+        )
 
 
 class OpenRouterRateLimitError(OpenRouterAPIError):
@@ -320,6 +378,13 @@ class OpenRouterRequestDataValidationError(OpenRouterDataValidationError):
 
 class OpenRouterResponseDataValidationError(OpenRouterDataValidationError):
     """Raised when decoding a response fails validation."""
+
+
+class OpenRouterStreamChunkDecodeError(OpenRouterResponseDataValidationError):
+    """Raised when stream chunk decoding fails."""
+
+    def __init__(self, payload: str) -> None:
+        super().__init__(f"failed to decode stream chunk: {payload}")
 
 
 _STATUS_MAP = {
@@ -432,11 +497,18 @@ class OpenRouterAsyncClient:
         raw = await resp.aread()
         details = await self._decode_error_details(raw)
         exc_cls = _map_status_to_error(resp.status_code)
-        raise exc_cls(
-            f"API error {resp.status_code}",
-            status_code=resp.status_code,
-            error_details=details,
-        )
+        if exc_cls == OpenRouterAPIError:
+            # Use our custom exception for generic API errors
+            raise OpenRouterGenericAPIError(
+                resp.status_code,
+                error_details=details,
+            )
+        else:
+            # Use the specific exception class with class method
+            raise exc_cls.from_status_code(
+                resp.status_code,
+                error_details=details,
+            )
 
     async def _decode_response(self, resp: httpx.Response) -> ChatCompletionResponse:
         await self._raise_for_status(resp)
@@ -448,7 +520,7 @@ class OpenRouterAsyncClient:
 
     async def _post(self, path: str, *, content: bytes) -> httpx.Response:
         if not self._client:
-            raise RuntimeError("client not initialized; use async with")
+            raise ClientNotInitializedError()
         try:
             return await self._client.post(path, content=content)
         except httpx.TimeoutException as e:
@@ -461,7 +533,7 @@ class OpenRouterAsyncClient:
         self, path: str, *, content: bytes
     ) -> cabc.AsyncIterator[httpx.Response]:
         if not self._client:
-            raise RuntimeError("client not initialized; use async with")
+            raise ClientNotInitializedError()
         try:
             async with self._client.stream("POST", path, content=content) as resp:
                 yield resp
@@ -531,9 +603,7 @@ class OpenRouterAsyncClient:
                     try:
                         yield self._STREAM_DECODER.decode(payload_str)
                     except msgspec.DecodeError as e:
-                        raise OpenRouterResponseDataValidationError(
-                            f"failed to decode stream chunk: {payload_str}"
-                        ) from e
+                        raise OpenRouterStreamChunkDecodeError(payload_str) from e
 
             # end for
         # end async with

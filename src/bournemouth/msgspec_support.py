@@ -17,6 +17,14 @@ __all__ = [
     "json_handler",
 ]
 
+
+class UnsupportedMsgspecProtocolError(ValueError):
+    """Raised when an unsupported msgspec protocol is requested."""
+
+    def __init__(self, protocol: str) -> None:
+        super().__init__(f"Unsupported msgspec protocol: {protocol}")
+
+
 _ENCODER = msgspec_json.Encoder()
 _DECODER = msgspec_json.Decoder()
 
@@ -114,7 +122,7 @@ class MsgspecWebSocketMiddleware:
             Encoding protocol to use. Only ``"json"`` is supported.
         """
         if protocol != "json":
-            raise ValueError(f"Unsupported msgspec protocol: {protocol}")
+            raise UnsupportedMsgspecProtocolError(protocol)
         self.encoder = msgspec_json.Encoder()
         self.decoder_cls = msgspec_json.Decoder
 

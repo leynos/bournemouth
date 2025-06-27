@@ -32,6 +32,13 @@ _logger = logging.getLogger(__name__)
 _T = Callable[[Any], bool]
 
 
+class DeadlineReachedError(TimeoutError):
+    """Raised when a deadline is reached during WebSocket operations."""
+
+    def __init__(self) -> None:
+        super().__init__("deadline reached")
+
+
 @dataclass(slots=True)
 class _Pump:
     ws: Any
@@ -80,14 +87,14 @@ class _Pump:
             return None
         left = deadline - asyncio.get_event_loop().time()
         if left <= 0:
-            raise TimeoutError("deadline reached")
+            raise DeadlineReachedError()
         return left
 
     async def _get_next(self, left: float | None) -> Any:
         try:
             return await self.next(timeout=left)
         except asyncio.TimeoutError as exc:  # pragma: no cover - defensive
-            raise TimeoutError("deadline reached") from exc
+            raise DeadlineReachedError() from exc
 
     async def collect(self, n: int | None = None, *, timeout: float | None = None) -> list[Any]:
         """Collect up to ``n`` messages until ``timeout`` or EOF."""
@@ -112,7 +119,7 @@ class _Pump:
             if deadline is not None:
                 left = deadline - asyncio.get_event_loop().time()
                 if left <= 0:
-                    raise TimeoutError("deadline reached")
+                    raise DeadlineReachedError()
             else:
                 left = None
             msg = await self.next(timeout=left)
