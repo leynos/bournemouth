@@ -11,6 +11,7 @@ from contextlib import AsyncExitStack
 
 if typing.TYPE_CHECKING:  # pragma: no cover - only for type checking
     import httpx
+    import types
 
 from .openrouter import (
     DEFAULT_BASE_URL,
@@ -97,7 +98,7 @@ class OpenRouterService:
         self,
         exc_type: type[BaseException] | None,
         exc: BaseException | None,
-        tb: typing.Any,
+        tb: types.TracebackType | None,
     ) -> None:
         """Close all clients when exiting the context manager."""
         await self._stack.aclose()

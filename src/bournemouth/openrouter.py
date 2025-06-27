@@ -13,6 +13,7 @@ from msgspec import json as msgspec_json
 
 if typing.TYPE_CHECKING:  # pragma: no cover - imports for type checking
     import collections.abc as cabc
+    import types
 
 __all__ = [
     "CHAT_COMPLETIONS_PATH",
@@ -475,7 +476,7 @@ class OpenRouterAsyncClient:
         self,
         exc_type: type[BaseException] | None,
         exc: BaseException | None,
-        tb: typing.Any,
+        tb: types.TracebackType | None,
     ) -> None:
         """Close the underlying ``httpx`` client."""
         if not self._client:

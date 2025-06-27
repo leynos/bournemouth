@@ -221,7 +221,7 @@ class ChatWsPachinkoResource(WebSocketResource):  # pyright: ignore[reportUntype
         self._user: str | None = None
 
     async def on_connect(
-        self, req: falcon.asgi.Request, ws: falcon.asgi.WebSocket, **_: typing.Any
+        self, req: falcon.asgi.Request, ws: falcon.asgi.WebSocket, **_: object
     ) -> bool:
         """Accept the connection and store the user.
 

@@ -29,7 +29,9 @@ _ENCODER = msgspec_json.Encoder()
 _DECODER = msgspec_json.Decoder()
 
 
-def _msgspec_loads_json_robust(content: bytes | str) -> typing.Any:
+def _msgspec_loads_json_robust(
+    content: bytes | str,
+) -> dict[str, typing.Any] | list[typing.Any] | str | int | float | bool | None:
     try:
         return _DECODER.decode(content)
     except msgspec.DecodeError as ex:  # pragma: no cover - integration tested
@@ -40,7 +42,9 @@ def _msgspec_loads_json_robust(content: bytes | str) -> typing.Any:
         ) from ex
 
 
-def _dumps(obj: typing.Any) -> str:
+def _dumps(
+    obj: dict[str, typing.Any] | list[typing.Any] | str | int | float | bool | None,
+) -> str:
     """Encode ``obj`` as JSON using msgspec's encoder."""
     return _ENCODER.encode(obj).decode("utf-8")
 
