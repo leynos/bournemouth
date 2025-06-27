@@ -30,6 +30,8 @@ from bournemouth import (
 from bournemouth.openrouter import (
     CHAT_COMPLETIONS_PATH,
     DEFAULT_BASE_URL,
+    InvalidContentPartsError,
+    InvalidToolMessageError,
     TextContentPart,
 )
 
@@ -408,7 +410,7 @@ async def test_stream_invalid_chunk_raises_validation_error(
 
 def test_chat_message_validation_errors() -> None:
     """ChatMessage should validate role and content types."""
-    with pytest.raises(ValueError):
+    with pytest.raises(InvalidToolMessageError):
         ChatMessage(role="tool", content="x")
-    with pytest.raises(ValueError):
+    with pytest.raises(InvalidContentPartsError):
         ChatMessage(role="assistant", content=[TextContentPart(text="hi")])

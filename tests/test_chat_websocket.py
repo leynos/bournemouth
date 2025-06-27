@@ -20,13 +20,13 @@ from tests.ws_helpers import ws_collector
 type SessionFactory = typing.Callable[[], AsyncSession]
 
 
-@pytest.fixture()
+@pytest.fixture
 def app(db_session_factory: SessionFactory) -> asgi.App:
     """Create an application instance for testing."""
     return create_app(db_session_factory=db_session_factory)
 
 
-@pytest.fixture()
+@pytest.fixture
 def conductor(app: asgi.App) -> testing.ASGIConductor:
     """Return an ASGI conductor for WebSocket testing."""
     return testing.ASGIConductor(app)

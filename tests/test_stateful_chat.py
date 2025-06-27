@@ -17,7 +17,7 @@ from bournemouth.app import create_app
 from bournemouth.models import Conversation, Message, MessageRole, UserAccount
 
 
-@pytest.fixture()
+@pytest.fixture
 def app(db_session_factory: typing.Callable[[], AsyncSession]) -> asgi.App:
     """Create an application instance for testing."""
     return create_app(db_session_factory=db_session_factory)

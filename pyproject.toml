@@ -111,13 +111,13 @@ banned-from = [
     "collections.abc",
     "dataclasses",
     "enum",
-    "msgspec",
 ]
 
 [tool.ruff.lint.flake8-import-conventions.aliases]
 datetime = "dt"
 dataclasses = "dc"
 "collections.abc" = "cabc"
+"msgspec.json" = "msgspec_json"
 
 [tool.ruff.lint.pydocstyle]
 convention = "numpy"
