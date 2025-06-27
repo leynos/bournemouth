@@ -10,7 +10,6 @@ import uuid  # noqa: TC003
 
 import falcon
 import falcon.asgi
-import msgspec
 from falcon_pachinko import WebSocketResource, handles_message
 from msgspec import json as msgspec_json
 from sqlalchemy import update
@@ -36,7 +35,7 @@ from .chat_utils import (
     stream_chat_response,
 )
 from .models import Message, MessageRole, UserAccount
-from .openrouter import ChatMessage, Role, StreamChunk
+from .openrouter import ChatMessage, Role
 from .resource_helpers import get_api_key
 from .types import Struct
 

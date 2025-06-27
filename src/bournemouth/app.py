@@ -24,7 +24,6 @@ from .msgspec_support import (
     handle_msgspec_validation_error,
     json_handler,
 )
-from .openrouter import ChatMessage, StreamChunk
 from .openrouter_service import OpenRouterService
 from .resources import (
     ChatResource,

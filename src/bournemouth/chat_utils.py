@@ -7,11 +7,10 @@ import logging
 import typing
 
 import falcon
-import msgspec
 from msgspec import json as msgspec_json
 
 from .chat_service import StreamFunc, stream_answer
-from .openrouter import ChatMessage, StreamChoice, StreamChunk
+from .openrouter import ChatMessage, StreamChoice
 from .types import Struct
 
 if typing.TYPE_CHECKING:  # pragma: no cover
