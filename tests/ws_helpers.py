@@ -93,7 +93,7 @@ class _Pump:
     async def _get_next(self, left: float | None) -> Any:
         try:
             return await self.next(timeout=left)
-        except asyncio.TimeoutError as exc:  # pragma: no cover - defensive
+        except TimeoutError as exc:  # pragma: no cover - defensive
             raise DeadlineReachedError from exc
 
     async def collect(self, n: int | None = None, *, timeout: float | None = None) -> list[Any]:
