@@ -3,10 +3,6 @@ import sys
 import typing
 from pathlib import Path
 
-BASE_DIR = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(BASE_DIR / "src"))
-sys.path.insert(0, str(BASE_DIR))
-
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
@@ -14,7 +10,12 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
-from bournemouth.models import Base, UserAccount
+# Add project source to path before importing project modules
+BASE_DIR = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(BASE_DIR / "src"))
+sys.path.insert(0, str(BASE_DIR))
+
+from bournemouth.models import Base, UserAccount  # noqa: E402
 
 pytest_plugins = ["pytest_httpx"]
 
