@@ -1,3 +1,5 @@
+"""Common type definitions and aliases for the bournemouth package."""
+
 from __future__ import annotations
 
 import msgspec
