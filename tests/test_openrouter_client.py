@@ -41,19 +41,19 @@ CHAT_COMPLETIONS_URL = f"{DEFAULT_BASE_URL.rstrip('/')}{CHAT_COMPLETIONS_PATH}"
 
 
 @pytest.fixture
-def add_chat_response(httpx_mock: HTTPXMock) -> typing.Any:
+def add_chat_response(httpx_mock: HTTPXMock) -> cabc.Callable[..., None]:
     """Return a helper to add a canned chat response."""
-    def _add_response(**kwargs: typing.Any) -> None:
+    def _add_response(**kwargs: typing.Any) -> None:  # noqa: ANN401
         httpx_mock.add_response(method="POST", url=CHAT_COMPLETIONS_URL, **kwargs)
 
     return _add_response
 
 
 @pytest.fixture
-def add_chat_callback(httpx_mock: HTTPXMock) -> typing.Any:
+def add_chat_callback(httpx_mock: HTTPXMock) -> cabc.Callable[..., None]:
     """Return a helper to register a callback for chat requests."""
     def _add_callback(
-        handler: cabc.Callable[[httpx.Request], httpx.Response], **kwargs: typing.Any
+        handler: cabc.Callable[[httpx.Request], httpx.Response], **kwargs: typing.Any  # noqa: ANN401
     ) -> None:
         httpx_mock.add_callback(
             handler, method="POST", url=CHAT_COMPLETIONS_URL, **kwargs
