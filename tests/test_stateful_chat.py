@@ -15,6 +15,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from bournemouth import chat_service
 from bournemouth.app import create_app
 from bournemouth.models import Conversation, Message, MessageRole, UserAccount
+from bournemouth.openrouter import ChatCompletionResponse, ChatMessage
+from bournemouth.openrouter_service import OpenRouterService
 
 
 @pytest.fixture
@@ -171,7 +173,13 @@ async def test_stateful_chat_persists_user_message_on_timeout(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """User messages are persisted even when the service times out."""
-    async def fail(*args: typing.Any, **kwargs: typing.Any) -> typing.Any:
+    async def fail(
+        service: OpenRouterService,
+        api_key: str,
+        messages: list[ChatMessage],
+        *,
+        model: str | None = None,
+    ) -> ChatCompletionResponse:
         raise chat_service.OpenRouterServiceTimeoutError("boom")
 
     monkeypatch.setattr(chat_service, "chat_with_service", fail)
@@ -202,7 +210,13 @@ async def test_stateful_chat_handles_unexpected_error(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Unexpected service errors are handled gracefully."""
-    async def fail(*args: typing.Any, **kwargs: typing.Any) -> typing.Any:
+    async def fail(
+        service: OpenRouterService,
+        api_key: str,
+        messages: list[ChatMessage],
+        *,
+        model: str | None = None,
+    ) -> ChatCompletionResponse:
         raise RuntimeError("boom")
 
     monkeypatch.setattr(chat_service, "chat_with_service", fail)
