@@ -49,12 +49,12 @@ class AuthMiddleware:
 
         cookie_obj = req.cookies.get("session")
         if not cookie_obj:
-            raise falcon.HTTPUnauthorized()
+            raise falcon.HTTPUnauthorized
 
         cookie = typing.cast("str", cookie_obj)  # pyright: ignore[reportUnnecessaryCast]
         user = self._session.verify_cookie(cookie)
         if user is None:
-            raise falcon.HTTPUnauthorized()
+            raise falcon.HTTPUnauthorized
 
         req.context["user"] = user
 
@@ -80,12 +80,12 @@ class AuthMiddleware:
 
         cookie_obj = req.cookies.get("session")
         if not cookie_obj:
-            raise falcon.HTTPUnauthorized()
+            raise falcon.HTTPUnauthorized
 
         cookie = typing.cast("str", cookie_obj)  # pyright: ignore[reportUnnecessaryCast]
         user = self._session.verify_cookie(cookie)
         if user is None:
-            raise falcon.HTTPUnauthorized()
+            raise falcon.HTTPUnauthorized
 
         req.context["user"] = user
 
@@ -127,7 +127,7 @@ class LoginResource:
         auth_header: str = req.get_header("Authorization") or ""
         prefix = "Basic "
         if not auth_header.startswith(prefix):
-            raise falcon.HTTPUnauthorized()
+            raise falcon.HTTPUnauthorized
 
         try:
             encoded = typing.cast("str", auth_header[len(prefix) :])  # pyright: ignore[reportUnnecessaryCast]
@@ -135,10 +135,10 @@ class LoginResource:
             decoded = decoded_bytes.decode()
             username, password = decoded.split(":", 1)
         except (binascii.Error, ValueError):
-            raise falcon.HTTPUnauthorized() from None
+            raise falcon.HTTPUnauthorized from None
 
         if username != self._user or password != self._password:
-            raise falcon.HTTPUnauthorized()
+            raise falcon.HTTPUnauthorized
 
         token = self._session.create_cookie(username)
         resp.set_cookie(

@@ -57,13 +57,13 @@ async def _convert_service_errors() -> typing.AsyncIterator[None]:
         yield
     except OpenRouterServiceTimeoutError as exc:
         _logger.exception("timeout from OpenRouter", exc_info=exc)
-        raise falcon.HTTPGatewayTimeout() from exc
+        raise falcon.HTTPGatewayTimeout from exc
     except OpenRouterServiceBadGatewayError as exc:
         _logger.exception("bad gateway from OpenRouter", exc_info=exc)
         raise falcon.HTTPBadGateway(description=str(exc)) from exc
     except Exception as exc:  # pragma: no cover - unexpected failures
         _logger.exception("unexpected error from OpenRouter", exc_info=exc)
-        raise falcon.HTTPInternalServerError() from exc
+        raise falcon.HTTPInternalServerError from exc
 
 
 async def load_user_and_api_key(
@@ -127,7 +127,7 @@ async def get_or_create_conversation(
     if conv_id is not None:
         conv = await session.get(Conversation, conv_id)
         if conv is None or conv.user_id != user_id:
-            raise falcon.HTTPNotFound()
+            raise falcon.HTTPNotFound
     if conv is None:
         conv = Conversation(
             id=typing.cast("uuid.UUID", uuid7(return_type="uuid")),
