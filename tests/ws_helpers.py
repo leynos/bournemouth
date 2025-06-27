@@ -29,6 +29,19 @@ import typing
 if typing.TYPE_CHECKING:
     import types
 
+
+class WebSocketProtocol(typing.Protocol):
+    """Protocol for WebSocket objects used in tests."""
+
+    @property
+    def closed(self) -> bool:
+        """Whether the WebSocket connection is closed."""
+        ...
+
+    async def receive_text(self) -> str:
+        """Receive text data from the WebSocket."""
+        ...
+
 _logger = logging.getLogger(__name__)
 
 _T = cabc.Callable[[typing.Any], bool]
@@ -43,7 +56,7 @@ class DeadlineReachedError(TimeoutError):
 
 @dc.dataclass(slots=True)
 class _Pump:
-    ws: typing.Any
+    ws: WebSocketProtocol
     q: asyncio.Queue[typing.Any] = dc.field(default_factory=asyncio.Queue)
     done: asyncio.Event = dc.field(default_factory=asyncio.Event)
     _task: asyncio.Task[None] | None = None
@@ -78,7 +91,9 @@ class _Pump:
         finally:
             self.done.set()
 
-    async def next(self, *, timeout: float | None = None) -> typing.Any:
+    async def next(
+        self, *, timeout: float | None = None
+    ) -> dict[str, typing.Any] | list[typing.Any] | str | int | float | bool | None:
         """Return the next frame from the queue within ``timeout`` seconds."""
         if timeout is None:
             return await self.q.get()
@@ -92,7 +107,9 @@ class _Pump:
             raise DeadlineReachedError
         return left
 
-    async def _get_next(self, left: float | None) -> typing.Any:
+    async def _get_next(
+        self, left: float | None
+    ) -> dict[str, typing.Any] | list[typing.Any] | str | int | float | bool | None:
         try:
             return await self.next(timeout=left)
         except TimeoutError as exc:  # pragma: no cover - defensive
@@ -142,7 +159,7 @@ class _Pump:
 
 
 @contextlib.asynccontextmanager
-async def ws_collector(ws: typing.Any) -> cabc.AsyncIterator[_Pump]:
+async def ws_collector(ws: WebSocketProtocol) -> cabc.AsyncIterator[_Pump]:
     """Collect messages from a WebSocket into a queue."""
     async with _Pump(ws) as pump:
         yield pump
