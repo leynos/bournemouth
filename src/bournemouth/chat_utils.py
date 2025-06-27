@@ -7,7 +7,6 @@ import logging
 import typing
 
 import falcon
-from msgspec import json as msgspec_json
 
 from .chat_service import StreamFunc, stream_answer
 from .openrouter import ChatMessage, StreamChoice
@@ -17,6 +16,7 @@ if typing.TYPE_CHECKING:  # pragma: no cover
     import asyncio
 
     from falcon.asgi import WebSocket
+    from msgspec import json as msgspec_json
 
     from .openrouter_service import OpenRouterService
 

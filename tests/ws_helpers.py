@@ -24,8 +24,10 @@ import contextlib
 import dataclasses as dc
 import json
 import logging
-import types
 import typing
+
+if typing.TYPE_CHECKING:
+    import types
 
 _logger = logging.getLogger(__name__)
 
