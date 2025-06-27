@@ -20,6 +20,8 @@ from sqlalchemy import select, update
 from bournemouth import chat_service
 from bournemouth.app import create_app
 from bournemouth.models import UserAccount
+from bournemouth.openrouter import ChatCompletionResponse, ChatMessage
+from bournemouth.openrouter_service import OpenRouterService
 
 
 @pytest.fixture
@@ -201,7 +203,13 @@ async def test_chat_unexpected_error_returns_500(
     app: asgi.App, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Unexpected service errors should map to HTTP 500."""
-    async def fail(*args: typing.Any, **kwargs: typing.Any) -> typing.Any:
+    async def fail(
+        service: OpenRouterService,
+        api_key: str,
+        messages: list[ChatMessage],
+        *,
+        model: str | None = None,
+    ) -> ChatCompletionResponse:
         raise RuntimeError("boom")
 
     monkeypatch.setattr(chat_service, "chat_with_service", fail)
