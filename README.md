@@ -10,7 +10,7 @@ latency.
 The system comprises a few lightweight services:
 
 1. **chat-api** – A Falcon ASGI app written for Python 3.13. It exposes `/chat`,
-   `/auth/openrouter-token`, and `/health` endpoints. It embeds queries,
+   `/ws/chat`, `/auth/openrouter-token`, and `/health` endpoints. It embeds queries,
    retrieves context from Neo4j and proxies prompts to an LLM via OpenRouter.
 2. **worker** – Processes background tasks such as entity extraction and graph
    updates using asynchronous SQLAlchemy.
@@ -71,5 +71,5 @@ Testing strategies and additional guides live in the `docs/` directory, includin
   for generating embeddings with Hugging Face TEI.
 - [`docs/websocket-chat-api-asyncapi.yaml`](docs/websocket-chat-api-asyncapi.yaml)
   for the WebSocket chat API specification.
-  The `/chat` WebSocket endpoint supports multiplexing so multiple chat
+  The `/ws/chat` WebSocket endpoint supports multiplexing, so multiple chat
   transactions can share a single connection.

@@ -4,7 +4,7 @@ info:
   version: '0.1'
 servers:
   local:
-    url: ws://localhost:8000/chat
+    url: ws://localhost:8000/ws/chat
     protocol: ws
     description: Local development server
 channels:

@@ -115,6 +115,7 @@ def create_app(
         ChatWsPachinkoResource,
         service,
         db_session_factory,
+        stream_answer_func=chat_stream_answer,
     )
     app.add_route("/auth/openrouter-token", OpenRouterTokenResource(db_session_factory))
     app.add_route("/health", HealthResource())
