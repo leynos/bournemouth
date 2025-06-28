@@ -23,6 +23,21 @@ channels:
       operationId: receiveChat
       message:
         $ref: '#/components/messages/ChatResponse'
+  chat/state:
+    description: |
+      WebSocket channel for stateful chat messages. Each response
+      fragment belongs to a conversation identified by
+      ``conversation_id``.
+    publish:
+      summary: Send a stateful chat request
+      operationId: sendStatefulChat
+      message:
+        $ref: '#/components/messages/ChatStateRequest'
+    subscribe:
+      summary: Receive streaming stateful chat responses
+      operationId: receiveStatefulChat
+      message:
+        $ref: '#/components/messages/ChatStateResponse'
 components:
   messages:
     ChatRequest:
@@ -35,6 +50,18 @@ components:
       title: Chat response fragment
       payload:
         $ref: '#/components/schemas/ChatResponse'
+    ChatStateRequest:
+      name: ChatStateRequest
+      title: Stateful chat request
+      description: Initiates or continues a conversation with the assistant
+      payload:
+        $ref: '#/components/schemas/ChatStateRequest'
+    ChatStateResponse:
+      name: ChatStateResponse
+      title: Stateful chat response fragment
+      description: Streamed response fragment for a stateful conversation
+      payload:
+        $ref: '#/components/schemas/ChatStateResponse'
   schemas:
     ChatRequest:
       type: object
@@ -77,3 +104,48 @@ components:
       required:
         - role
         - content
+    ChatStateRequest:
+      type: object
+      properties:
+        transaction_id:
+          type: string
+          description: Correlates request with streamed responses
+        conversation_id:
+          oneOf:
+            - type: string
+              format: uuid
+            - type: 'null'
+        message:
+          type: string
+        model:
+          oneOf:
+            - type: string
+            - type: 'null'
+      required:
+        - transaction_id
+        - message
+    ChatStateResponse:
+      type: object
+      properties:
+        transaction_id:
+          type: string
+        conversation_id:
+          type: string
+          format: uuid
+        role:
+          type: string
+          enum: [system, user, assistant, tool]
+        content:
+          type: string
+        finished:
+          type: boolean
+          description: |
+            Indicates whether this is the last fragment in the stream.
+            This property is included in every response and is true only
+            for the final fragment.
+      required:
+        - transaction_id
+        - conversation_id
+        - role
+        - content
+        - finished
