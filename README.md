@@ -71,5 +71,5 @@ Testing strategies and additional guides live in the `docs/` directory, includin
   for generating embeddings with Hugging Face TEI.
 - [`docs/websocket-chat-api-asyncapi.yaml`](docs/websocket-chat-api-asyncapi.yaml)
   for the WebSocket chat API specification.
-  The `/ws/chat` WebSocket endpoint supports multiplexing so multiple chat
+  The `/ws/chat` WebSocket endpoint supports multiplexing, so multiple chat
   transactions can share a single connection.
