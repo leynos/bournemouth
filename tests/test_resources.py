@@ -12,6 +12,9 @@ if typing.TYPE_CHECKING:
     from pytest_httpx import HTTPXMock
     from sqlalchemy.ext.asyncio import AsyncSession
 
+    from bournemouth.openrouter import ChatCompletionResponse, ChatMessage
+    from bournemouth.openrouter_service import OpenRouterService
+
 
 import base64
 
@@ -20,8 +23,6 @@ from sqlalchemy import select, update
 from bournemouth import chat_service
 from bournemouth.app import create_app
 from bournemouth.models import UserAccount
-from bournemouth.openrouter import ChatCompletionResponse, ChatMessage
-from bournemouth.openrouter_service import OpenRouterService
 
 
 @pytest.fixture

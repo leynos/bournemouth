@@ -13,7 +13,8 @@ from pytest_httpx import HTTPXMock
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from bournemouth.app import create_app
-from bournemouth.openrouter import ResponseDelta, StreamChoice, StreamChunk
+from bournemouth.openrouter import ChatMessage, ResponseDelta, StreamChoice, StreamChunk
+from bournemouth.openrouter_service import OpenRouterService
 from bournemouth.resources import ChatWsRequest, ChatWsResponse
 from tests.ws_helpers import ws_collector
 
@@ -48,9 +49,9 @@ class _StreamPatcher:
 
     async def fake_stream(
         self,
-        service: typing.Any,
+        service: OpenRouterService,
         api_key: str,
-        history: list[typing.Any],
+        history: list[ChatMessage],
         model: str | None,
     ) -> typing.AsyncIterator[StreamChunk]:
         # Safely determine which call this is

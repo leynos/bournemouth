@@ -10,8 +10,9 @@ from collections import OrderedDict
 from contextlib import AsyncExitStack
 
 if typing.TYPE_CHECKING:  # pragma: no cover - only for type checking
-    import httpx
     import types
+
+    import httpx
 
 from .openrouter import (
     DEFAULT_BASE_URL,
