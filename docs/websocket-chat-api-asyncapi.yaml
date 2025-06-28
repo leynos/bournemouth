@@ -23,6 +23,21 @@ channels:
       operationId: receiveChat
       message:
         $ref: '#/components/messages/ChatResponse'
+  chat/state:
+    description: |
+      WebSocket channel for stateful chat messages. Each response
+      fragment belongs to a conversation identified by
+      ``conversation_id``.
+    publish:
+      summary: Send a stateful chat request
+      operationId: sendStatefulChat
+      message:
+        $ref: '#/components/messages/ChatStateRequest'
+    subscribe:
+      summary: Receive streaming stateful chat responses
+      operationId: receiveStatefulChat
+      message:
+        $ref: '#/components/messages/ChatStateResponse'
 components:
   messages:
     ChatRequest:
@@ -38,11 +53,13 @@ components:
     ChatStateRequest:
       name: ChatStateRequest
       title: Stateful chat request
+      description: Initiates or continues a conversation with the assistant
       payload:
         $ref: '#/components/schemas/ChatStateRequest'
     ChatStateResponse:
       name: ChatStateResponse
       title: Stateful chat response fragment
+      description: Streamed response fragment for a stateful conversation
       payload:
         $ref: '#/components/schemas/ChatStateResponse'
   schemas:
@@ -113,12 +130,19 @@ components:
         conversation_id:
           type: string
           format: uuid
-        fragment:
+        role:
+          type: string
+          enum: [system, user, assistant, tool]
+        content:
           type: string
         finished:
           type: boolean
-          description: true when this is the last fragment in the stream
+          description: |
+            Indicates whether this is the last fragment in the stream.
+            This property is included in every response and is true only
+            for the final fragment.
       required:
         - transaction_id
         - conversation_id
-        - fragment
+        - role
+        - content
