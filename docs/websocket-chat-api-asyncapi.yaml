@@ -35,6 +35,16 @@ components:
       title: Chat response fragment
       payload:
         $ref: '#/components/schemas/ChatResponse'
+    ChatStateRequest:
+      name: ChatStateRequest
+      title: Stateful chat request
+      payload:
+        $ref: '#/components/schemas/ChatStateRequest'
+    ChatStateResponse:
+      name: ChatStateResponse
+      title: Stateful chat response fragment
+      payload:
+        $ref: '#/components/schemas/ChatStateResponse'
   schemas:
     ChatRequest:
       type: object
@@ -77,3 +87,38 @@ components:
       required:
         - role
         - content
+    ChatStateRequest:
+      type: object
+      properties:
+        transaction_id:
+          type: string
+          description: Correlates request with streamed responses
+        conversation_id:
+          type: string
+          format: uuid
+          nullable: true
+        message:
+          type: string
+        model:
+          type: string
+          nullable: true
+      required:
+        - transaction_id
+        - message
+    ChatStateResponse:
+      type: object
+      properties:
+        transaction_id:
+          type: string
+        conversation_id:
+          type: string
+          format: uuid
+        fragment:
+          type: string
+        finished:
+          type: boolean
+          description: true when this is the last fragment in the stream
+      required:
+        - transaction_id
+        - conversation_id
+        - fragment
