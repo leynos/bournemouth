@@ -111,14 +111,16 @@ components:
           type: string
           description: Correlates request with streamed responses
         conversation_id:
-          type: string
-          format: uuid
-          nullable: true
+          oneOf:
+            - type: string
+              format: uuid
+            - type: 'null'
         message:
           type: string
         model:
-          type: string
-          nullable: true
+          oneOf:
+            - type: string
+            - type: 'null'
       required:
         - transaction_id
         - message
@@ -146,3 +148,4 @@ components:
         - conversation_id
         - role
         - content
+        - finished
