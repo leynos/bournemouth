@@ -137,61 +137,6 @@ class ChatResource:
         )
         resp.media = {"answer": answer}
 
-    async def on_websocket(
-        self, req: falcon.asgi.Request, ws: falcon.asgi.WebSocket
-    ) -> None:
-        """Stream chat responses over WebSocket."""
-        encoder: MsgEncoder = typing.cast("MsgEncoder", req.context.msgspec_encoder)
-        decoder = msgspec_json.Decoder(ChatWsRequest)
-        await ws.accept()
-        send_lock = asyncio.Lock()
-        tasks: set[asyncio.Task[None]] = set()
-
-        def _finalize_task(task: asyncio.Task[None]) -> None:
-            tasks.discard(task)
-            with contextlib.suppress(Exception):
-                task.result()
-
-        async def handle(request: ChatWsRequest) -> None:
-            history = build_chat_history(request.message, request.history)
-            user = typing.cast("str", req.context["user"])
-            api_key = await get_api_key(self._session_factory, user)
-            if api_key is None:
-                async with send_lock:
-                    raw = encoder.encode(
-                        ChatWsResponse(
-                            transaction_id=request.transaction_id,
-                            fragment="missing OpenRouter token",
-                            finished=True,
-                        )
-                    )
-                    await ws.send_text(raw.decode())
-                return
-            cfg = StreamConfig(
-                self._service,
-                ws,
-                encoder,
-                send_lock,
-                api_key,
-                request.model,
-                self._stream_answer,
-            )
-            await stream_chat_response(cfg, request.transaction_id, history)
-
-        try:
-            while True:
-                raw = await ws.receive_text()
-                raw_bytes: bytes = raw.encode()
-                decoded_request = decoder.decode(raw_bytes)
-                task = asyncio.create_task(handle(decoded_request))
-                tasks.add(task)
-                task.add_done_callback(_finalize_task)
-        except falcon.WebSocketDisconnected:
-            pass
-        finally:
-            for task in tasks:
-                task.cancel()
-            await asyncio.gather(*tasks, return_exceptions=True)
 
 
 class ChatWsPachinkoResource(WebSocketResource):  # pyright: ignore[reportUntypedBaseClass]
@@ -204,6 +149,8 @@ class ChatWsPachinkoResource(WebSocketResource):  # pyright: ignore[reportUntype
         self,
         service: OpenRouterService,
         session_factory: typing.Callable[[], AsyncSession],
+        *,
+        stream_answer_func: StreamFunc = stream_answer,
     ) -> None:
         """Create a new ``ChatWsPachinkoResource``.
 
@@ -219,6 +166,7 @@ class ChatWsPachinkoResource(WebSocketResource):  # pyright: ignore[reportUntype
         self._encoder = msgspec_json.Encoder()
         self._send_lock: asyncio.Lock | None = None
         self._user: str | None = None
+        self._stream_answer = stream_answer_func
 
     async def on_connect(
         self, req: falcon.asgi.Request, ws: falcon.asgi.WebSocket, **_: object
@@ -273,8 +221,41 @@ class ChatWsPachinkoResource(WebSocketResource):  # pyright: ignore[reportUntype
             self._send_lock,
             api_key,
             payload.model,
+            self._stream_answer,
         )
         await stream_chat_response(cfg, payload.transaction_id, history)
+
+    async def on_websocket(
+        self, req: falcon.asgi.Request, ws: falcon.asgi.WebSocket
+    ) -> None:
+        """Stream chat responses over WebSocket."""
+        decoder = msgspec_json.Decoder(ChatWsRequest)
+        await ws.accept()
+        self._send_lock = asyncio.Lock()
+        self._user = typing.cast("str", req.context["user"])
+        tasks: set[asyncio.Task[None]] = set()
+
+        def _finalize_task(task: asyncio.Task[None]) -> None:
+            tasks.discard(task)
+            with contextlib.suppress(Exception):
+                task.result()
+
+        async def handle(request: ChatWsRequest) -> None:
+            await self.handle_chat(ws, request)
+
+        try:
+            while True:
+                raw = await ws.receive_text()
+                decoded_request = decoder.decode(raw.encode())
+                task = asyncio.create_task(handle(decoded_request))
+                tasks.add(task)
+                task.add_done_callback(_finalize_task)
+        except falcon.WebSocketDisconnected as ex:
+            await self.on_disconnect(ws, ex.code)
+        finally:
+            for task in tasks:
+                task.cancel()
+            await asyncio.gather(*tasks, return_exceptions=True)
 
 
 class ChatStateResource:

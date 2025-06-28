@@ -126,7 +126,7 @@ async def test_websocket_streams_chat(
         cookie = await _login(client)
 
     headers = {"cookie": f"session={cookie}"}
-    async with conductor.simulate_ws("/chat", headers=headers) as ws:
+    async with conductor.simulate_ws("/ws/chat", headers=headers) as ws:
         req = ChatWsRequest(transaction_id="t1", message="hi")
         await ws.send_text(msgspec_json.encode(req).decode())
         first = msgspec_json.decode(await ws.receive_text(), type=ChatWsResponse)
@@ -156,7 +156,7 @@ async def test_websocket_multiplexes_requests(
 
     headers = {"cookie": f"session={cookie}"}
     async with (
-        conductor.simulate_ws("/chat", headers=headers) as ws,
+        conductor.simulate_ws("/ws/chat", headers=headers) as ws,
         ws_collector(ws) as coll,
     ):
         # Send first request

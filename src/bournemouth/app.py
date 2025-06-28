@@ -110,6 +110,14 @@ def create_app(
         ),
     )
     app.add_route("/chat/state", ChatStateResource(service, db_session_factory))
+    app.add_route(
+        "/ws/chat",
+        ChatWsPachinkoResource(
+            service,
+            db_session_factory,
+            stream_answer_func=chat_stream_answer,
+        ),
+    )
     app_with_ws.add_websocket_route(
         "/ws/chat",
         ChatWsPachinkoResource,
