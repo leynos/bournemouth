@@ -1,19 +1,23 @@
-.PHONY: help all clean build release lint fmt check-fmt markdownlint \
+.PHONY: help all clean build build-release lint fmt check-fmt markdownlint \
 	tools nixie test
 
 MDLINT ?= markdownlint
 NIXIE ?= nixie
 
-all: release ## Build the release artifact
+all: build
 
-build release: ## Build artefacts (sdist & wheel)
+build: tools ## Build for test/typecheck
+	uv venv
+	uv sync --group dev
+
+build-release: ## Build artefacts (sdist & wheel)
 	python -m build --sdist --wheel
 
 clean: ## Remove build artifacts
 	rm -rf build dist *.egg-info \
-	.mypy_cache .pytest_cache .coverage coverage.* htmlcov \
-	.venv
-	find . -type d -name '__pycache__' -exec rm -rf '{}' +
+	  .mypy_cache .pytest_cache .coverage coverage.* lcov.info htmlcov \
+	  .venv
+	  find . -type d -name '__pycache__' -exec rm -rf '{}' +
 
 define ensure_tool
 $(if $(shell command -v $(1) >/dev/null 2>&1 && echo y),,\
@@ -22,7 +26,7 @@ endef
 
 
 tools: ## Verify required CLI tools
-	$(foreach t,mdformat-all ruff ty $(MDLINT) $(NIXIE) pytest uv,$(call ensure_tool,$t))
+	$(foreach t,mdformat-all ruff ty $(MDLINT) $(NIXIE) pytest uv ty,$(call ensure_tool,$t))
 	@:
 
 fmt: tools ## Format sources
@@ -33,19 +37,19 @@ check-fmt: ## Verify formatting
 	ruff format --check
 	mdformat-all --check
 
-lint: ## Run linters
+lint: tools ## Run linters
 	ruff check
+
+typecheck: build ## Run typechecking
 	ty check
 
-markdownlint: ## Lint Markdown files
-	$(call ensure_tool,$(MDLINT))
+markdownlint: tools ## Lint Markdown files
 	find . -type f -name '*.md' -not -path './target/*' -print0 | xargs -0 $(MDLINT)
 
-nixie: ## Validate Mermaid diagrams
-	$(call ensure_tool,$(NIXIE))
+nixie: tools ## Validate Mermaid diagrams
 	find . -type f -name '*.md' -not -path './target/*' -print0 | xargs -0 $(NIXIE)
 
-test: tools ## Run tests
+test: build ## Run tests
 	uv run pytest -v
 
 help: ## Show available targets
