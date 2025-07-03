@@ -1,8 +1,3 @@
----
-description: 
-globs: 
-alwaysApply: false
----
 ## Using Context Managers for Cleanup and Resource Management
 
 Use context managers to encapsulate setup and teardown logic cleanly and safely. This reduces the risk of forgetting to release resources (files, locks, connections, etc.) and simplifies error handling.

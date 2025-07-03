@@ -1,8 +1,3 @@
----
-description: 
-globs: 
-alwaysApply: true
----
 # Assistant Instructions
 
 ## Code Style and Structure
@@ -14,6 +9,17 @@ alwaysApply: true
 * **Name things precisely.** Use clear, descriptive variable and function names. For booleans, prefer names with `is`, `has`, or `should`.
 * **Structure logically.** Each file should encapsulate a coherent module. Group related code (e.g., models + utilities + fixtures) close together.
 * **Group by feature, not layer.** Colocate views, logic, fixtures, and helpers related to a domain concept rather than splitting by type.
+
+## Language-Specific Guidelines
+
+For Python development, refer to the detailed guidelines in the `.rules/` directory:
+
+* [Python Code Style Guidelines](.rules/python-00.md) - Core Python 3.13 style conventions
+* [Python Context Managers](.rules/python-context-managers.md) - Best practices for context managers
+* [Python Generators](.rules/python-generators.md) - Generator and iterator patterns
+* [Python Project Configuration](.rules/python-pyproject.md) - pyproject.toml and packaging
+* [Python Return Patterns](.rules/python-return.md) - Function return conventions
+* [Python Typing](.rules/python-typing.md) - Type annotation best practices
 
 ## Documentation Maintenance
 

@@ -1,8 +1,3 @@
----
-description: 
-globs: *.py
-alwaysApply: false
----
 ## Python 3.13 Code Style Guidelines (with Ruff, Pyright, and pytest)
 
 ### Naming Conventions

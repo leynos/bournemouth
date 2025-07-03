@@ -1,8 +1,3 @@
----
-description: 
-globs: *.py
-alwaysApply: false
----
 ## Prefer Generators Over Complex Loop Logic
 
 Using generators improves readability, composability, and memory efficiency. Functions built as generators are often simpler to test, debug, and refactor. This guidance encourages breaking apart complex `for`-loops into generator expressions or functions using `yield`.
@@ -67,7 +62,7 @@ def top_active_emails(users):
 
 ### Avoid Overcomplicating:
 
-Don’t convert everything into generators unnecessarily. Use them to simplify logic—not obscure it.
+Don't convert everything into generators unnecessarily. Use them to simplify logic—not obscure it.
 
 #### BAD:
 

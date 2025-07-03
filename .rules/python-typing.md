@@ -1,8 +1,3 @@
----
-description: 
-globs: *.py
-alwaysApply: false
----
 ### Advanced Typing and Language Features (Python 3.13)
 
 > This section documents forward-looking Python 3.13 typing features and best practices to improve clarity, correctness, and tooling support. Use these features to write expressive, modern Python.

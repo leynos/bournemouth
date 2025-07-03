@@ -1,11 +1,6 @@
----
-description: 
-globs: pyproject.toml
-alwaysApply: false
----
 ## 1. Overview of `uv` and `pyproject.toml`
 
-Astral’s `uv` is a Rust-based project and package manager that uses `pyproject.toml` as its central configuration file. When you run commands like `uv init`, `uv sync` or `uv run`, `uv` will:
+Astral's `uv` is a Rust-based project and package manager that uses `pyproject.toml` as its central configuration file. When you run commands like `uv init`, `uv sync` or `uv run`, `uv` will:
 
 1. Look for a `pyproject.toml` in the project root and keep a lockfile (`uv.lock`) in sync with it.
 2. Create a virtual environment (`.venv`) if one does not already exist.
@@ -59,7 +54,7 @@ dependencies = [
 
 ## 3. Optional and Development Dependencies
 
-Modern projects typically distinguish between “production” dependencies (those needed at runtime) and “development” dependencies (linters, test frameworks, etc.). In PEP 621, you use `[project.optional-dependencies]` for this:
+Modern projects typically distinguish between "production" dependencies (those needed at runtime) and "development" dependencies (linters, test frameworks, etc.). In PEP 621, you use `[project.optional-dependencies]` for this:
 
 ```toml
 [project.optional-dependencies]
@@ -74,7 +69,7 @@ docs = [
 ]
 ```
 
-* **`[project.optional-dependencies]`:** Each table key (e.g. `dev`, `docs`) defines a “dependency group.” You can install a group via `uv add --group dev` or `uv sync --include dev`. ([Python Packaging][4], [DevsJC][6])
+* **`[project.optional-dependencies]`:** Each table key (e.g. `dev`, `docs`) defines a "dependency group." You can install a group via `uv add --group dev` or `uv sync --include dev`. ([Python Packaging][4], [DevsJC][6])
 * **Why use groups?** You keep the lockfile deterministic (via `uv.lock`) while still separating concerns (test‐only vs. production). ([Medium][7], [DevsJC][6])
 
 ---
@@ -99,7 +94,7 @@ mygui = "my_project.gui:start"
 
 ## 5. Declaring a Build System
 
-PEP 517/518 require a `[build-system]` table to tell tools how to build and install your project. A “modern” convention is to specify `setuptools>=61.0` (for editable installs without `setup.py`) or a lighter alternative like `flit_core`. Below is the typical setup using setuptools:
+PEP 517/518 require a `[build-system]` table to tell tools how to build and install your project. A "modern" convention is to specify `setuptools>=61.0` (for editable installs without `setup.py`) or a lighter alternative like `flit_core`. Below is the typical setup using setuptools:
 
 ```toml
 [build-system]
@@ -109,7 +104,7 @@ build-backend = "setuptools.build_meta"
 
 * **`requires`:** A list of packages needed at build time. For editable installs in `uv`, you need at least `setuptools>=61.0` and `wheel`. ([Python Packaging][4], [Astral Docs][8])
 * **`build-backend`:** The entry point for your build backend. `setuptools.build_meta` is the PEP 517-compliant backend for setuptools. ([Python Packaging][4], [Astral Docs][8])
-* **Note:** If you omit `[build-system]`, `uv` will assume `setuptools.build_meta:__legacy__` and still install dependencies, but it won’t editably install your own project unless you set `tool.uv.package = true` (see next section). ([Astral Docs][8])
+* **Note:** If you omit `[build-system]`, `uv` will assume `setuptools.build_meta:__legacy__` and still install dependencies, but it won't editably install your own project unless you set `tool.uv.package = true` (see next section). ([Astral Docs][8])
 
 ---
 
@@ -215,7 +210,7 @@ package = true
    Follow [semver](https://semver.org/) for `version` values (e.g., `1.2.3`). Bump patch versions for bug fixes, minor for backward-compatible changes, and major for breaking changes. ([Python Packaging][4])
 
 4. **Keep Build Constraints Minimal:**
-   If you don’t need editable installs, you can omit `[build-system]` (but then `uv` won’t build your package; it will only install dependencies). To override, set `tool.uv.package = true`. ([Astral Docs][8])
+   If you don't need editable installs, you can omit `[build-system]` (but then `uv` won't build your package; it will only install dependencies). To override, set `tool.uv.package = true`. ([Astral Docs][8])
 
 5. **Use Exact or Bounded Ranges for Dependencies:**
    Rather than `requests`, use `requests>=2.25, <3.0` to avoid unexpected major bumps. ([DevsJC][6])
@@ -227,7 +222,7 @@ package = true
 
 ## 9. Summary
 
-A “modern” `pyproject.toml` for an Astral `uv` project should:
+A "modern" `pyproject.toml` for an Astral `uv` project should:
 
 * Use the PEP 621 `[project]` table for metadata and `dependencies`.
 * Distinguish optional dependencies under `[project.optional-dependencies]`.
