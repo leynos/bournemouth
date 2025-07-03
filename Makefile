@@ -1,10 +1,12 @@
-.PHONY: help all clean build build-release lint fmt check-fmt markdownlint \
-	tools nixie test
+.PHONY: help default all clean build build-release lint fmt check-fmt \
+	markdownlint tools nixie test
 
 MDLINT ?= markdownlint
 NIXIE ?= nixie
 
-all: build
+all: build check-fmt test typecheck
+
+default: build
 
 build: tools ## Build for test/typecheck
 	uv venv
@@ -17,7 +19,7 @@ clean: ## Remove build artifacts
 	rm -rf build dist *.egg-info \
 	  .mypy_cache .pytest_cache .coverage coverage.* lcov.info htmlcov \
 	  .venv
-	  find . -type d -name '__pycache__' -exec rm -rf '{}' +
+	find . -type d -name '__pycache__' -exec rm -rf '{}' +
 
 define ensure_tool
 $(if $(shell command -v $(1) >/dev/null 2>&1 && echo y),,\
@@ -26,7 +28,7 @@ endef
 
 
 tools: ## Verify required CLI tools
-	$(foreach t,mdformat-all ruff ty $(MDLINT) $(NIXIE) pytest uv ty,$(call ensure_tool,$t))
+	$(foreach t,mdformat-all ruff ty $(MDLINT) $(NIXIE) pytest uv,$(call ensure_tool,$t))
 	@:
 
 fmt: tools ## Format sources
