@@ -173,6 +173,7 @@ async def test_stateful_chat_persists_user_message_on_timeout(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """User messages are persisted even when the service times out."""
+
     async def fail(
         service: OpenRouterService,
         api_key: str,
@@ -210,6 +211,7 @@ async def test_stateful_chat_handles_unexpected_error(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Unexpected service errors are handled gracefully."""
+
     async def fail(
         service: OpenRouterService,
         api_key: str,

@@ -1,4 +1,5 @@
 """Integration tests for REST resources."""
+
 from __future__ import annotations
 
 import typing
@@ -204,6 +205,7 @@ async def test_chat_unexpected_error_returns_500(
     app: asgi.App, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Unexpected service errors should map to HTTP 500."""
+
     async def fail(
         service: OpenRouterService,
         api_key: str,

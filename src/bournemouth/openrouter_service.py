@@ -1,4 +1,3 @@
-
 """Manage cached :class:`OpenRouterAsyncClient` instances by API key."""
 
 from __future__ import annotations

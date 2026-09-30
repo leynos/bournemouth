@@ -138,7 +138,6 @@ class ChatResource:
         resp.media = {"answer": answer}
 
 
-
 class ChatWsPachinkoResource(WebSocketResource):  # pyright: ignore[reportUntypedBaseClass]
     """Stateless chat using ``falcon-pachinko``.
 

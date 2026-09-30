@@ -1,4 +1,5 @@
 """Tests for the OpenRouter client implementation."""
+
 from __future__ import annotations
 
 import typing
@@ -43,6 +44,7 @@ CHAT_COMPLETIONS_URL = f"{DEFAULT_BASE_URL.rstrip('/')}{CHAT_COMPLETIONS_PATH}"
 @pytest.fixture
 def add_chat_response(httpx_mock: HTTPXMock) -> cabc.Callable[..., None]:
     """Return a helper to add a canned chat response."""
+
     def _add_response(**kwargs: typing.Any) -> None:  # noqa: ANN401
         httpx_mock.add_response(method="POST", url=CHAT_COMPLETIONS_URL, **kwargs)
 
@@ -52,8 +54,10 @@ def add_chat_response(httpx_mock: HTTPXMock) -> cabc.Callable[..., None]:
 @pytest.fixture
 def add_chat_callback(httpx_mock: HTTPXMock) -> cabc.Callable[..., None]:
     """Return a helper to register a callback for chat requests."""
+
     def _add_callback(
-        handler: cabc.Callable[[httpx.Request], httpx.Response], **kwargs: typing.Any  # noqa: ANN401
+        handler: cabc.Callable[[httpx.Request], httpx.Response],
+        **kwargs: typing.Any,  # noqa: ANN401
     ) -> None:
         httpx_mock.add_callback(
             handler, method="POST", url=CHAT_COMPLETIONS_URL, **kwargs

@@ -1,4 +1,5 @@
 """Unit tests for CLI helper functions."""
+
 from __future__ import annotations
 
 import json
