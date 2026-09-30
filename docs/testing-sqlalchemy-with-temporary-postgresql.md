@@ -3,17 +3,17 @@
 ## **1. Introduction**
 
 SQLAlchemy is a premier SQL toolkit and Object-Relational Mapper (ORM) for
-Python, frequently paired with PostgreSQL for robust database solutions. Testing
-the database interaction logic in such applications is critical for reliability.
-This guide offers a unified approach to testing Python applications using
-SQLAlchemy with PostgreSQL, covering both synchronous and asynchronous
-operations.\
+Python, frequently paired with PostgreSQL for robust database solutions.
+Testing the database interaction logic in such applications is critical for
+reliability. This guide offers a unified approach to testing Python
+applications using SQLAlchemy with PostgreSQL, covering both synchronous and
+asynchronous operations.\
 We will focus on pytest-postgresql as the central tool for managing PostgreSQL
 test instances. This library can interact with a locally installed PostgreSQL
 server, providing the necessary foundation for both traditional synchronous
 testing and modern asynchronous testing with SQLAlchemy 2.0's asyncio
-extensions, the asyncpg driver, and pytest-asyncio. This approach simplifies the
-testing setup by using a single database management tool across different
+extensions, the asyncpg driver, and pytest-asyncio. This approach simplifies
+the testing setup by using a single database management tool across different
 execution models, ensuring consistency and reducing complexity, especially when
 Docker is not an option.
 
@@ -21,8 +21,8 @@ Docker is not an option.
 
 pytest-postgresql is a pytest plugin that automates the setup and management of
 PostgreSQL databases for testing. It can either start a temporary PostgreSQL
-instance using locally installed binaries or manage databases within an existing
-PostgreSQL server.
+instance using locally installed binaries or manage databases within an
+existing PostgreSQL server.
 
 ### **2.1. Purpose and Benefits of pytest-postgresql**
 
@@ -53,16 +53,16 @@ instances.
 
 ### **2.3. How pytest-postgresql Works**
 
-pytest-postgresql typically provides a `postgresql_proc` fixture (among others).
-This fixture represents the running PostgreSQL process (either one it started or
-an existing one it's configured to use) and contains essential connection
-details like host, port, user, password, and a default database name. These
-details are then used to construct connection URLs for SQLAlchemy.
+pytest-postgresql typically provides a `postgresql_proc` fixture (among
+others). This fixture represents the running PostgreSQL process (either one it
+started or an existing one it's configured to use) and contains essential
+connection details like host, port, user, password, and a default database
+name. These details are then used to construct connection URLs for SQLAlchemy.
 
 ### **2.4. Key pytest-postgresql Fixture: postgresql_proc**
 
-The postgresql_proc fixture is session-scoped by default and provides attributes
-like:
+The postgresql_proc fixture is session-scoped by default and provides
+attributes like:
 
 - postgresql_proc.host
 - postgresql_proc.port
@@ -295,8 +295,8 @@ def dispose_async_engine_at_end_of_session(request, async_engine):
 ```
 
 This `async_db_session` fixture ensures robust test isolation by rolling back
-the outer connection-level transaction. Calls to `await session.commit()` within
-a test will commit to a savepoint, which is then discarded by the final
+the outer connection-level transaction. Calls to `await session.commit()`
+within a test will commit to a savepoint, which is then discarded by the final
 rollback.
 
 ### **5.3. Writing Asynchronous Tests**
@@ -324,8 +324,8 @@ I/O. This requires careful handling in both synchronous and especially
 asynchronous contexts.
 
 - **Synchronous Context:** Standard SQLAlchemy practices apply. Eager loading
-  (e.g., joinedload, selectinload) is often used for performance or to avoid N+1
-  query problems.
+  (e.g., joinedload, selectinload) is often used for performance or to avoid
+  N+1 query problems.
 - **Asynchronous Context:** Implicit I/O from lazy loading can cause
   MissingGreenlet errors or block the event loop.
   - **Eager Loading:** Use loader options like selectinload (often preferred for
@@ -398,15 +398,15 @@ asynchronous contexts.
 ## **9. Conclusion**
 
 Using pytest-postgresql provides a unified and robust foundation for testing
-SQLAlchemy applications against a real PostgreSQL database, whether your code is
-synchronous or asynchronous. By leveraging its instance management capabilities,
-you can create appropriate SQLAlchemy Engine and AsyncEngine instances.
-Combining this with pytest-asyncio for asynchronous tests, and employing sound
-practices for schema management, transaction isolation, and handling ORM
-features like lazy loading, allows for the development of comprehensive and
-reliable test suites. This approach, which does not rely on Docker, is
-particularly valuable for CI environments or local development where a direct
-PostgreSQL installation is preferred.\
+SQLAlchemy applications against a real PostgreSQL database, whether your code
+is synchronous or asynchronous. By leveraging its instance management
+capabilities, you can create appropriate SQLAlchemy Engine and AsyncEngine
+instances. Combining this with pytest-asyncio for asynchronous tests, and
+employing sound practices for schema management, transaction isolation, and
+handling ORM features like lazy loading, allows for the development of
+comprehensive and reliable test suites. This approach, which does not rely on
+Docker, is particularly valuable for CI environments or local development where
+a direct PostgreSQL installation is preferred.\
 **Further Resources:**
 
 - pytest-postgresql Documentation: (Search PyPI or GitHub for the latest)

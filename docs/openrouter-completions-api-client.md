@@ -12,14 +12,14 @@ providers, alongside features like uptime pooling and usage analytics.1
 
 The proposed client will leverage `httpx` for its efficient asynchronous HTTP
 request capabilities and `msgspec` for high-performance data modeling,
-validation, and serialization/deserialization. Key goals for this client include
-ensuring robustness in the face of network issues and API errors, maximizing
-performance through asynchronous operations and efficient data handling,
-promoting ease of use via a clean API, and guaranteeing type safety through
-rigorous data validation. This design will cover essential functionalities such
-as making asynchronous API calls, handling streaming responses for real-time
-interactions, implementing comprehensive error management, and ensuring data
-integrity through `msgspec`-based validation.
+validation, and serialization/deserialization. Key goals for this client
+include ensuring robustness in the face of network issues and API errors,
+maximizing performance through asynchronous operations and efficient data
+handling, promoting ease of use via a clean API, and guaranteeing type safety
+through rigorous data validation. This design will cover essential
+functionalities such as making asynchronous API calls, handling streaming
+responses for real-time interactions, implementing comprehensive error
+management, and ensuring data integrity through `msgspec`-based validation.
 
 ## 2. Client Architecture and Initialization
 
@@ -28,8 +28,8 @@ the primary interface for all client operations.
 
 ### 2.1. `OpenRouterAsyncClient` Class Definition
 
-The `OpenRouterAsyncClient` class will encapsulate all the logic for interacting
-with the OpenRouter API. Its core attributes will include:
+The `OpenRouterAsyncClient` class will encapsulate all the logic for
+interacting with the OpenRouter API. Its core attributes will include:
 
 - `api_key`: The user's OpenRouter API key, essential for authentication.
 - `base_url`: The base URL for the OpenRouter API, defaulting to
@@ -57,24 +57,24 @@ parameters:
   included with every request. These merge with standard headers like
   `Authorization` and `Content-Type`.
 
-Upon initialization, these parameters will be stored as instance attributes. The
-internal `httpx.AsyncClient` (`_client`) will be initialized to `None` at this
-stage, as its instantiation is best handled within the asynchronous context
-management.
+Upon initialization, these parameters will be stored as instance attributes.
+The internal `httpx.AsyncClient` (`_client`) will be initialized to `None` at
+this stage, as its instantiation is best handled within the asynchronous
+context management.
 
 ### 2.3. Asynchronous Context Management (`__aenter__`, `__aexit__`)
 
-To ensure proper management of network resources, particularly connection pools,
-the `OpenRouterAsyncClient` will implement the asynchronous context manager
-protocol.
+To ensure proper management of network resources, particularly connection
+pools, the `OpenRouterAsyncClient` will implement the asynchronous context
+manager protocol.
 
 - async def \__aenter_\_(self):
 
   This method will be called when entering an async with block. It will
-  instantiate the internal self.\_client = httpx.AsyncClient(...), configuring
-  it with the base_url, timeout_config, and any other relevant httpx-specific
-  settings derived from the OpenRouterAsyncClient's configuration. Crucially, it
-  will apply default headers, including the mandatory Authorization header
+  instantiate the internal self.\_client = httpx.AsyncClient(…), configuring it
+  with the base_url, timeout_config, and any other relevant httpx-specific
+  settings derived from the OpenRouterAsyncClient's configuration. Crucially,
+  it will apply default headers, including the mandatory Authorization header
   derived from the api_key. This method will return self, allowing the client
   instance to be used within the async with block.
 
@@ -101,9 +101,9 @@ protocol.
 The decision to make `OpenRouterAsyncClient` an asynchronous context manager
 itself is driven by the need for simplified usage and robust resource
 management. `httpx.AsyncClient` is designed to be used as a context manager to
-leverage its connection pooling and ensure that connections are properly cleaned
-up.4 If users were required to manage both the `OpenRouterAsyncClient` and its
-internal `httpx.AsyncClient` separately, it would introduce unnecessary
+leverage its connection pooling and ensure that connections are properly
+cleaned up.4 If users were required to manage both the `OpenRouterAsyncClient`
+and its internal `httpx.AsyncClient` separately, it would introduce unnecessary
 complexity. By encapsulating the `httpx.AsyncClient`'s lifecycle within the
 `OpenRouterAsyncClient`, the end-developer interacts with a single, cohesive
 client object (e.g., `async with OpenRouterAsyncClient(...) as or_client:`),
@@ -112,12 +112,12 @@ the underlying HTTP transport layer's resource management.
 
 ### 2.4. Connection Pooling
 
-Connection pooling is a critical feature for performance, especially when making
-multiple requests to the same host. `httpx.AsyncClient` automatically handles
-connection pooling when the client instance is reused for multiple requests.4 By
-managing the `httpx.AsyncClient` instance within the `OpenRouterAsyncClient`'s
-lifecycle (ideally through context management), these benefits are passed on to
-the user of the `OpenRouterAsyncClient`.
+Connection pooling is a critical feature for performance, especially when
+making multiple requests to the same host. `httpx.AsyncClient` automatically
+handles connection pooling when the client instance is reused for multiple
+requests.4 By managing the `httpx.AsyncClient` instance within the
+`OpenRouterAsyncClient`'s lifecycle (ideally through context management), these
+benefits are passed on to the user of the `OpenRouterAsyncClient`.
 
 ## 3. Data Modeling with `msgspec`
 
@@ -128,17 +128,17 @@ performance and type safety.
 ### 3.1. Rationale for using `msgspec`
 
 `msgspec` is a Python library designed for high-performance message processing.
-Its `Struct` types are implemented in C, offering significantly faster creation,
-comparison, encoding, and decoding compared to alternatives like standard
-dataclasses, `attrs`, or Pydantic.5 This speed is crucial for an API client that
-may handle large volumes of data or require low latency.
+Its `Struct` types are implemented in C, offering significantly faster
+creation, comparison, encoding, and decoding compared to alternatives like
+standard dataclasses, `attrs`, or Pydantic.5 This speed is crucial for an API
+client that may handle large volumes of data or require low latency.
 
 Furthermore, `msgspec.Struct` allows for the definition of clear and concise
 data contracts through Python type annotations.5 This enables strict typing and
 efficient validation of data before sending requests and after receiving
 responses, helping to catch errors early in the development cycle or at
-runtime.6 The validation ensures that the data exchanged with the OpenRouter API
-conforms to the expected schemas.
+runtime.6 The validation ensures that the data exchanged with the OpenRouter
+API conforms to the expected schemas.
 
 ### 3.2. Request `Struct`s
 
@@ -286,9 +286,9 @@ will get one usage object at the end accompanied by an empty choices array".8
 This implies that the `StreamChunk` struct must be designed to accommodate two
 forms of data payloads: regular chunks containing `delta` updates within the
 `choices` array, and a final chunk where `choices` is empty and `usage` is
-populated. The `msgspec.Struct` definition with `choices: List` (which can be an
-empty list) and `usage: Optional` naturally supports this. The client's stream
-processing logic will then need to identify this final chunk, perhaps by
+populated. The `msgspec.Struct` definition with `choices: List` (which can be
+an empty list) and `usage: Optional` naturally supports this. The client's
+stream processing logic will then need to identify this final chunk, perhaps by
 checking for the presence of `usage` data when `choices` is empty.
 
 ### 3.4. Error `Struct`s
@@ -306,8 +306,8 @@ These structs will model error responses from the OpenRouter API.
 - `OpenRouterErrorResponse(msgspec.Struct, forbid_unknown_fields=False)`:
   - `error: OpenRouterAPIErrorDetails` 8
 
-These structs will be used to parse the JSON body of HTTP error responses (e.g.,
-4xx, 5xx status codes) returned by OpenRouter.8
+These structs will be used to parse the JSON body of HTTP error responses
+(e.g., 4xx, 5xx status codes) returned by OpenRouter.8
 
 ### 3.5. Validation, Optional Fields, and Default Values
 
@@ -332,14 +332,14 @@ These structs will be used to parse the JSON body of HTTP error responses (e.g.,
 
 ### Table 1: Key `msgspec` Data Models for OpenRouter API
 
-| Struct Name             | Key Fields                                                              | API Concept                                                             | Notes                                                                   |
-| ----------------------- | ----------------------------------------------------------------------- | ----------------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| ChatMessage             | role, content, name, tool_call_id                                       | entry in messages array                                                 | Use list form for multimodal input; tool_call_id only with role="tool". |
-| ChatCompletionRequest   | model, messages, stream, temperature, tools                             | body for /chat/completions                                              | model and messages required; other fields tune generation.              |
-| ChatCompletionResponse  | id, choices, usage, model                                               | non-streaming response                                                  | full model reply.                                                       |
-| StreamChunk             | id, choices, usage, model                                               | SSE chunk payload                                                       | usage usually appears in final chunk.                                   |
-| OpenRouterErrorResponse | error                                                                   | error response body                                                     | structured error details.                                               |
-| UsageStats              | prompt_tokens, completion_tokens, total_tokens                          | token usage data                                                        | returned in non-streaming responses and the final SSE chunk.            |
+| Struct Name             | Key Fields                                     | API Concept                | Notes                                                                   |
+| ----------------------- | ---------------------------------------------- | -------------------------- | ----------------------------------------------------------------------- |
+| ChatMessage             | role, content, name, tool_call_id              | entry in messages array    | Use list form for multimodal input; tool_call_id only with role="tool". |
+| ChatCompletionRequest   | model, messages, stream, temperature, tools    | body for /chat/completions | model and messages required; other fields tune generation.              |
+| ChatCompletionResponse  | id, choices, usage, model                      | non-streaming response     | full model reply.                                                       |
+| StreamChunk             | id, choices, usage, model                      | SSE chunk payload          | usage usually appears in final chunk.                                   |
+| OpenRouterErrorResponse | error                                          | error response body        | structured error details.                                               |
+| UsageStats              | prompt_tokens, completion_tokens, total_tokens | token usage data           | returned in non-streaming responses and the final SSE chunk.            |
 
 This table serves as an essential reference, bridging the OpenRouter API's JSON
 structures with the Python client's typed data models, thereby enhancing
@@ -431,7 +431,8 @@ This functionality allows for receiving the chat response as a stream of events
 
 - **Method Design**:
   `async def stream_chat_completion(self, request: ChatCompletionRequest) -> AsyncIterator:`
-  This method will be an asynchronous generator, yielding `StreamChunk` objects.
+  This method will be an asynchronous generator, yielding `StreamChunk`
+  objects.
 
 - **Enabling Streaming**: The input `ChatCompletionRequest` struct must have its
   `stream` attribute set to `True`.
@@ -533,12 +534,13 @@ This functionality allows for receiving the chat response as a stream of events
 
   ```
 
-It is crucial to check `response.status_code` immediately after the `async with`
-block is entered. If the status indicates an error (e.g., 401, 402), the error
-response body should be read (e.g., `await response.aread()`), parsed using
-`OpenRouterErrorResponse`, an appropriate custom exception raised, and then
-`await response.aclose()` called to ensure resources are freed. `httpx.stream`
-does not automatically raise for bad statuses upon entering the context.
+It is crucial to check `response.status_code` immediately after the
+`async with` block is entered. If the status indicates an error (e.g., 401,
+402), the error response body should be read (e.g., `await response.aread()`),
+parsed using `OpenRouterErrorResponse`, an appropriate custom exception raised,
+and then `await response.aclose()` called to ensure resources are freed.
+`httpx.stream` does not automatically raise for bad statuses upon entering the
+context.
 
 - **Processing Server-Sent Events (SSE)**: The OpenRouter API uses Server-Sent
   Events for streaming.8 The client will process these events by iterating over
@@ -566,10 +568,10 @@ The use of `response.aiter_lines()` is particularly well-suited for SSE, as SSE
 is a line-delimited protocol. The core of robust SSE handling lies in
 meticulously parsing each line according to the SSE format rules: identifying
 data-bearing lines, correctly extracting the JSON payload, recognizing and
-acting upon the \`\` termination signal, and safely ignoring comment lines. This
-structured approach ensures the accurate transformation of the raw SSE stream
-from the API into a validated, type-safe asynchronous iterator of `StreamChunk`
-objects for the client user.
+acting upon the \`\` termination signal, and safely ignoring comment lines.
+This structured approach ensures the accurate transformation of the raw SSE
+stream from the API into a validated, type-safe asynchronous iterator of
+`StreamChunk` objects for the client user.
 
 Regarding stream cancellation, OpenRouter documentation indicates that for
 supported providers, aborting the connection can stop model processing and
@@ -577,15 +579,15 @@ billing.13 When using `httpx` with `asyncio`, if the `asyncio` task consuming
 the stream is cancelled, `httpx` typically aborts the underlying network
 connection. This implies that the client, when used within standard `asyncio`
 applications, should support stream cancellation implicitly through `asyncio`'s
-task cancellation mechanisms, without requiring explicit cancellation methods in
-the client library itself.
+task cancellation mechanisms, without requiring explicit cancellation methods
+in the client library itself.
 
 ### Table 2: OpenRouter API Endpoint Summary for Client Methods
 
-| Client Method / Endpoint Path                         | HTTP Method                                           | Key msgspec Request Struct                            | Key msgspec Response Struct / AsyncIterator Type      | Purpose                                               |
-| ----------------------------------------------------- | ----------------------------------------------------- | ----------------------------------------------------- | ----------------------------------------------------- | ----------------------------------------------------- |
-| create_chat_completion (/chat/completions)            | POST                                                  | ChatCompletionRequest (with stream=False)             | ChatCompletionResponse                                | Standard, non-streaming LLM chat completion.          |
-| stream_chat_completion (/chat/completions)            | POST                                                  | ChatCompletionRequest (with stream=True)              | AsyncIterator                                         | Streaming LLM chat completion via Server-Sent Events. |
+| Client Method / Endpoint Path              | HTTP Method | Key msgspec Request Struct                | Key msgspec Response Struct / AsyncIterator Type | Purpose                                               |
+| ------------------------------------------ | ----------- | ----------------------------------------- | ------------------------------------------------ | ----------------------------------------------------- |
+| create_chat_completion (/chat/completions) | POST        | ChatCompletionRequest (with stream=False) | ChatCompletionResponse                           | Standard, non-streaming LLM chat completion.          |
+| stream_chat_completion (/chat/completions) | POST        | ChatCompletionRequest (with stream=True)  | AsyncIterator                                    | Streaming LLM chat completion via Server-Sent Events. |
 
 This table provides a concise overview of the primary client methods, their
 corresponding API endpoints, and the data structures involved, facilitating
@@ -629,8 +631,8 @@ securely. Best practices include:
 - Storing keys in secure configuration files that are not checked into version
   control. It is critical that API keys are **not** hardcoded directly into
   source code. The client library itself will not be responsible for storing or
-  persisting the API key; it will only use the key provided to it at runtime for
-  constructing authentication headers.
+  persisting the API key; it will only use the key provided to it at runtime
+  for constructing authentication headers.
 
 ### 5.3. Mention of Other Authentication Methods (Out of Scope for Core Design)
 
@@ -640,10 +642,11 @@ such as OAuth 2.0 PKCE (Proof Key for Code Exchange) for user-delegated access
 the initial design of this client focuses on the common direct API key
 authentication suitable for backend applications, these other methods are noted
 as relevant for more advanced scenarios. For instance, an application could use
-the PKCE flow to obtain a user-controlled API key, which could then be used with
-this client. The client's core request logic, which relies on a bearer token,
-remains compatible even if the token is obtained through such alternative
-mechanisms, highlighting a degree of inherent flexibility in its applicability.
+the PKCE flow to obtain a user-controlled API key, which could then be used
+with this client. The client's core request logic, which relies on a bearer
+token, remains compatible even if the token is obtained through such
+alternative mechanisms, highlighting a degree of inherent flexibility in its
+applicability.
 
 ## 6. Error Handling and Resilience
 
@@ -686,9 +689,9 @@ OpenRouter uses standard HTTP status codes to indicate various error conditions
 
 When these errors occur, OpenRouter typically returns a JSON response body
 detailing the error. The client will attempt to parse this JSON using the
-`OpenRouterErrorResponse` and `OpenRouterAPIErrorDetails` msgspec Structs. Based
-on the status code and parsed error details, specific custom exceptions will be
-raised:
+`OpenRouterErrorResponse` and `OpenRouterAPIErrorDetails` msgspec Structs.
+Based on the status code and parsed error details, specific custom exceptions
+will be raised:
 
 - `OpenRouterAuthenticationError(OpenRouterAPIError)` for 401.
 - `OpenRouterInsufficientCreditsError(OpenRouterAPIError)` for 402.
@@ -712,8 +715,8 @@ raised:
 
 ### 6.4. Defining Custom Client Exceptions
 
-A hierarchy of custom exceptions will be defined to provide a structured way for
-users to catch and handle errors originating from the client or the API:
+A hierarchy of custom exceptions will be defined to provide a structured way
+for users to catch and handle errors originating from the client or the API:
 
 - Base Exception: `OpenRouterClientError(Exception)`
 - Network-related: `OpenRouterNetworkError(OpenRouterClientError)`
@@ -741,34 +744,35 @@ implemented, retries should be configurable and applied selectively:
   `OpenRouterNetworkError`).
 - **Non-Retryable Errors**: Errors like `400 Bad Request`, `401 Unauthorized`,
   `402 Payment Required`, or `msgspec.ValidationError` should generally not be
-  retried as they indicate fundamental issues with the request or account status
-  that a retry is unlikely to resolve.
+  retried as they indicate fundamental issues with the request or account
+  status that a retry is unlikely to resolve.
 
 The selection of which errors are retryable is fundamental to creating a
 resilient client. For example, a 429 error often suggests a temporary overload
 or quota exhaustion and is a good candidate for a delayed retry, especially if a
-`Retry-After` directive is provided. Conversely, a 400 error indicates an issue
-with the request itself, and retrying the same malformed request will not yield
-a different outcome. 5xx errors often point to transient problems on the server
-side, making them suitable for retries with an appropriate backoff strategy
-(e.g., exponential backoff with jitter). Libraries like `tenacity` or `httpx`'s
-own transport-level retry capabilities (`httpx.AsyncHTTPTransport(retries=...)`
-3\) can be leveraged for implementing such strategies.
+`Retry-After` directive is provided. Conversely, a 400 error indicates an
+issue with the request itself, and retrying the same malformed request will not
+yield a different outcome. 5xx errors often point to transient problems on the
+server side, making them suitable for retries with an appropriate backoff
+strategy (e.g., exponential backoff with jitter). Libraries like `tenacity` or
+`httpx`'s own transport-level retry capabilities
+(`httpx.AsyncHTTPTransport(retries=...)` 3\) can be leveraged for implementing
+such strategies.
 
 ### Table 3: Client Exception Hierarchy and Error Handling
 
-| Source             | Condition    | Exception               | Notes               |
-| ------------------ | ------------ | ----------------------- | ------------------- |
-| httpx.HTTPStatus   | 401          | AuthError               | Verify key          |
-| httpx.HTTPStatus   | 402          | CreditsError            | Add credits         |
-| httpx.HTTPStatus   | 403          | PermissionError         | Check input         |
-| httpx.HTTPStatus   | 429          | RateLimitError          | Wait and retry      |
-| httpx.HTTPStatus   | 400          | InvalidRequest          | Review request      |
-| httpx.HTTPStatus   | 5xx          | ServerError             | Retry later         |
-| httpx.Timeout      | timeout      | TimeoutError            | Increase timeout    |
-| httpx.NetworkError | network      | NetworkError            | Check connection    |
-| ValidationError    | bad request  | RequestValidationError  | Fix payload         |
-| ValidationError    | bad response | ResponseValidationError | Possible change     |
+| Source             | Condition    | Exception               | Notes            |
+| ------------------ | ------------ | ----------------------- | ---------------- |
+| httpx.HTTPStatus   | 401          | AuthError               | Verify key       |
+| httpx.HTTPStatus   | 402          | CreditsError            | Add credits      |
+| httpx.HTTPStatus   | 403          | PermissionError         | Check input      |
+| httpx.HTTPStatus   | 429          | RateLimitError          | Wait and retry   |
+| httpx.HTTPStatus   | 400          | InvalidRequest          | Review request   |
+| httpx.HTTPStatus   | 5xx          | ServerError             | Retry later      |
+| httpx.Timeout      | timeout      | TimeoutError            | Increase timeout |
+| httpx.NetworkError | network      | NetworkError            | Check connection |
+| ValidationError    | bad request  | RequestValidationError  | Fix payload      |
+| ValidationError    | bad response | ResponseValidationError | Possible change  |
 
 ## 7. Client Configuration and Customization
 
@@ -793,20 +797,20 @@ The client should offer flexibility through various configuration options.
     `HTTP-Referer` (to identify the application on openrouter.ai) and `X-Title`
     (to set/modify the application's title for discovery).8
 - **Proxy Configuration**: `httpx.AsyncClient` supports proxy configuration
-  through the `proxies` parameter in its constructor or via standard environment
-  variables (`HTTP_PROXY`, `HTTPS_PROXY`).3 The `OpenRouterAsyncClient` will
-  accept an optional `proxies` argument (a string URL or a dictionary mapping
-  schemes to proxy URLs) and pass it directly to the internal
-  `httpx.AsyncClient`.
+  through the `proxies` parameter in its constructor or via standard
+  environment variables (`HTTP_PROXY`, `HTTPS_PROXY`).3 The
+  `OpenRouterAsyncClient` will accept an optional `proxies` argument (a string
+  URL or a dictionary mapping schemes to proxy URLs) and pass it directly to
+  the internal `httpx.AsyncClient`.
 - **SSL Verification**: `httpx.AsyncClient` allows control over SSL certificate
   verification via the `verify` parameter (boolean or path to CA bundle).3 The
-  `OpenRouterAsyncClient` will accept a `verify` argument (defaulting to `True`)
-  and pass it to the internal `httpx.AsyncClient`.
+  `OpenRouterAsyncClient` will accept a `verify` argument (defaulting to
+  `True`) and pass it to the internal `httpx.AsyncClient`.
 
-Exposing these underlying `httpx` configurations provides necessary flexibility.
-While common options like `api_key` and `timeout_config` can be direct
-parameters of `OpenRouterAsyncClient`, a more general approach for less common
-`httpx` settings could be an optional
+Exposing these underlying `httpx` configurations provides necessary
+flexibility. While common options like `api_key` and `timeout_config` can be
+direct parameters of `OpenRouterAsyncClient`, a more general approach for less
+common `httpx` settings could be an optional
 `httpx_client_options: Optional[dict[str, Any]]` parameter. This dictionary
 would be unpacked and passed to the `httpx.AsyncClient` constructor, allowing
 advanced users to fine-tune aspects like HTTP/2 settings, connection limits, or
@@ -957,8 +961,9 @@ ease of use.
 
 ## 9. Advanced Features and Future Considerations
 
-While the core design focuses on the chat completions endpoint, several advanced
-features and potential future enhancements could further improve the client.
+While the core design focuses on the chat completions endpoint, several
+advanced features and potential future enhancements could further improve the
+client.
 
 - **Support for other OpenRouter endpoints**:
   - `/completions` (Legacy non-chat endpoint 19): Support for this would require
@@ -1001,19 +1006,20 @@ features and potential future enhancements could further improve the client.
   blocking API. This mirrors `httpx`'s own provision of both `Client` and
   `AsyncClient`. 4
 
-The OpenRouter API platform is rich and continually evolving, offering access to
-a wide array of models and features.1 Acknowledging these advanced features and
-potential future enhancements provides a clear roadmap for the client's
-development, manages expectations regarding the scope of an initial version, and
-demonstrates a comprehensive understanding of the broader OpenRouter ecosystem.
+The OpenRouter API platform is rich and continually evolving, offering access
+to a wide array of models and features.1 Acknowledging these advanced features
+and potential future enhancements provides a clear roadmap for the client's
+development, manages expectations regarding the scope of an initial version,
+and demonstrates a comprehensive understanding of the broader OpenRouter
+ecosystem.
 
 ## 10. Conclusion
 
-The proposed design outlines an asynchronous Python client for the OpenRouter.ai
-Completions API that prioritizes robustness, performance, type safety, and ease
-of use. By leveraging `httpx` for efficient, non-blocking HTTP operations and
-`msgspec` for high-speed data validation and serialization, the client aims to
-provide a superior developer experience.
+The proposed design outlines an asynchronous Python client for the
+OpenRouter.ai Completions API that prioritizes robustness, performance, type
+safety, and ease of use. By leveraging `httpx` for efficient, non-blocking HTTP
+operations and `msgspec` for high-speed data validation and serialization, the
+client aims to provide a superior developer experience.
 
 Key benefits of this design include:
 
@@ -1021,9 +1027,9 @@ Key benefits of this design include:
   `httpx.AsyncClient` allows for high-concurrency applications without the
   overhead of traditional threading. 4
 - **Data Integrity and Performance**: `msgspec.Struct` ensures that data
-  exchanged with the API is correctly formatted and validated, while its C-based
-  implementation offers significant speed advantages for serialization and
-  deserialization. 5
+  exchanged with the API is correctly formatted and validated, while its
+  C-based implementation offers significant speed advantages for serialization
+  and deserialization. 5
 - **Comprehensive API Coverage**: Focus on the crucial `/chat/completions`
   endpoint, including robust support for Server-Sent Events (SSE) for streaming
   responses. 8
@@ -1032,8 +1038,8 @@ Key benefits of this design include:
 - **Configurability**: Options for timeouts, custom headers, and proxy settings
   provide necessary flexibility. 3
 
-This client is designed to address common challenges in API interaction, such as
-managing asynchronous communication, handling real-time data streams, and
+This client is designed to address common challenges in API interaction, such
+as managing asynchronous communication, handling real-time data streams, and
 gracefully recovering from errors. Its adoption should significantly simplify
 the integration of OpenRouter's diverse LLM offerings into Python applications,
 empowering developers to build more sophisticated and responsive AI-powered

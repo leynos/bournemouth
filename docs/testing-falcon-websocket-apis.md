@@ -17,11 +17,11 @@ asynchronous test execution and Falcon's own testing utilities.
 ### 1.1. The Importance of Testing WebSocket APIs
 
 Unlike traditional RESTful APIs that follow a stateless request-response model,
-WebSocket interactions are stateful and long-lived. This introduces complexities
-such as connection management (establishment, maintenance, termination), message
-sequencing, handling concurrent messages, and managing server-side state
-associated with each connection. Rigorous testing is therefore essential to
-validate:
+WebSocket interactions are stateful and long-lived. This introduces
+complexities such as connection management (establishment, maintenance,
+termination), message sequencing, handling concurrent messages, and managing
+server-side state associated with each connection. Rigorous testing is
+therefore essential to validate:
 
 - Correct handshake procedures and connection lifecycle management.
 - Bidirectional message flow, including various data types (text, binary,
@@ -32,16 +32,16 @@ validate:
   is often beyond basic unit/integration testing).
 - Subprotocol negotiation if used.
 
-Effective testing ensures that the real-time features of an application function
-as expected, providing a stable and reliable user experience.
+Effective testing ensures that the real-time features of an application
+function as expected, providing a stable and reliable user experience.
 
 ### 1.2. Overview of Falcon's ASGI and WebSocket Support
 
 Falcon's support for WebSockets is integrated into its ASGI application model.1
 When a client initiates a WebSocket handshake request, Falcon routes it to a
 resource class, similar to HTTP requests. If the resource implements an
-`async def on_websocket(self, req, ws):` responder, this coroutine is invoked to
-handle the WebSocket connection.1
+`async def on_websocket(self, req, ws):` responder, this coroutine is invoked
+to handle the WebSocket connection.1
 
 The `req` object provides details about the initial handshake request, while the
 `ws` object (`falcon.asgi.WebSocket`) is the primary interface for interacting
@@ -137,12 +137,12 @@ asyncio_mode = auto
 ```
 
 For most new projects focusing solely on `asyncio` with Falcon, `auto` mode can
-reduce boilerplate. However, `strict` mode's explicitness can prevent ambiguity,
-especially in complex setups or when integrating with other async tools.
-Understanding the active mode is crucial, as it affects whether markers and
-specific fixture decorators are mandatory. If tests or async fixtures seem to be
-ignored or misbehave, an incorrect mode configuration or missing markers (in
-`strict` mode) is a common cause.
+reduce boilerplate. However, `strict` mode's explicitness can prevent
+ambiguity, especially in complex setups or when integrating with other async
+tools. Understanding the active mode is crucial, as it affects whether markers
+and specific fixture decorators are mandatory. If tests or async fixtures seem
+to be ignored or misbehave, an incorrect mode configuration or missing markers
+(in `strict` mode) is a common cause.
 
 ## 3. Understanding Falcon's Testing Utilities for ASGI and WebSockets
 
@@ -160,16 +160,16 @@ Falcon offers two primary classes for testing: `falcon.testing.TestClient` and
   lifecycle for a request in a single shot. However, `TestClient` is **not
   suitable** for testing streaming endpoints like WebSockets or Server-Sent
   Events, nor for simulating multiple interleaved requests.14 Attempting to use
-  `TestClient` for WebSocket testing will not provide the necessary control over
-  the persistent connection.
+  `TestClient` for WebSocket testing will not provide the necessary control
+  over the persistent connection.
 
 - `falcon.testing.ASGIConductor`: This class is specifically designed for more
   fine-grained control over the lifecycle of simulated requests in ASGI
   applications. It is the **recommended tool for testing WebSockets** and other
-  streaming protocols.14 `ASGIConductor` allows for simulating the ASGI lifespan
-  events and provides methods to establish and interact with simulated WebSocket
-  connections. Its asynchronous interface is essential for testing the
-  back-and-forth nature of WebSocket communication.14
+  streaming protocols.14 `ASGIConductor` allows for simulating the ASGI
+  lifespan events and provides methods to establish and interact with simulated
+  WebSocket connections. Its asynchronous interface is essential for testing
+  the back-and-forth nature of WebSocket communication.14
 
 The distinction is critical: for any WebSocket testing with Falcon,
 `ASGIConductor` must be used.
@@ -325,8 +325,8 @@ denies access to unauthorized or malformed connection attempts.
 
 ### 4.3. Message Exchange Tests
 
-These tests focus on the core functionality of WebSockets: bidirectional message
-passing.
+These tests focus on the core functionality of WebSockets: bidirectional
+message passing.
 
 #### 4.3.1. Client Sending, Server Receiving and Responding
 
@@ -355,9 +355,10 @@ message contents and ensure correct processing and response generation.
 #### 4.3.2. Server Sending, Client Receiving
 
 This scenario tests the server's ability to send messages to the client,
-potentially unsolicited (e.g., notifications, broadcasts). While `ASGIConductor`
-simulates a single client, it can verify that this client receives messages that
-would be part of a broader broadcast or server-initiated event stream.
+potentially unsolicited (e.g., notifications, broadcasts). While
+`ASGIConductor` simulates a single client, it can verify that this client
+receives messages that would be part of a broader broadcast or server-initiated
+event stream.
 
 ```python
 @pytest.mark.asyncio
@@ -375,11 +376,12 @@ test that a single client correctly receives a message that the server logic
 intends to broadcast. For instance, if a message from client A should be
 broadcast to all clients (including client A, or excluding client A), one can
 simulate client A sending the message, and then check if client A (the same
-`ws_client`) receives the broadcasted version if applicable, or simulate another
-client (requiring another `ASGIConductor` or more advanced test setup) to verify
-receipt. For the scope of typical unit/integration tests with `ASGIConductor`,
-focusing on a single client's perspective of a broadcast (i.e., receiving a
-message intended for multiple recipients) is a common approach.5
+`ws_client`) receives the broadcasted version if applicable, or simulate
+another client (requiring another `ASGIConductor` or more advanced test setup)
+to verify receipt. For the scope of typical unit/integration tests with
+`ASGIConductor`, focusing on a single client's perspective of a broadcast
+(i.e., receiving a message intended for multiple recipients) is a common
+approach.5
 
 ### 4.4. Testing Different Payload Types
 
@@ -427,15 +429,15 @@ protocols, structured data like JSON.
 
 ```
 
-Testing with media handlers ensures that the serialization/deserialization logic
-on both the client (simulator) and server sides works correctly for the chosen
-media type. This is particularly important for APIs that rely heavily on
+Testing with media handlers ensures that the serialization/deserialization
+logic on both the client (simulator) and server sides works correctly for the
+chosen media type. This is particularly important for APIs that rely heavily on
 structured data formats like JSON.
 
 ### 4.5. Testing WebSocket Closure
 
-Properly handling WebSocket closures from both client and server perspectives is
-vital.
+Properly handling WebSocket closures from both client and server perspectives
+is vital.
 
 #### 4.5.1. Client-Initiated Closure
 
@@ -456,8 +458,8 @@ async def test_websocket_client_initiates_closure(conductor):
         # Verifying server-side cleanup might require log inspection or checking side effects.
 ```
 
-After the client closes, the `ws_client.closed` property should reflect this. On
-the server side, the `on_websocket` handler would typically encounter a
+After the client closes, the `ws_client.closed` property should reflect this.
+On the server side, the `on_websocket` handler would typically encounter a
 `falcon.WebSocketDisconnected` exception upon its next attempt to `receive_` or
 `send_` on the `ws` object, allowing it to perform any necessary cleanup.4
 
@@ -497,8 +499,8 @@ codes as per the application logic or WebSocket protocol standards.
 
 ## 5. Advanced WebSocket Testing Scenarios
 
-Beyond basic connection and message exchange, several advanced scenarios warrant
-testing to ensure a robust WebSocket API.
+Beyond basic connection and message exchange, several advanced scenarios
+warrant testing to ensure a robust WebSocket API.
 
 ### 5.1. Testing Error Handling
 
@@ -506,13 +508,13 @@ Robust error handling is crucial for WebSocket applications.
 
 #### 5.1.1. Simulating and Verifying Server-Side `WebSocketDisconnected`
 
-When a client disconnects abruptly (e.g., network drop, browser tab closed), the
-server-side on_websocket handler should gracefully handle the
+When a client disconnects abruptly (e.g., network drop, browser tab closed),
+the server-side on_websocket handler should gracefully handle the
 falcon.WebSocketDisconnected exception that Falcon raises during subsequent
 send/receive attempts.4
 
 Testing this with ASGIConductor can be done by simply exiting the async with
-conductor.simulate_ws(...) block, which simulates the client closing the
+conductor.simulate_ws(…) block, which simulates the client closing the
 connection.
 
 ```python
@@ -587,8 +589,8 @@ The server should gracefully handle malformed messages (e.g., invalid JSON when
 JSON is expected) or other unexpected client inputs. Falcon's media handlers
 might raise `falcon.MediaMalformedError` or `falcon.PayloadTypeError` if
 deserialization fails.4 The `on_websocket` handler should catch such exceptions
-and respond appropriately (e.g., send an error message over the WebSocket, close
-with a specific code, or log and ignore) rather than crashing.
+and respond appropriately (e.g., send an error message over the WebSocket,
+close with a specific code, or log and ignore) rather than crashing.
 
 ```python
 @pytest.mark.asyncio
@@ -625,9 +627,9 @@ handshake phase or via messages after connection.
 
 This is the most common method. Credentials (e.g., tokens, API keys) are
 typically passed in headers or query parameters during the initial HTTP
-handshake request. The server-side `on_websocket` handler inspects `req.headers`
-or `req.params` (available from the `req` object passed to `on_websocket`)
-before deciding to call `await ws.accept()`.4
+handshake request. The server-side `on_websocket` handler inspects
+`req.headers` or `req.params` (available from the `req` object passed to
+`on_websocket`) before deciding to call `await ws.accept()`.4
 
 ```python
 @pytest.mark.asyncio
@@ -653,9 +655,9 @@ authentication checks during the `process_request_ws` phase.1
 #### 5.2.2. Message-Based Authentication
 
 Less common for the initial connection but sometimes used for subsequent
-authorization of actions over an established WebSocket, this involves the client
-sending a specific authentication message after the connection is accepted. The
-server then validates this message.
+authorization of actions over an established WebSocket, this involves the
+client sending a specific authentication message after the connection is
+accepted. The server then validates this message.
 
 ```python
 @pytest.mark.asyncio
@@ -826,8 +828,8 @@ effective test suites for WebSocket APIs.
 ### 6.1. Clear and Maintainable Test Structure
 
 Organize tests logically, for example, by WebSocket endpoint, feature, or
-message type. Use descriptive names for test functions and test files to clearly
-indicate their purpose.
+message type. Use descriptive names for test functions and test files to
+clearly indicate their purpose.
 
 ```python
 # e.g., tests/websockets/test_chat_room.py
@@ -951,17 +953,17 @@ arise.
 ### 7.1. Event Loop Issues with `pytest-asyncio`
 
 While `pytest-asyncio` generally manages the event loop well via its
-`event_loop` fixture 9, incorrect manual loop management or interactions between
-different async libraries can sometimes lead to errors like "Got Future \<Future
-pending> attached to a different loop." Sticking to `pytest-asyncio`'s
+`event_loop` fixture 9, incorrect manual loop management or interactions
+between different async libraries can sometimes lead to errors like "Got Future
+\<Future pending> attached to a different loop." Sticking to `pytest-asyncio`'s
 conventions usually avoids these problems.
 
 ### 7.2. `pytest-asyncio` Mode Misconfigurations
 
-If tests are not being discovered as async, or if async fixtures are not working
-as expected, verify the `pytest-asyncio` mode (`strict` vs. `auto`). In `strict`
-mode (the default), ensure `@pytest.mark.asyncio` is used on async test
-functions and `@pytest_asyncio.fixture` on async fixtures.12
+If tests are not being discovered as async, or if async fixtures are not
+working as expected, verify the `pytest-asyncio` mode (`strict` vs. `auto`). In
+`strict` mode (the default), ensure `@pytest.mark.asyncio` is used on async
+test functions and `@pytest_asyncio.fixture` on async fixtures.12
 
 ### 7.3. Incorrect `ASGIConductor` Usage
 
@@ -972,27 +974,27 @@ functions and `@pytest_asyncio.fixture` on async fixtures.12
 
 ### 7.4. Timeouts and Race Conditions in Async Tests
 
-Asynchronous tests can sometimes be prone to intermittent failures due to timing
-issues or race conditions if not carefully written.
+Asynchronous tests can sometimes be prone to intermittent failures due to
+timing issues or race conditions if not carefully written.
 
 - Ensure all asynchronous operations are properly `await`ed.
 - Use explicit synchronization mechanisms (`asyncio.Event`, `asyncio.Queue`) if
   coordinating multiple asynchronous tasks within a test.
 - Be cautious about relying on fixed `asyncio.sleep()` delays for
-  synchronization; prefer event-driven logic where possible (e.g., waiting for a
-  specific message).
+  synchronization; prefer event-driven logic where possible (e.g., waiting for
+  a specific message).
 
 ### 7.5. Forgetting `await ws.accept()` on the Server
 
 A very common error when implementing WebSocket handlers is forgetting to call
 `await ws.accept()` at the beginning of the `on_websocket` coroutine.4 If the
 server does not accept the connection, the client-side `simulate_ws()` will
-likely fail to establish the connection, often resulting in an HTTP error during
-the handshake (e.g., 403 Forbidden if the handler exits or closes before
+likely fail to establish the connection, often resulting in an HTTP error
+during the handshake (e.g., 403 Forbidden if the handler exits or closes before
 accepting) or the test client hanging until a timeout. This is a fundamental
-part of the WebSocket protocol; without acceptance, no further communication can
-occur. Test failures related to connection establishment should prompt a check
-for `await ws.accept()` in the server code.
+part of the WebSocket protocol; without acceptance, no further communication
+can occur. Test failures related to connection establishment should prompt a
+check for `await ws.accept()` in the server code.
 
 ## 8. Conclusion and Further Learning
 

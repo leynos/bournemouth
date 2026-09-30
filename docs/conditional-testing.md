@@ -1,11 +1,12 @@
 # Conditional Testing for Optional Dependencies
 
-This document explains how to make tests conditional on optional
-dependency groups being installed.
+This document explains how to make tests conditional on optional dependency
+groups being installed.
 
 ## Problem
 
-The project has optional dependency groups (like `cli`) defined in `pyproject.toml`:
+The project has optional dependency groups (like `cli`) defined in
+`pyproject.toml`:
 
 ```toml
 [dependency-groups]
@@ -123,8 +124,7 @@ def test_cli_functionality():
     # Your test here
 ```
 
-Run only CLI tests: `pytest -m cli`
-Skip CLI tests: `pytest -m "not cli"`
+Run only CLI tests: `pytest -m cli` Skip CLI tests: `pytest -m "not cli"`
 
 ## Running Tests
 
@@ -146,8 +146,8 @@ uv run --no-group cli python -m pytest src/bournemouth/unittests/test_cli.py -v
 uv run python -m pytest -m "not cli"
 ```
 
-Alternatively, run `make test` to execute the entire suite using the
-configured environment.
+Alternatively, run `make test` to execute the entire suite using the configured
+environment.
 
 ## Best Practices
 
@@ -181,5 +181,5 @@ jobs:
       - run: uv run pytest tests/ -m cli
 ```
 
-This ensures both core functionality and CLI functionality are tested,
-but in separate jobs with appropriate dependencies.
+This ensures both core functionality and CLI functionality are tested, but in
+separate jobs with appropriate dependencies.

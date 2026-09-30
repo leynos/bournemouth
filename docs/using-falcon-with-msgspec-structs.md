@@ -2,12 +2,13 @@
 
 The development of high-performance, type-safe, and maintainable web APIs in
 Python benefits significantly from the combination of efficient frameworks and
-specialized data handling libraries. This guide provides an in-depth exploration
-of integrating `msgspec`, a high-performance message specification and
-serialization/validation library, with Falcon, a minimalist WSGI/ASGI framework.
-The focus is on leveraging `msgspec.Structs` to define data contracts for API
-endpoints, thereby replacing generic Python data types and enabling advanced
-features like structural pattern matching for more expressive endpoint logic.
+specialized data handling libraries. This guide provides an in-depth
+exploration of integrating `msgspec`, a high-performance message specification
+and serialization/validation library, with Falcon, a minimalist WSGI/ASGI
+framework. The focus is on leveraging `msgspec.Structs` to define data
+contracts for API endpoints, thereby replacing generic Python data types and
+enabling advanced features like structural pattern matching for more expressive
+endpoint logic.
 
 ## 1. Introduction: The Synergy of Falcon and `msgspec`
 
@@ -32,14 +33,14 @@ advantages:
   dictionaries or untyped data leads to more readable and maintainable resource
   methods.
 - **Expressive Data Handling:** Python 3.10+'s structural pattern matching
-  (`match/case`) can be elegantly applied to `msgspec.Structs` for sophisticated
-  conditional logic.
+  (`match/case`) can be elegantly applied to `msgspec.Structs` for
+  sophisticated conditional logic.
 
 This document will guide developers through the necessary steps to configure
 Falcon to use `msgspec` for media handling, implement automatic request
-validation using `msgspec.Structs` via Falcon middleware, establish robust error
-handling mechanisms, and effectively utilize these `Structs` within endpoint
-logic, including the application of `match/case` statements.
+validation using `msgspec.Structs` via Falcon middleware, establish robust
+error handling mechanisms, and effectively utilize these `Structs` within
+endpoint logic, including the application of `match/case` statements.
 
 ## 2. Configuring Media Handlers for `msgspec`
 
@@ -130,11 +131,11 @@ approach would be necessary, which is beyond the scope of this basic handler.
 This pattern of creating a custom `BaseHandler` can be adapted for other
 `msgspec`-supported formats, such as YAML, by substituting the appropriate
 `msgspec` encoder and decoder. The requirement to implement a custom
-`BaseHandler` for MessagePack, as demonstrated, introduces a slight asymmetry in
-the ease of integration compared to JSON, for which Falcon provides a
-high-level, configurable handler. While not overly complex, this additional step
-for non-JSON types might subtly influence technology choices if the absolute
-quickest setup is prioritized, even if formats like MessagePack offer
+`BaseHandler` for MessagePack, as demonstrated, introduces a slight asymmetry
+in the ease of integration compared to JSON, for which Falcon provides a
+high-level, configurable handler. While not overly complex, this additional
+step for non-JSON types might subtly influence technology choices if the
+absolute quickest setup is prioritized, even if formats like MessagePack offer
 performance or payload size advantages.
 
 ### 2.3. Updating Falcon's `req_options.media_handlers` and `resp_options.media_handlers`
@@ -161,15 +162,15 @@ app.resp_options.media_handlers['application/msgpack'] = msgpack_handler
 
 By configuring these handlers, all incoming requests with
 `Content-Type: application/json` or `application/msgpack` will be processed by
-`msgspec`, and responses will be serialized using `msgspec` when `resp.media` is
-set.
+`msgspec`, and responses will be serialized using `msgspec` when `resp.media`
+is set.
 
 ## 3. Ensuring Data Integrity: Request Validation with `msgspec.Structs`
 
 A core benefit of `msgspec` is its ability to validate data against
-strongly-typed schemas defined as `msgspec.Structs`. This section details how to
-define these `Structs` and integrate their validation into the Falcon request
-lifecycle using middleware.
+strongly-typed schemas defined as `msgspec.Structs`. This section details how
+to define these `Structs` and integrate their validation into the Falcon
+request lifecycle using middleware.
 
 ### 3.1. Defining `msgspec.Structs` for Your API Data
 
@@ -196,10 +197,10 @@ class UserCreate(msgspec.Struct, forbid_unknown_fields=True):
     tags: Optional[List[str]] = None
 ```
 
-Using `forbid_unknown_fields=True` is a recommended practice for creating strict
-data contracts, ensuring that requests with unexpected fields are rejected.
-`Structs` can include various field types, such as primitive types (`int`,
-`str`, `bool`), collections (`List`), other `Structs` (for nesting), and
+Using `forbid_unknown_fields=True` is a recommended practice for creating
+strict data contracts, ensuring that requests with unexpected fields are
+rejected. `Structs` can include various field types, such as primitive types
+(`int`, `str`, `bool`), collections (`List`), other `Structs` (for nesting), and
 `Optional` types for fields that are not mandatory.
 
 ### 3.2. Implementing a `MsgspecMiddleware` for Automatic Validation
@@ -268,8 +269,8 @@ integrity.
 
 ### 3.3. Attaching Schemas to Resources
 
-The middleware relies on a convention: resource classes should define attributes
-like `POST_SCHEMA`, `PUT_SCHEMA`, etc., that point to the relevant
+The middleware relies on a convention: resource classes should define
+attributes like `POST_SCHEMA`, `PUT_SCHEMA`, etc., that point to the relevant
 `msgspec.Struct` type.1
 
 ```python
@@ -288,19 +289,19 @@ class UserResource:
 ```
 
 This `getattr(resource, f'{req.method.upper()}_SCHEMA', None)` pattern is
-flexible. However, it depends on developers consistently adhering to this naming
-convention. A misspelling (e.g., `PPOST_SCHEMA`) or omission of the schema
-attribute will result in validation being silently skipped for that particular
-endpoint method. This underscores the need for team discipline or potentially
-supplementary static analysis tools to ensure schemas are correctly and
-consistently applied across the API.
+flexible. However, it depends on developers consistently adhering to this
+naming convention. A misspelling (e.g., `PPOST_SCHEMA`) or omission of the
+schema attribute will result in validation being silently skipped for that
+particular endpoint method. This underscores the need for team discipline or
+potentially supplementary static analysis tools to ensure schemas are correctly
+and consistently applied across the API.
 
 ### 3.4. Injecting Validated `Struct` Instances into `params`
 
 As shown in the middleware, the validated `Struct` instance is injected into the
 `params` dictionary passed to resource methods. The key used is the lowercase
-version of the `Struct`'s class name (e.g., `UserCreate` becomes `usercreate`).1
-This makes the typed data readily accessible.
+version of the `Struct`'s class name (e.g., `UserCreate` becomes
+`usercreate`).1 This makes the typed data readily accessible.
 
 While convenient, this naming convention (`schema.__name__.lower()`) could
 potentially lead to key collisions if `Struct` names are not globally unique
@@ -362,11 +363,11 @@ unhelpful and can obscure the true cause of the error.
 fails to validate against the specified `Struct`. This typically occurs within
 the `MsgspecMiddleware`. Falcon's error handling mechanism allows for
 registering custom handlers for specific exception types. It is recommended to
-create an error handler that catches `msgspec.ValidationError` and transforms it
-into a `falcon.HTTPUnprocessableEntity` (HTTP 422) response.1 The string
+create an error handler that catches `msgspec.ValidationError` and transforms
+it into a `falcon.HTTPUnprocessableEntity` (HTTP 422) response.1 The string
 representation of `msgspec.ValidationError` usually contains detailed
-information about the validation failures, which can be included in the response
-body.
+information about the validation failures, which can be included in the
+response body.
 
 ```python
 from falcon import Request, Response, HTTPUnprocessableEntity
@@ -407,8 +408,8 @@ This difference necessitates a custom approach to handling decoding errors. The
 recommended solution is to wrap the `msgspec` decode function (e.g.,
 `msgspec.json.decode`) in a custom `loads` function. This wrapper should catch
 `msgspec.DecodeError` and re-raise it as a Falcon-idiomatic error, such as
-`falcon.MediaMalformedError` (which typically results in an HTTP 400 Bad Request
-response).
+`falcon.MediaMalformedError` (which typically results in an HTTP 400 Bad
+Request response).
 
 ````python
 import falcon
@@ -596,8 +597,8 @@ This direct assignment (`resp.media = struct_instance`) is a powerful
 simplification. The developer does not need to manually call
 `msgspec.json.encode` or similar serialization functions within the resource
 method; the framework handles this transparently. This abstraction keeps
-resource methods focused on constructing the correct data object (the `Struct`),
-aligning with Falcon's philosophy of minimizing boilerplate.
+resource methods focused on constructing the correct data object (the
+`Struct`), aligning with Falcon's philosophy of minimizing boilerplate.
 
 ### 5.3. Illustrative Examples of Request Processing and Response Generation
 
@@ -824,20 +825,20 @@ from complex conditional chains.
 
 The combination of `msgspec` for validation and `match/case` for logic forms a
 powerful paradigm. `msgspec` acts as the gatekeeper, ensuring the incoming data
-conforms to one of several expected `Struct` shapes (especially if using `Union`
-types in the schema). Once this structural guarantee is met, `match/case` can
-then elegantly and safely differentiate and destructure the specific shape for
-further processing. This two-stage approach—validate then match—contributes to
-robust and maintainable application logic.
+conforms to one of several expected `Struct` shapes (especially if using
+`Union` types in the schema). Once this structural guarantee is met,
+`match/case` can then elegantly and safely differentiate and destructure the
+specific shape for further processing. This two-stage approach—validate then
+match—contributes to robust and maintainable application logic.
 
 ### 6.5. Practical Examples Demonstrating Compact and Readable Endpoint Logic
 
-Using `match/case` can lead to code that is easier to reason about, particularly
-when the logic maps directly to business rules involving different data
-structures or states. This is common in systems processing commands, events, or
-implementing state machines. The declarative nature of `match/case` can make the
-codebase more aligned with the domain model, improving understandability for
-both current and future developers.
+Using `match/case` can lead to code that is easier to reason about,
+particularly when the logic maps directly to business rules involving different
+data structures or states. This is common in systems processing commands,
+events, or implementing state machines. The declarative nature of `match/case`
+can make the codebase more aligned with the domain model, improving
+understandability for both current and future developers.
 
 However, it's important to use `match/case` judiciously. Overly complex or
 deeply nested `match` statements can become as difficult to read as convoluted
@@ -847,11 +848,11 @@ consideration for project compatibility and environment constraints.
 
 ## 7. Putting It All Together: A Complete Example Application
 
-To illustrate the integration of all discussed components, here is a concise but
-complete Falcon application. This example defines `msgspec.Structs` for a "Book"
-resource, implements the `MsgspecMiddleware`, sets up error handling, configures
-`msgspec`-based JSON media handling, and includes a Falcon resource with
-`on_get` and `on_post` methods.
+To illustrate the integration of all discussed components, here is a concise
+but complete Falcon application. This example defines `msgspec.Structs` for a
+"Book" resource, implements the `MsgspecMiddleware`, sets up error handling,
+configures `msgspec`-based JSON media handling, and includes a Falcon resource
+with `on_get` and `on_post` methods.
 
 ```python
 import falcon
@@ -1003,8 +1004,8 @@ This complete, runnable example serves as a practical demonstration of how the
 individual components—media handlers, middleware, error handlers, `Struct`
 definitions, and endpoint logic—interconnect. Such examples are invaluable as
 they bridge theoretical explanations with tangible code, significantly reducing
-the initial friction for developers looking to adopt this technology stack. They
-provide a "quick start" or boilerplate that can be copied, modified, and
+the initial friction for developers looking to adopt this technology stack.
+They provide a "quick start" or boilerplate that can be copied, modified, and
 extended, accelerating project setup and helping to avoid common initial
 configuration pitfalls.
 
@@ -1017,8 +1018,8 @@ maintainability.
 ### 8.1. Performance Implications
 
 - **Preconstructed Encoders/Decoders:** As emphasized earlier, always use
-  preconstructed `msgspec.json.Encoder` and `msgspec.json.Decoder` instances (or
-  their equivalents for other formats) to avoid per-request overhead.
+  preconstructed `msgspec.json.Encoder` and `msgspec.json.Decoder` instances
+  (or their equivalents for other formats) to avoid per-request overhead.
 - **Struct Complexity:** While `msgspec` is exceptionally fast, the complexity
   of your `Struct` definitions (deep nesting, numerous fields, complex
   validation rules if custom validators are used) will inherently impact
@@ -1064,9 +1065,9 @@ maintainability.
 ### 8.4. WSGI vs. ASGI Considerations
 
 - **Asynchronous Operations:** As previously detailed, when using Falcon in an
-  ASGI environment, ensure that any custom middleware (like `MsgspecMiddleware`)
-  performing I/O (e.g., `await req.get_media()`) is defined with `async def`
-  methods and uses `await` appropriately.
+  ASGI environment, ensure that any custom middleware (like
+  `MsgspecMiddleware`) performing I/O (e.g., `await req.get_media()`) is
+  defined with `async def` methods and uses `await` appropriately.
 - `msgspec` **Synchronicity:** `msgspec`'s core operations (encode, decode,
   convert) are synchronous. However, due to their high speed, they are very
   effective even in asynchronous applications, provided that asynchronous I/O
@@ -1081,10 +1082,10 @@ maintainability.
 instance of `type` (where `type` is a `msgspec.Struct`), `msgspec` will
 typically return `obj` directly without performing a new conversion, which is
 efficient. This behavior can sometimes simplify logic, as an explicit
-`isinstance` check before calling `convert` might not always be necessary if the
-input *could* already be of the target `Struct` type. However, relying on this
-implicitly should be done with an understanding of `msgspec`'s specific version
-behavior.
+`isinstance` check before calling `convert` might not always be necessary if
+the input *could* already be of the target `Struct` type. However, relying on
+this implicitly should be done with an understanding of `msgspec`'s specific
+version behavior.
 
 ## 9. Conclusion
 
@@ -1109,9 +1110,9 @@ The combination of Falcon and `msgspec` delivers:
 - **Expressive Logic:** The ability to use Python's `match/case` with `Structs`
   allows for elegant handling of complex conditional scenarios.
 
-The adoption of these tools and patterns moves beyond just creating faster APIs;
-it contributes to building more resilient and developer-friendly systems. The
-strong typing and structured validation inherent in `msgspec` contribute
+The adoption of these tools and patterns moves beyond just creating faster
+APIs; it contributes to building more resilient and developer-friendly systems.
+The strong typing and structured validation inherent in `msgspec` contribute
 significantly to long-term code quality, reducing bugs and making refactoring
 processes safer and more predictable.
 

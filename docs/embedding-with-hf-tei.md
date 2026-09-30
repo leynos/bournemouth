@@ -13,9 +13,9 @@ integration and testing.
 ## 1. Generating Text Embeddings with TEI
 
 **Hugging Face TEI** is a Dockerized service for high-performance embedding
-generation. First, deploy the TEI container with your chosen model. For example,
-to use the `BAAI/bge-large-en-v1.5` model (which produces 1024-dimensional
-embeddings):
+generation. First, deploy the TEI container with your chosen model. For
+example, to use the `BAAI/bge-large-en-v1.5` model (which produces
+1024-dimensional embeddings):
 
 ```bash
 docker run -p 8080:80 ghcr.io/huggingface/text-embeddings-inference:1.7 \
@@ -25,8 +25,8 @@ docker run -p 8080:80 ghcr.io/huggingface/text-embeddings-inference:1.7 \
 This will start the TEI service on port 8080 (no API token needed for local
 use). Once running, you can obtain embeddings by sending an HTTP POST to the
 container’s `/embed` endpoint. The request should be JSON with an **`inputs`**
-field containing the text (or list of texts) to embed. For example, using `curl`
-for a batch of texts:
+field containing the text (or list of texts) to embed. For example, using
+`curl` for a batch of texts:
 
 ```bash
 curl http://127.0.0.1:8080/embed \
@@ -35,9 +35,9 @@ curl http://127.0.0.1:8080/embed \
      -H 'Content-Type: application/json'
 ```
 
-The TEI service will return the embeddings as JSON – typically a list of vectors
-(one vector per input). In Python, you can call this API using a lightweight
-HTTP library like `requests`:
+The TEI service will return the embeddings as JSON – typically a list of
+vectors (one vector per input). In Python, you can call this API using a
+lightweight HTTP library like `requests`:
 
 ```python
 import requests
@@ -59,11 +59,11 @@ in the `"inputs"` list, the result will be a list of embeddings (one sub-list
 per input in the same order).
 
 **Parsing the output:** The TEI JSON response is straightforward – you can use
-it directly as a list of floats. Ensure you handle the case where the request or
-service might error out (check HTTP status and catch exceptions). Also, note the
-**dimension** of the returned vectors, as you will need this when configuring
-Neo4j’s vector index. (For example, `BAAI/bge-large-en-v1.5` produces
-1024-dimensional embeddings, while other models like OpenAI’s
+it directly as a list of floats. Ensure you handle the case where the request
+or service might error out (check HTTP status and catch exceptions). Also, note
+the **dimension** of the returned vectors, as you will need this when
+configuring Neo4j’s vector index. (For example, `BAAI/bge-large-en-v1.5`
+produces 1024-dimensional embeddings, while other models like OpenAI’s
 `text-embedding-ada-002` produce 1536-dimensional vectors.)
 
 ## 2. Inserting Embeddings into Neo4j with a Vector Index
@@ -92,9 +92,9 @@ OPTIONS {
 
 This command tells Neo4j to index the `Document.embedding` property as a
 1024-dimensional vector, using cosine similarity for comparisons. (**Note:** In
-Neo4j 5.15+, you use the `CREATE VECTOR INDEX` syntax as above. Earlier versions
-had a procedure `db.index.vector.createNodeIndex`. Also, the `IF NOT EXISTS`
-clause makes index creation idempotent.)
+Neo4j 5.15+, you use the `CREATE VECTOR INDEX` syntax as above. Earlier
+versions had a procedure `db.index.vector.createNodeIndex`. Also, the
+`IF NOT EXISTS` clause makes index creation idempotent.)
 
 Before inserting data, ensure the index is online (use `SHOW VECTOR INDEXES` to
 check status). Neo4j builds the index in the background; once its state is
@@ -136,12 +136,12 @@ node to the index; it works like a normal index that updates on transaction
 commit.
 
 **Important:** The embedding list’s length **must match** the index’s configured
-`vector.dimensions`, otherwise the index query will reject it as invalid. Ensure
-consistency between the embedding model’s output dimension and the Neo4j index
-setting. For example, if using OpenAI’s Ada-002 (1536 dims) or BGE large (1024
-dims), configure accordingly. Neo4j’s index can be created without specifying
-dimensions (in Neo4j 5.23+), but it’s safer to specify so that only vectors of
-the correct size are indexed.
+`vector.dimensions`, otherwise the index query will reject it as invalid.
+Ensure consistency between the embedding model’s output dimension and the Neo4j
+index setting. For example, if using OpenAI’s Ada-002 (1536 dims) or BGE large
+(1024 dims), configure accordingly. Neo4j’s index can be created without
+specifying dimensions (in Neo4j 5.23+), but it’s safer to specify so that only
+vectors of the correct size are indexed.
 
 ## 3. Performing Vector Similarity Search in Neo4j
 
@@ -154,10 +154,10 @@ query. The general approach is:
    index.
 
 Neo4j provides the procedure
-`db.index.vector.queryNodes(indexName, k, queryVector)` to query a vector index.
-This returns up to `k` nearest neighbors (approximate by default) and their
-similarity scores. For example, if we want the 5 most similar `Document` nodes
-to a given query embedding:
+`db.index.vector.queryNodes(indexName, k, queryVector)` to query a vector
+index. This returns up to `k` nearest neighbors (approximate by default) and
+their similarity scores. For example, if we want the 5 most similar `Document`
+nodes to a given query embedding:
 
 ```python
 query = "What is the capital of France?"  
@@ -177,10 +177,10 @@ with driver.session(database="neo4j") as session:
 ```
 
 In Cypher, we call the procedure with our index name (e.g.
-`"DocumentEmbeddings"`), the number of neighbors (`5`), and the query vector. We
-then `YIELD` each matching `node` and its `score`. The score is a similarity
-measure between 0 and 1 (for cosine similarity, 1.0 means identical vectors). By
-default, results are ordered by similarity (highest first). In the example
+`"DocumentEmbeddings"`), the number of neighbors (`5`), and the query vector.
+We then `YIELD` each matching `node` and its `score`. The score is a similarity
+measure between 0 and 1 (for cosine similarity, 1.0 means identical vectors).
+By default, results are ordered by similarity (highest first). In the example
 above, you’d get up to 5 `Document` nodes most related to the query, along with
 their similarity scores.
 
@@ -191,8 +191,9 @@ other conditions. If you want to combine vector search with other predicates,
 you can incorporate the `CALL ... YIELD ...` inside a broader Cypher query (for
 example, filter by some category property after obtaining the neighbors).
 
-**Example:** A direct Cypher example (from Neo4j’s documentation) finding movies
-similar to *The Godfather* illustrates the usage of `queryNodes` within a query:
+**Example:** A direct Cypher example (from Neo4j’s documentation) finding
+movies similar to *The Godfather* illustrates the usage of `queryNodes` within
+a query:
 
 ```cypher
 MATCH (m:Movie {title: "Godfather, The"})
@@ -203,9 +204,9 @@ RETURN movie.title AS title, movie.plot AS plot, score;
 
 This finds the top-5 movies whose `embedding` is closest to *The Godfather*’s
 embedding. In our RAG scenario, you would substitute the known vector
-(`m.embedding` in this example) with a parameter for your query vector (as shown
-in the Python snippet above using `$queryVector`). The result gives you the
-content to feed into your LLM as context.
+(`m.embedding` in this example) with a parameter for your query vector (as
+shown in the Python snippet above using `$queryVector`). The result gives you
+the content to feed into your LLM as context.
 
 ## 4. Designing an `EmbeddingClient` Abstraction
 
@@ -271,9 +272,10 @@ class EmbeddingClient:
 
 This `EmbeddingClient.embed()` method sends the request to TEI’s `/embed`
 endpoint and parses the JSON response. If a single string is passed, it returns
-a single embedding vector (list of floats) for convenience; if a list of strings
-is passed, it returns a list of vectors. You can adapt this interface based on
-your needs (for example, always return a list of vectors for consistency).
+a single embedding vector (list of floats) for convenience; if a list of
+strings is passed, it returns a list of vectors. You can adapt this interface
+based on your needs (for example, always return a list of vectors for
+consistency).
 
 Usage example:
 
@@ -323,12 +325,12 @@ There are two common approaches:
               return [[0.0] * 1024 for _ in text]
   ```
 
-  In this `DummyEmbeddingClient`, the `embed` method ignores the actual text and
-  returns a vector of the correct dimension (here all zeros of length 1024) or
-  multiple vectors if a list is given. You can make the dummy more sophisticated
-  if needed (for example, return different vectors for different inputs, perhaps
-  by hashing the text to generate pseudo-random but consistent numbers). The key
-  is that it’s **fast and does not call external services**.
+  In this `DummyEmbeddingClient`, the `embed` method ignores the actual text
+  and returns a vector of the correct dimension (here all zeros of length 1024)
+  or multiple vectors if a list is given. You can make the dummy more
+  sophisticated if needed (for example, return different vectors for different
+  inputs, perhaps by hashing the text to generate pseudo-random but consistent
+  numbers). The key is that it’s **fast and does not call external services**.
 
 - **Monkeypatch/Mock the method:** If you prefer not to define a separate class,
   you can monkey-patch the `EmbeddingClient.embed` method in your tests. For
@@ -373,11 +375,12 @@ There are two common approaches:
 
 ## 6. Testing Neo4j Integration In-Memory
 
-Testing the Neo4j part (inserting nodes and querying) without a real database is
-trickier, but you can still avoid requiring a full Neo4j server for basic tests
-by using mocks. The Neo4j Python driver (`neo4j` module) allows you to inject a
-fake driver or session. For example, you can **mock the database session** to
-verify that the correct Cypher queries and parameters are being sent:
+Testing the Neo4j part (inserting nodes and querying) without a real database
+is trickier, but you can still avoid requiring a full Neo4j server for basic
+tests by using mocks. The Neo4j Python driver (`neo4j` module) allows you to
+inject a fake driver or session. For example, you can **mock the database
+session** to verify that the correct Cypher queries and parameters are being
+sent:
 
 ```python
 from unittest.mock import MagicMock, patch
@@ -409,12 +412,12 @@ def test_store_embedding_to_neo4j():
 In the above pseudo-test, we patch the Neo4j driver so that when our code under
 test calls `GraphDatabase.driver(...).session()`, it gets a `fake_session`. We
 then trigger our code (e.g., a function that builds and runs the Cypher for
-upsert), and afterward we assert that `session.run` was called with the expected
-query and parameters. This way, we validate the logic **without needing an
-actual Neo4j instance**. The same technique can be applied for testing the query
-flow – for example, set `fake_session.run` to return a dummy result list (or a
-custom object mimicking Neo4j's `Result`) containing expected nodes and scores,
-then verify that your code correctly interprets those results.
+upsert), and afterward we assert that `session.run` was called with the
+expected query and parameters. This way, we validate the logic **without
+needing an actual Neo4j instance**. The same technique can be applied for
+testing the query flow – for example, set `fake_session.run` to return a dummy
+result list (or a custom object mimicking Neo4j's `Result`) containing expected
+nodes and scores, then verify that your code correctly interprets those results.
 
 For **behavioral tests** (higher-level tests simulating the end-to-end flow),
 you might consider using an **embedded Neo4j** or a **Neo4j testcontainer**. If

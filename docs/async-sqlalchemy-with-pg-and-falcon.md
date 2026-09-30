@@ -17,18 +17,19 @@ I/O-bound database operations without blocking the main execution thread. This
 document will delve into the intricacies of setting up the asynchronous engine
 and session management, integrating these components effectively within Falcon
 applications, mastering asynchronous ORM operations, managing transactions,
-handling errors robustly, tuning performance, and implementing effective testing
-strategies. The objective is to equip developers with the knowledge to build
-efficient, reliable, and maintainable asynchronous applications using this
-powerful technology stack. The transition from synchronous patterns, such as
-those offered by encode/databases (which is no longer actively maintained), to
-SQLAlchemy's native async support represents a significant step forward.6
+handling errors robustly, tuning performance, and implementing effective
+testing strategies. The objective is to equip developers with the knowledge to
+build efficient, reliable, and maintainable asynchronous applications using
+this powerful technology stack. The transition from synchronous patterns, such
+as those offered by encode/databases (which is no longer actively maintained),
+to SQLAlchemy's native async support represents a significant step forward.6
 
 ## **II. Core Asynchronous SQLAlchemy Setup: Engine and Session Factory**
 
 The foundation of any SQLAlchemy application, synchronous or asynchronous, lies
-in the correct configuration of its engine and session-generating components. In
-an asynchronous context, these are create_async_engine and async_sessionmaker.
+in the correct configuration of its engine and session-generating components.
+In an asynchronous context, these are create_async_engine and
+async_sessionmaker.
 
 ### **A. The create_async_engine: The Foundation for Asynchronous Database Communication**
 
@@ -83,14 +84,14 @@ of this pool:
 
 ### Table 1: create_async_engine Key Pooling Parameters
 
-| Parameter                                         | Description                                                                                     | Typical Value/Range                               | Impact & Best Practice                                                                                                                                               |
-| ------------------------------------------------- | ----------------------------------------------------------------------------------------------- | ------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| pool_size                                         | The number of connections to keep persistently in the pool.9                                    | 5-20 (application-dependent)                      | Sets the baseline for available connections. Too small can lead to waiting; too large can strain database resources. Tune based on load tests and database capacity. |
-| max_overflow                                      | The maximum number of additional connections that can be opened beyond pool_size under load.9   | 10-50 (application-dependent)                     | Allows handling of temporary spikes in demand. Total connections = pool_size + max_overflow. Ensure the database can handle this total.                              |
-| pool_recycle                                      | Time in seconds after which a connection is automatically recycled (closed and replaced).9      | 1800–7200 (30–120 minutes)                        | Prevents issues with stale connections due to network or database timeouts. Should be less than any server-side connection timeout.                                  |
-| pool_pre_ping                                     | If True, issues a lightweight "ping" (e.g., SELECT 1) on connection checkout to test liveness.9 | True / False                                      | Recommended as True for production to avoid errors from dead connections, especially with long pool_recycle times. Adds minor overhead but improves reliability.     |
-| pool_timeout                                      | Number of seconds to wait for a connection from the pool before raising a timeout error.10      | 30 (default)                                      | Prevents indefinite blocking if the pool is exhausted. Adjust based on application tolerance for waiting.                                                            |
-| echo_pool                                         | If True or a logging level string (e.g., "debug"), logs connection pool activity.13             | False (production), True or "debug" (development) | Useful for debugging pool behavior, such as checkouts, checkins, and recycling. It can be verbose for production.                                                    |
+| Parameter     | Description                                                                                     | Typical Value/Range                               | Impact & Best Practice                                                                                                                                               |
+| ------------- | ----------------------------------------------------------------------------------------------- | ------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| pool_size     | The number of connections to keep persistently in the pool.9                                    | 5-20 (application-dependent)                      | Sets the baseline for available connections. Too small can lead to waiting; too large can strain database resources. Tune based on load tests and database capacity. |
+| max_overflow  | The maximum number of additional connections that can be opened beyond pool_size under load.9   | 10-50 (application-dependent)                     | Allows handling of temporary spikes in demand. Total connections = pool_size + max_overflow. Ensure the database can handle this total.                              |
+| pool_recycle  | Time in seconds after which a connection is automatically recycled (closed and replaced).9      | 1800–7200 (30–120 minutes)                        | Prevents issues with stale connections due to network or database timeouts. Should be less than any server-side connection timeout.                                  |
+| pool_pre_ping | If True, issues a lightweight "ping" (e.g., SELECT 1) on connection checkout to test liveness.9 | True / False                                      | Recommended as True for production to avoid errors from dead connections, especially with long pool_recycle times. Adds minor overhead but improves reliability.     |
+| pool_timeout  | Number of seconds to wait for a connection from the pool before raising a timeout error.10      | 30 (default)                                      | Prevents indefinite blocking if the pool is exhausted. Adjust based on application tolerance for waiting.                                                            |
+| echo_pool     | If True or a logging level string (e.g., "debug"), logs connection pool activity.13             | False (production), True or "debug" (development) | Useful for debugging pool behavior, such as checkouts, checkins, and recycling. It can be verbose for production.                                                    |
 
 7 Properly configuring these parameters is essential for balancing performance,
 resource utilization, and application resilience.
@@ -135,18 +136,18 @@ async_session_factory = async_sessionmaker(
 - autoflush=False: This is generally recommended for asynchronous operations.9
   Autoflush can trigger database I/O at potentially unexpected moments during a
   session's lifecycle. In an async context, it is preferable to have explicit
-  control over when data is flushed to the database using await session.flush().
-  This ensures that all I/O operations are consciously awaited and managed
-  within the asynchronous flow of the application.
+  control over when data is flushed to the database using await
+  session.flush(). This ensures that all I/O operations are consciously awaited
+  and managed within the asynchronous flow of the application.
 
 ### Table 2: async_sessionmaker Configuration Options
 
-| Parameter                                                                | Description                                                              | Recommended Setting                                                      | Rationale for Async                                                      |
-| ------------------------------------------------------------------------ | ------------------------------------------------------------------------ | ------------------------------------------------------------------------ | ------------------------------------------------------------------------ |
-| `bind`                                                                   | The `AsyncEngine` instance to bind new sessions to.                      | engine instance                                                          | Connects sessions to the database.                                       |
-| `class_`                                                                 | Session class to generate.                                               | `AsyncSession`                                                           | Ensures compatibility with async operations.                             |
-| `expire_on_commit`                                                       | Expire instances after `commit()`.                                       | `False`                                                                  | Avoids unawaited lazy loads after commit.                                |
-| `autoflush`                                                              | Flush changes before each query.                                         | `False`                                                                  | Gives explicit control over when I/O occurs via `await session.flush()`. |
+| Parameter          | Description                                         | Recommended Setting | Rationale for Async                                                      |
+| ------------------ | --------------------------------------------------- | ------------------- | ------------------------------------------------------------------------ |
+| `bind`             | The `AsyncEngine` instance to bind new sessions to. | engine instance     | Connects sessions to the database.                                       |
+| `class_`           | Session class to generate.                          | `AsyncSession`      | Ensures compatibility with async operations.                             |
+| `expire_on_commit` | Expire instances after `commit()`.                  | `False`             | Avoids unawaited lazy loads after commit.                                |
+| `autoflush`        | Flush changes before each query.                    | `False`             | Gives explicit control over when I/O occurs via `await session.flush()`. |
 
 Finally, during application shutdown, it is crucial to dispose of the engine
 using await engine.dispose(). This call gracefully closes all underlying
@@ -160,42 +161,42 @@ session management.
 
 ### **A. Falcon's ASGI Nature: falcon.asgi.App and Async Responders**
 
-Falcon supports asynchronous operations through its falcon.asgi.App class.3 When
-using this class, all components involved in request processing, including
+Falcon supports asynchronous operations through its falcon.asgi.App class.3
+When using this class, all components involved in request processing, including
 resource responders (e.g., on_get, on_post), middleware methods, hooks, and
-error handlers, **must** be defined as async def coroutine functions.16 Falcon's
-ASGI implementation does not perform implicit wrapping or scheduling of
-synchronous functions in an executor; developers are responsible for ensuring
-all parts of the request-response cycle are awaitable if they involve
+error handlers, **must** be defined as async def coroutine functions.16
+Falcon's ASGI implementation does not perform implicit wrapping or scheduling
+of synchronous functions in an executor; developers are responsible for
+ensuring all parts of the request-response cycle are awaitable if they involve
 asynchronous operations.
 
 ### **B. Core Best Practice: Request-Scoped Session Management via Custom Async Middleware**
 
-A fundamental principle when working with AsyncSession is that instances are not
-safe for concurrent use across different asyncio tasks.17 Since each incoming
-web request might be handled by a distinct asyncio task, each request must have
-its own isolated AsyncSession instance. This prevents race conditions and
-ensures data integrity. While the falcon-sqla package provides middleware for
-SQLAlchemy session management in synchronous Falcon applications 18, it does not
-appear to support AsyncEngine or AsyncSession based on available information.18
-Consequently, a custom asynchronous middleware solution is necessary for
-managing AsyncSession lifecycle in a Falcon ASGI application. Middleware is
-Falcon's standard mechanism for intercepting and processing requests and
-responses 3, making it the ideal place to manage the creation, provision, and
-cleanup of per-request database sessions. This approach mirrors the "dependency
-injection" pattern seen in other frameworks, where resources are made available
-to request handlers. In Falcon, middleware can attach the session to the
-req.context object, allowing responders and other middleware components to
-access it throughout the request's duration. This pattern offers a clean and
-decoupled method for resource management, consistent with Falcon's minimalist
-philosophy.
+A fundamental principle when working with AsyncSession is that instances are
+not safe for concurrent use across different asyncio tasks.17 Since each
+incoming web request might be handled by a distinct asyncio task, each request
+must have its own isolated AsyncSession instance. This prevents race conditions
+and ensures data integrity. While the falcon-sqla package provides middleware
+for SQLAlchemy session management in synchronous Falcon applications 18, it
+does not appear to support AsyncEngine or AsyncSession based on available
+information.18 Consequently, a custom asynchronous middleware solution is
+necessary for managing AsyncSession lifecycle in a Falcon ASGI application.
+Middleware is Falcon's standard mechanism for intercepting and processing
+requests and responses 3, making it the ideal place to manage the creation,
+provision, and cleanup of per-request database sessions. This approach mirrors
+the "dependency injection" pattern seen in other frameworks, where resources
+are made available to request handlers. In Falcon, middleware can attach the
+session to the req.context object, allowing responders and other middleware
+components to access it throughout the request's duration. This pattern offers
+a clean and decoupled method for resource management, consistent with Falcon's
+minimalist philosophy.
 
 #### **Step-by-Step: Building an Asynchronous Falcon Middleware for AsyncSession**
 
 Constructing a custom middleware involves defining a class with async def
 process_request and async def process_response methods. 1. Middleware Class
-Definition: The middleware class will take the async_session_factory (created in
-the previous section) as an argument during initialization.
+Definition: The middleware class will take the async_session_factory (created
+in the previous section) as an argument during initialization.
 
 ```python
 
@@ -238,16 +239,17 @@ async def process_response(self, req, resp, resource, req_succeeded):
             await session.close() # Always close the session to return connection to pool
 ```
 
-9 The transaction handling within process_response is crucial. The example above
-attempts to commit if the request was successful (indicated by req_succeeded and
-a non-error HTTP status) and the session's transaction is still active. An
-active transaction implies that the responder did not explicitly commit or roll
-back. If an error occurred or the request was not successful, it attempts a
-rollback. Robust error handling ensures a rollback occurs if exceptions arise
-during the commit or close operations. The session.is_active check is important
-to avoid attempting to commit or roll back an already concluded transaction. 2.
-Initializing and Registering the Middleware: The middleware instance is passed
-to the falcon.asgi.App during its instantiation.
+9 The transaction handling within process_response is crucial. The example
+above attempts to commit if the request was successful (indicated by
+req_succeeded and a non-error HTTP status) and the session's transaction is
+still active. An active transaction implies that the responder did not
+explicitly commit or roll back. If an error occurred or the request was not
+successful, it attempts a rollback. Robust error handling ensures a rollback
+occurs if exceptions arise during the commit or close operations. The
+session.is_active check is important to avoid attempting to commit or roll back
+an already concluded transaction. 2. Initializing and Registering the
+Middleware: The middleware instance is passed to the falcon.asgi.App during its
+instantiation.
 
 ```python
 
@@ -325,8 +327,8 @@ SQLAlchemy's 2.0-style ORM constructs with await.
 
 ### **A. Executing SELECT Queries Asynchronously**
 
-All query types are executed using await session.execute(statement).9 The Result
-object returned by execute provides various methods for fetching data:
+All query types are executed using await session.execute(statement).9 The
+Result object returned by execute provides various methods for fetching data:
 
 - result.scalars(): Yields scalar values from the first column of each row,
   typically used for retrieving lists of ORM objects when the statement selects
@@ -381,7 +383,7 @@ print(name)
 Modifying data involves staging changes within the AsyncSession and then
 committing them.
 
-- session.add(instance) and session.add_all([instance1, instance2,...]) are used
+- session.add(instance) and session.add_all([instance1, instance2,…]) are used
   to add new or modified ORM instances to the session, staging them for an
   INSERT or UPDATE operation.17
 - session.delete(instance) stages an ORM instance for a DELETE operation.21
@@ -433,16 +435,16 @@ return False
 
 ### **C. Efficient Relationship Loading: selectinload, joinedload in an Async Context**
 
-Lazy loading, the default behavior for relationships, can lead to the "N+1 query
-problem," where accessing a relationship on N parent objects results in N
+Lazy loading, the default behavior for relationships, can lead to the "N+1
+query problem," where accessing a relationship on N parent objects results in N
 additional database queries. This is highly inefficient. Eager loading
 strategies are essential to mitigate this.23
 
 - selectinload(Model.relationship_attr): This strategy is generally preferred
-  for loading one-to-many or many-to-many collections. It issues a second SELECT
-  statement that fetches all related objects for the parent objects retrieved in
-  the initial query, typically using an IN clause with the parent primary
-  keys.20
+  for loading one-to-many or many-to-many collections. It issues a second
+  SELECT statement that fetches all related objects for the parent objects
+  retrieved in the initial query, typically using an IN clause with the parent
+  primary keys.20
 - joinedload(Model.relationship_attr): This strategy uses a JOIN (usually a LEFT
   OUTER JOIN) in the primary SELECT statement to fetch related objects
   simultaneously. It is often suitable for many-to-one or one-to-one
@@ -467,26 +469,26 @@ round-trips) might seem like a primary goal, which could favor joinedload (one
 query) over selectinload (two queries). However, the choice is more nuanced.
 joinedload can lead to Cartesian products if joining across collections,
 potentially increasing data transfer and processing time. selectinload, while
-involving a second query, often results in simpler individual queries and can be
-more efficient for collections, especially since the awaits are non-blocking,
-allowing the event loop to perform other work. The general guidance often
-remains: selectinload for collections and joinedload for scalar references
-(many-to-one, one-to-one) is a good starting point, but performance should be
-verified through benchmarking for specific use cases.23 Fewer awaits do not
-inherently guarantee better performance; the overall query complexity and data
-volume are critical factors. Another useful strategy is lazy='raise' or the
-raiseload() option, which can be used to prevent accidental lazy loads by
-raising an exception if an unloaded attribute is accessed.24 This is
+involving a second query, often results in simpler individual queries and can
+be more efficient for collections, especially since the awaits are
+non-blocking, allowing the event loop to perform other work. The general
+guidance often remains: selectinload for collections and joinedload for scalar
+references (many-to-one, one-to-one) is a good starting point, but performance
+should be verified through benchmarking for specific use cases.23 Fewer awaits
+do not inherently guarantee better performance; the overall query complexity
+and data volume are critical factors. Another useful strategy is lazy='raise'
+or the raiseload() option, which can be used to prevent accidental lazy loads
+by raising an exception if an unloaded attribute is accessed.24 This is
 particularly helpful in async code to ensure all data access is explicit and
 awaited.\\
 
 ### Table 3: Async Relationship Loading Strategies: A Quick Comparison
 
-| Strategy                    | Async Mechanism                                                   | DB Round Trips                              | Typical Use Case                            | Async Considerations                                                                        |
-| --------------------------- | ----------------------------------------------------------------- | ------------------------------------------- | ------------------------------------------- | ------------------------------------------------------------------------------------------- |
-| selectinload                | Issues a second `SELECT … WHERE id IN (...)`                      | 2 (or more for nested)                      | Collections (one-to-many, many-to-many)     | Efficient for collections and avoids Cartesian products. Awaits are non-blocking.           |
-| joinedload                  | Uses JOIN in the primary `SELECT`                                 | 1                                           | Scalar references (many-to-one, one-to-one) | Single await. Can create Cartesian products with collections, increasing data transfer.     |
-| lazy='raise' or raiseload() | Raises `InvalidRequestError` when accessing an unloaded attribute | 0 (until access attempt)                    | Preventing accidental lazy loads            | Ensures all I/O is explicit and awaited. Helps spot missing eager loads during development. |
+| Strategy                    | Async Mechanism                                                   | DB Round Trips           | Typical Use Case                            | Async Considerations                                                                        |
+| --------------------------- | ----------------------------------------------------------------- | ------------------------ | ------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| selectinload                | Issues a second `SELECT … WHERE id IN (...)`                      | 2 (or more for nested)   | Collections (one-to-many, many-to-many)     | Efficient for collections and avoids Cartesian products. Awaits are non-blocking.           |
+| joinedload                  | Uses JOIN in the primary `SELECT`                                 | 1                        | Scalar references (many-to-one, one-to-one) | Single await. Can create Cartesian products with collections, increasing data transfer.     |
+| lazy='raise' or raiseload() | Raises `InvalidRequestError` when accessing an unloaded attribute | 0 (until access attempt) | Preventing accidental lazy loads            | Ensures all I/O is explicit and awaited. Helps spot missing eager loads during development. |
 
 ## **V. Asynchronous Transaction Control**
 
@@ -505,8 +507,8 @@ atomically:
 - If the block completes without any exceptions, the transaction is
   automatically committed (await session.commit() is implicitly called).
 - If an exception occurs within the block, the transaction is automatically
-  rolled back (await session.rollback() is implicitly called), and the exception
-  is re-raised.
+  rolled back (await session.rollback() is implicitly called), and the
+  exception is re-raised.
 
 ```python
 
@@ -536,8 +538,9 @@ middleware pattern where a session is already created and provided per request
 (e.g., req.context.session), one would typically use async with
 req.context.session.begin(): within a responder if that responder needs to
 manage its own transactional block. If the middleware itself initiates a
-transaction (as shown in the SQLAlchemySessionManager example), responders might
-operate within that existing transaction or use begin_nested() for savepoints.
+transaction (as shown in the SQLAlchemySessionManager example), responders
+might operate within that existing transaction or use begin_nested() for
+savepoints.
 
 ### **B. Managing await session.commit() and await session.rollback() Explicitly**
 
@@ -617,8 +620,8 @@ begin_nested operation will roll back changes *to that specific savepoint*,
 leaving the outer transaction intact and active. The async with
 session.begin_nested(): context manager handles this savepoint rollback
 automatically if an exception propagates out of its block. The overall
-transaction managed by the outer session.begin() will then be subject to its own
-commit or rollback logic based on whether it completes successfully or
+transaction managed by the outer session.begin() will then be subject to its
+own commit or rollback logic based on whether it completes successfully or
 encounters an error.
 
 ## **VI. Robust Error Handling in Async Applications**
@@ -633,9 +636,9 @@ SQLAlchemy raises a variety of exceptions to signal different error conditions.
 Key exceptions to handle include 31:
 
 - sqlalchemy.exc.IntegrityError: Typically raised for violations of database
-  integrity constraints (e.g., unique key, foreign key). asyncpg might raise its
-  own asyncpg.exceptions.IntegrityConstraintViolationError, which IntegrityError
-  often wraps.
+  integrity constraints (e.g., unique key, foreign key). asyncpg might raise
+  its own asyncpg.exceptions.IntegrityConstraintViolationError, which
+  IntegrityError often wraps.
 - sqlalchemy.exc.NoResultFound: Raised when Result.one() or ScalarResult.one()
   expect a single row but find none.
 - sqlalchemy.exc.MultipleResultsFound: Raised when Result.one() or
@@ -643,8 +646,8 @@ Key exceptions to handle include 31:
 - sqlalchemy.exc.DBAPIError: A base class for exceptions raised by the
   underlying DBAPI driver (like asyncpg).
 - sqlalchemy.exc.OperationalError: A subclass of DBAPIError, often indicating
-  issues like connection problems, database unavailability, or other operational
-  issues. asyncpg might raise specific connection errors like
+  issues like connection problems, database unavailability, or other
+  operational issues. asyncpg might raise specific connection errors like
   asyncpg.exceptions.ConnectionDoesNotExistError.33
 
 It's also beneficial to be aware of asyncpg-specific exceptions (e.g., from
@@ -706,20 +709,21 @@ logging
 
 A common pitfall in ORM usage is the DetachedInstanceError. This error occurs
 when an application attempts to access an attribute that requires a database
-load (lazy loading) on an ORM object that is no longer associated with an active
-session; the object is in a "detached" state.35 This can happen if an object is
-fetched, the session used to fetch it is closed, and then an attempt is made to
-access a related collection or a deferred attribute. In an asynchronous context,
-even with expire_on_commit=False (which keeps attributes loaded after a commit),
-DetachedInstanceError can still arise if the session is closed or the object is
-explicitly expunged (e.g., via session.expunge(instance)), and a subsequent
-operation tries to trigger a lazy load. The nature of asyncio, where tasks can
-yield and resume, can sometimes make it less obvious when an object's
-originating session is no longer the "active" session in the current execution
-context, especially if objects are passed between tasks or coroutines without
-careful session management. This underscores the importance of strict
-per-request session scoping, as advocated by the middleware pattern. **Solutions
-to prevent or handle DetachedInstanceError:**
+load (lazy loading) on an ORM object that is no longer associated with an
+active session; the object is in a "detached" state.35 This can happen if an
+object is fetched, the session used to fetch it is closed, and then an attempt
+is made to access a related collection or a deferred attribute. In an
+asynchronous context, even with expire_on_commit=False (which keeps attributes
+loaded after a commit), DetachedInstanceError can still arise if the session is
+closed or the object is explicitly expunged (e.g., via
+session.expunge(instance)), and a subsequent operation tries to trigger a lazy
+load. The nature of asyncio, where tasks can yield and resume, can sometimes
+make it less obvious when an object's originating session is no longer the
+"active" session in the current execution context, especially if objects are
+passed between tasks or coroutines without careful session management. This
+underscores the importance of strict per-request session scoping, as advocated
+by the middleware pattern. **Solutions to prevent or handle
+DetachedInstanceError:**
 
 1. **Maintain Session Association:** Ensure that an ORM object is associated
    with an active AsyncSession whenever attributes that might trigger lazy
@@ -736,9 +740,9 @@ to prevent or handle DetachedInstanceError:**
    awaitable_attrs namespace on ORM objects. Accessing relationships through
    this mechanism (e.g., related_items = await
    my_object.awaitable_attrs.children) allows lazy loading to occur correctly
-   and be awaited in an asynchronous context, provided the object is still bound
-   to an active session.7 A potential issue arises if an object itself was
-   lazy-loaded via awaitable_attrs, and then one attempts to access *its*
+   and be awaited in an asynchronous context, provided the object is still
+   bound to an active session.7 A potential issue arises if an object itself
+   was lazy-loaded via awaitable_attrs, and then one attempts to access *its*
    relationships. These nested relationships might still attempt a lazy load
    that could fail if not handled correctly. One documented solution involves
    explicitly refreshing these child objects within the current session before
@@ -746,8 +750,8 @@ to prevent or handle DetachedInstanceError:**
    parent.awaitable_attrs.children; \[await db_session.refresh(c) for c in
    children\]).35
 
-The DetachedInstanceError often signals an issue with how sessions are scoped or
-how object lifecycles are managed relative to session lifecycles in an
+The DetachedInstanceError often signals an issue with how sessions are scoped
+or how object lifecycles are managed relative to session lifecycles in an
 asynchronous application.
 
 ### **C. Mapping Database Errors to Falcon HTTP Responses**
@@ -756,8 +760,8 @@ Falcon allows for clean error handling by enabling responders to raise specific
 falcon.HTTPStatus exceptions (e.g., falcon.HTTPNotFound, falcon.HTTPConflict,
 falcon.HTTPBadRequest).3 Custom error handlers can also be registered globally
 using app.add_error_handler(SomeException, custom_handler_func).3 It is a best
-practice to use try...except blocks within service layers or Falcon responders
-to catch specific SQLAlchemy or asyncpg exceptions and translate them into
+practice to use try…except blocks within service layers or Falcon responders to
+catch specific SQLAlchemy or asyncpg exceptions and translate them into
 appropriate Falcon HTTP error responses, providing meaningful feedback to the
 client while abstracting database-specific error details. The session should
 generally be rolled back when a database-related exception is caught before
@@ -828,8 +832,8 @@ SQLAlchemy API to be used asynchronously via await, it implies that any
 operation within a greenlet-spawned function that is truly blocking and not
 correctly managed by the async driver (asyncpg) could still impede the thread
 associated with that greenlet. If not carefully managed, this could indirectly
-affect event loop responsiveness. Therefore, it's crucial to rely on asyncpg and
-SQLAlchemy's async layer to handle I/O correctly. For situations where
+affect event loop responsiveness. Therefore, it's crucial to rely on asyncpg
+and SQLAlchemy's async layer to handle I/O correctly. For situations where
 synchronous SQLAlchemy code (e.g., complex event listeners or custom type
 compilers that perform I/O) must be run within an async session context,
 SQLAlchemy provides await session.run_sync(). This method allows a synchronous,
@@ -854,11 +858,11 @@ pytest.ini file, which simplifies the execution of async tests and fixtures.45
 
 A critical best practice for database testing is to ensure that each test runs
 in an isolated transaction, which is rolled back at the test's conclusion. This
-guarantees a clean database state for every test, irrespective of the operations
-performed within the test, including calls to await session.commit().46 This is
-achieved by managing transactions at the connection level for the test session,
-while individual tests operate within savepoints. A common fixture setup in
-conftest.py might include:
+guarantees a clean database state for every test, irrespective of the
+operations performed within the test, including calls to await
+session.commit().46 This is achieved by managing transactions at the connection
+level for the test session, while individual tests operate within savepoints. A
+common fixture setup in conftest.py might include:
 
 1. **event_loop fixture (session-scoped):** Provides the asyncio event loop for
    the test session. pytest-async-sqlalchemy requires this to be session-scoped
@@ -866,14 +870,14 @@ conftest.py might include:
 2. **AsyncEngine fixture (session-scoped):** Creates a single AsyncEngine for
    the entire test session.
 3. **Database Schema Setup/Teardown fixture (session-scoped):** Manages the
-   creation of database tables before the test session starts and their deletion
-   after it ends.
+   creation of database tables before the test session starts and their
+   deletion after it ends.
 4. **Test Connection fixture (db_connection, session-scoped or
    function-scoped):** This fixture establishes a single AsyncConnection for a
-   block of tests or the entire session. It begins a "real" database transaction
-   on this connection. After all tests using this connection are done (or after
-   each test if function-scoped and managing its own transaction), it rolls back
-   this main transaction.
+   block of tests or the entire session. It begins a "real" database
+   transaction on this connection. After all tests using this connection are
+   done (or after each test if function-scoped and managing its own
+   transaction), it rolls back this main transaction.
 5. **AsyncSession fixture (db_session, function-scoped):** This is the session
    provided to each individual test function.
    - It is bound to the test connection established by the db_connection
@@ -887,10 +891,10 @@ conftest.py might include:
      transaction (and thus all savepoints) is rolled back after the test (or
      group of tests) completes.
 
-This join_transaction_mode="create_savepoint" mechanism is vital. It allows test
-code to call await session.commit() as it would in production logic, but the
-test framework ensures these commits are only to savepoints, maintaining overall
-test isolation via the rollback of the encompassing connection-level
+This join_transaction_mode="create_savepoint" mechanism is vital. It allows
+test code to call await session.commit() as it would in production logic, but
+the test framework ensures these commits are only to savepoints, maintaining
+overall test isolation via the rollback of the encompassing connection-level
 transaction. A conceptual conftest.py for such a setup:
 
 ```python
@@ -985,11 +989,11 @@ setup is valuable for customization and deeper comprehension.)
 
 To test Falcon endpoints that rely on the SQLAlchemy session middleware, you'll
 use Falcon's testing utilities, such as falcon.testing.TestClient.48 For more
-fine-grained control over the ASGI lifecycle, especially for streaming responses
-or WebSockets, falcon.testing.ASGIConductor can be used.48 The primary challenge
-is to ensure that your Falcon application, when run under test, uses the
-transactional db_session fixture instead of its production database session
-factory. Falcon does not have a direct equivalent to FastAPI's
+fine-grained control over the ASGI lifecycle, especially for streaming
+responses or WebSockets, falcon.testing.ASGIConductor can be used.48 The
+primary challenge is to ensure that your Falcon application, when run under
+test, uses the transactional db_session fixture instead of its production
+database session factory. Falcon does not have a direct equivalent to FastAPI's
 app.dependency_overrides. Common strategies include:
 
 1. **Application Factory Pattern:** Design your Falcon application with a
@@ -1044,13 +1048,14 @@ db_session.add(test_user) # # await db_session.commit() # This commits to the
 savepoint
 
 \# response = await client.simulate_get(f"/users/{test_user.id}") # assert
-response.status == falcon.HTTP_200 # assert response.json["name"] == "Test User"
-\# The db_session fixture ensures this test_user is rolled back.
+response.status == falcon.HTTP_200 # assert response.json["name"] == "Test
+User" \# The db_session fixture ensures this test_user is rolled back.
 
 46 It is also beneficial to test the session middleware itself in isolation to
-verify its session creation, provision, and cleanup logic, separate from testing
-the business logic within the resource responders. This layered testing strategy
-improves the maintainability and diagnostic capability of your test suite.
+verify its session creation, provision, and cleanup logic, separate from
+testing the business logic within the resource responders. This layered testing
+strategy improves the maintainability and diagnostic capability of your test
+suite.
 
 ## **IX. Conclusion: Building Scalable and Reliable Async Services**
 
@@ -1081,8 +1086,8 @@ identified include:**
   loading.
 - **Performance:** Continuously tuning connection pool settings, optimizing
   queries, and using logging/profiling to identify and address bottlenecks.
-  Avoiding any unintended blocking calls within the async workflow is essential,
-  using session.run_sync() for necessary synchronous code execution.
+  Avoiding any unintended blocking calls within the async workflow is
+  essential, using session.run_sync() for necessary synchronous code execution.
 - **Testing:** Employing pytest with pytest-asyncio and implementing
   transactional tests where each test runs in an isolated, rolled-back
   transaction using join_transaction_mode="create_savepoint" for the test
@@ -1181,7 +1186,7 @@ Python web services. **Pointers for Further Learning:**
 29. Connect to PostgreSQL with SQLAlchemy and asyncio - Makimo, accessed on June
     1, 2025,
     [https://makimo.com/blog/connect-to-postgresql-with-sqlalchemy-and-asyncio/](https://makimo.com/blog/connect-to-postgresql-with-sqlalchemy-and-asyncio/)
-30. Transactions and Connection Management — SQLAlchemy 2.0 ..., accessed on
+30. Transactions and Connection Management — SQLAlchemy 2.0 …, accessed on
     June 1, 2025,
     [http://docs.sqlalchemy.org/en/latest/orm/session_transaction.html](http://docs.sqlalchemy.org/en/latest/orm/session_transaction.html)
 31. Core Exceptions — SQLAlchemy 2.0 Documentation, accessed on June 1, 2025,
@@ -1196,7 +1201,7 @@ Python web services. **Pointers for Further Learning:**
 34. How to catch SQL errors with AsyncPG? - python - Stack Overflow, accessed on
     June 1, 2025,
     [https://stackoverflow.com/questions/68008508/how-to-catch-sql-errors-with-asyncpg](https://stackoverflow.com/questions/68008508/how-to-catch-sql-errors-with-asyncpg)
-35. python - Accessing Eager-Loaded Relationships When Lazy ..., accessed on
+35. python - Accessing Eager-Loaded Relationships When Lazy …, accessed on
     June 1, 2025,
     [https://stackoverflow.com/questions/77812185/accessing-eager-loaded-relationships-when-lazy-loading-in-async-sqlalchemy](https://stackoverflow.com/questions/77812185/accessing-eager-loaded-relationships-when-lazy-loading-in-async-sqlalchemy)
 36. State Management — SQLAlchemy 2.0 Documentation, accessed on June 1, 2025,
@@ -1242,9 +1247,9 @@ Python web services. **Pointers for Further Learning:**
     2025, [https://docs.sqlalchemy.org/](https://docs.sqlalchemy.org/)
 53. asyncpg Usage, accessed on June 1, 2025,
     [https://magicstack.github.io/asyncpg/current/usage.html](https://magicstack.github.io/asyncpg/current/usage.html)
-54. Technical question on async SqlAlchemy session and ... - Reddit, accessed on
+54. Technical question on async SqlAlchemy session and … - Reddit, accessed on
     June 1, 2025,
     [https://www.reddit.com/r/FastAPI/comments/1fhkekz/technical_question_on_async_sqlalchemy_session/](https://www.reddit.com/r/FastAPI/comments/1fhkekz/technical_question_on_async_sqlalchemy_session/)
-55. Using dependency injection to get SQLAlchemy session can lead to ...,
+55. Using dependency injection to get SQLAlchemy session can lead to …,
     accessed on June 1, 2025,
     [https://github.com/tiangolo/fastapi/discussions/6628](https://github.com/tiangolo/fastapi/discussions/6628)
