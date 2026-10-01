@@ -1,4 +1,5 @@
 """Integration tests for authentication and session handling."""
+
 from __future__ import annotations
 
 import base64

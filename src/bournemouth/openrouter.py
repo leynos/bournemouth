@@ -155,6 +155,7 @@ class ResponseFormat(msgspec.Struct):
 class ProviderPreferences(msgspec.Struct, array_like=True, forbid_unknown_fields=False):
     """Placeholder for OpenRouter provider routing preferences."""
 
+
 class ChatCompletionRequest(msgspec.Struct, forbid_unknown_fields=True):
     """Payload for ``/chat/completions`` requests."""
 

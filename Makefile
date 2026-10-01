@@ -1,7 +1,15 @@
+# `make fmt` and `make check-fmt` call mdtablefix directly. `--git` selects the
+# Markdown files Git tracks and `--include-untracked` adds the untracked files
+# Git does not ignore, so a new document is formatted before it is staged.
+# Both modes need mdtablefix 0.6.1 or later.
+MDTABLEFIX ?= mdtablefix
+MDTABLEFIX_SELECT = --git --include-untracked
+MDTABLEFIX_RULES = --wrap --renumber --breaks --ellipsis --fences
+
 .PHONY: help default all clean build build-release lint fmt check-fmt \
 	markdownlint tools nixie test
 
-MDLINT ?= markdownlint
+MDLINT ?= markdownlint-cli2
 NIXIE ?= nixie
 
 all: build check-fmt test typecheck
@@ -28,16 +36,17 @@ endef
 
 
 tools: ## Verify required CLI tools
-	$(foreach t,mdformat-all ruff ty $(MDLINT) $(NIXIE) pytest uv,$(call ensure_tool,$t))
+	$(foreach t,$(MDTABLEFIX) ruff ty $(MDLINT) $(NIXIE) pytest uv,$(call ensure_tool,$t))
 	@:
 
 fmt: tools ## Format sources
 	ruff format
-	mdformat-all
+	$(MDTABLEFIX) --in-place $(MDTABLEFIX_SELECT) $(MDTABLEFIX_RULES)
+	$(MDLINT) --fix "**/*.md"
 
 check-fmt: ## Verify formatting
 	ruff format --check
-	mdformat-all --check
+	$(MDTABLEFIX) --check $(MDTABLEFIX_SELECT) $(MDTABLEFIX_RULES)
 
 lint: tools ## Run linters
 	ruff check

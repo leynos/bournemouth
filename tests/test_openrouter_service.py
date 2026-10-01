@@ -1,4 +1,5 @@
 """Tests for the ``OpenRouterService`` class."""
+
 import asyncio
 import types
 
@@ -116,6 +117,7 @@ async def test_can_reuse_after_aclose(monkeypatch: pytest.MonkeyPatch) -> None:
 @pytest.mark.asyncio
 async def test_remove_client(monkeypatch: pytest.MonkeyPatch) -> None:
     """Removing a client triggers its closure."""
+
     class ClosingClient(DummyClient):
         closes: int = 0
 

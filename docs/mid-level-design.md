@@ -15,11 +15,11 @@ Generation (RAG) to incorporate knowledge graph data into LLM prompts.
 
 - **User Request Handling:** Exposes a RESTful endpoint (e.g. **POST** `/chat`)
   to receive chat messages. The request contains the user’s prompt (and
-  optionally recent conversation context if needed for continuity). The chat-api
-  does **not** maintain persistent session state; any conversation history must
-  be provided by the client or retrieved ephemerally (to keep the service
-  stateless aside from auth). Each request is handled in isolation, using the ID
-  token to identify the user and authorize access.
+  optionally recent conversation context if needed for continuity). The
+  chat-api does **not** maintain persistent session state; any conversation
+  history must be provided by the client or retrieved ephemerally (to keep the
+  service stateless aside from auth). Each request is handled in isolation,
+  using the ID token to identify the user and authorize access.
 
 - **RAG Pipeline:** Upon receiving a user message, the chat-api performs the RAG
   process in real-time (targeting sub-second latency overhead):
@@ -248,28 +248,28 @@ of the chat-api.
 - **Task Acknowledgment & Retry:** After successfully processing a task, the
   worker should acknowledge the message so it is removed from the Redis queue.
   If processing fails (due to a transient error like database connection
-  issues), Celery can be configured to retry the task a certain number of times.
-  The tasks should be designed to be **idempotent** or check-before-write, so
-  that retries don’t duplicate data. For example, if a task fails after creating
-  an entity but before creating a relationship, a retry should detect the entity
-  exists and avoid creating a duplicate.
+  issues), Celery can be configured to retry the task a certain number of
+  times. The tasks should be designed to be **idempotent** or
+  check-before-write, so that retries don’t duplicate data. For example, if a
+  task fails after creating an entity but before creating a relationship, a
+  retry should detect the entity exists and avoid creating a duplicate.
 
 - **Isolation and Multi-user Data:** The worker, like chat-api, must respect
   user data isolation. When writing to Neo4j or Postgres, it always associates
   data with the correct user ID and never mixes data between users. Even though
   all users’ nodes reside in the same Neo4j database, the `user_id` property
-  (and possibly labels or separate subgraph per user) is used to segregate their
-  knowledge. This extends to embeddings: e.g., a vector index query must filter
-  or partition by user if we don’t want cross-user results. (Alternatively, a
-  separate index namespace per user could be maintained.)
+  (and possibly labels or separate subgraph per user) is used to segregate
+  their knowledge. This extends to embeddings: e.g., a vector index query must
+  filter or partition by user if we don’t want cross-user results.
+  (Alternatively, a separate index namespace per user could be maintained.)
 
 - **Resource Management:** The worker may perform CPU-heavy operations (NER,
   etc.). It can be scaled horizontally by running multiple Celery worker
   processes/pods to handle load. Each worker process can also run multiple
   threads or processes (Celery concurrency settings) to parallelize tasks. The
-  design should account for potentially simultaneous tasks from different users.
-  Heavy NLP models can be loaded once per worker to reuse in multiple tasks
-  (amortizing load time), but one must watch memory usage. For MVP, using
+  design should account for potentially simultaneous tasks from different
+  users. Heavy NLP models can be loaded once per worker to reuse in multiple
+  tasks (amortizing load time), but one must watch memory usage. For MVP, using
   efficient libraries and perhaps limiting to smaller models (or calling cloud
   APIs for NER if available) can keep resource use reasonable.
 
@@ -278,15 +278,15 @@ of the chat-api.
 **Performance:**
 
 - **Low Latency RAG:** The chat-api’s goal is to add minimal latency on top of
-  the LLM’s response time. The RAG retrieval (embedding + knowledge graph query)
-  should typically complete in well under 1 second. To achieve this, use
-  optimized methods: pre-compute embeddings for KG facts and store them for fast
-  cosine similarity lookup (using an ANN index or indexing features in Neo4j).
-  Ensure Neo4j queries (Cypher) are indexed and targeted (e.g., an index on
-  `:Entity(name)` for direct lookups, index on `user_id` for filtering) so they
-  execute in milliseconds. The Falcon framework is chosen for its efficiency in
-  processing HTTP requests; it has a small overhead and can sustain high
-  throughput, aligning with the sub-second target.
+  the LLM’s response time. The RAG retrieval (embedding + knowledge graph
+  query) should typically complete in well under 1 second. To achieve this, use
+  optimized methods: pre-compute embeddings for KG facts and store them for
+  fast cosine similarity lookup (using an ANN index or indexing features in
+  Neo4j). Ensure Neo4j queries (Cypher) are indexed and targeted (e.g., an
+  index on `:Entity(name)` for direct lookups, index on `user_id` for
+  filtering) so they execute in milliseconds. The Falcon framework is chosen
+  for its efficiency in processing HTTP requests; it has a small overhead and
+  can sustain high throughput, aligning with the sub-second target.
 
 - **Throughput & Concurrency:** The system should handle multiple concurrent
   users. Chat-api (Falcon) being stateless can be replicated (scale-out) to
@@ -355,8 +355,8 @@ of the chat-api.
   in transit (TLS for all external calls and between services if possible), and
   safe storage of credentials. The system should also enforce quotas or
   validations to prevent misuse (for example, disallow extremely large prompts
-  that could crash the system, or rate-limit the number of requests per minute a
-  user can make to avoid spam or runaway costs).
+  that could crash the system, or rate-limit the number of requests per minute
+  a user can make to avoid spam or runaway costs).
 
 - **Maintainability:**
 
@@ -446,22 +446,23 @@ of the chat-api.
   advanced)** **Description:** Redirects the user to OpenRouter’s OAuth
   authorization URL. This endpoint is used if implementing the full PKCE OAuth
   flow. It would construct the OpenRouter `/auth` URL with the required
-  `callback_url` and `code_challenge`, then redirect the user’s browser to that.
-  **Behavior:** The user will authenticate on OpenRouter and authorize our app.
-  OpenRouter will then redirect back to our specified callback (e.g.,
+  `callback_url` and `code_challenge`, then redirect the user’s browser to
+  that. **Behavior:** The user will authenticate on OpenRouter and authorize
+  our app. OpenRouter will then redirect back to our specified callback (e.g.,
   `/auth/openrouter/callback?code=...`). (Note: In many implementations, the
-  front-end could handle constructing the URL and redirecting directly. We might
-  not need a dedicated backend endpoint for this if front-end is doing PKCE.)
+  front-end could handle constructing the URL and redirecting directly. We
+  might not need a dedicated backend endpoint for this if front-end is doing
+  PKCE.)
 
 - **GET `/auth/openrouter/callback`** – *OpenRouter OAuth Callback* **(optional
   advanced)** **Description:** Handles the redirect from OpenRouter after user
-  authorization. It expects a `code` query parameter. **Behavior:** The endpoint
-  will read the `code`, verify state if used, then use the OpenRouter API
-  (`POST /api/v1/auth/keys`) to exchange the code (plus the PKCE verifier) for
-  an API key. On success, it stores the API key in Postgres associated with the
-  user (the user’s identity can be retrieved from session or by decoding a JWT
-  that was stored during the redirect flow, since the user would have already
-  been authed with Google – we may need to tie the OAuth process to an
+  authorization. It expects a `code` query parameter. **Behavior:** The
+  endpoint will read the `code`, verify state if used, then use the OpenRouter
+  API (`POST /api/v1/auth/keys`) to exchange the code (plus the PKCE verifier)
+  for an API key. On success, it stores the API key in Postgres associated with
+  the user (the user’s identity can be retrieved from session or by decoding a
+  JWT that was stored during the redirect flow, since the user would have
+  already been authed with Google – we may need to tie the OAuth process to an
   authenticated session). After storing, it might redirect the user to a
   front-end page indicating success. **Errors:** If exchange fails, log and
   possibly show an error page or message to the user.
@@ -552,56 +553,56 @@ prompt.)*
     waiting for results in the frontend.
 
 - **Error Handling & Retry in Tasks:** If a task throws an exception or cannot
-  complete (e.g., Neo4j is unavailable), Celery can automatically retry it after
-  a delay. We can configure a max retry count (for example, try 3 times with
-  exponential backoff). The task code should be structured so that partial
+  complete (e.g., Neo4j is unavailable), Celery can automatically retry it
+  after a delay. We can configure a max retry count (for example, try 3 times
+  with exponential backoff). The task code should be structured so that partial
   failures don’t corrupt data: e.g., if it created some nodes before crashing,
   the MERGE ensures retry won’t duplicate nodes. If a non-recoverable error
-  occurs (e.g., bad data causing NER to fail), the task can be marked failed and
-  the error recorded. The system can continue to function even if some updates
-  fail (the chat service is not directly affected), but those failures should be
-  visible to developers (via logs or Celery’s monitoring like Flower) for
-  troubleshooting.
+  occurs (e.g., bad data causing NER to fail), the task can be marked failed
+  and the error recorded. The system can continue to function even if some
+  updates fail (the chat service is not directly affected), but those failures
+  should be visible to developers (via logs or Celery’s monitoring like Flower)
+  for troubleshooting.
 
 - **Queue/Broker Details:** We use **Redis** as the Celery broker (with a
   specific connection URL configured). All `"kg_update"` tasks are published to
   Redis and workers listen on the same. Optionally, for separation, we could
   define multiple Celery queues (e.g., a high-priority queue for critical tasks
   vs. low-priority), but here all knowledge updates are similar priority. The
-  Celery configuration (in Python) will specify Redis as broker and may also use
-  Redis as the result backend (or simply `ignore_result=True` for tasks if we
-  don’t need to track results).
+  Celery configuration (in Python) will specify Redis as broker and may also
+  use Redis as the result backend (or simply `ignore_result=True` for tasks if
+  we don’t need to track results).
 
 - **Rate & Ordering:** Generally, tasks are handled in the order they were
   queued, but parallel workers mean they could complete out of order. This is
-  normally fine because each task is independent per user. Even if two tasks for
-  the same user are running (say the user mentioned two separate new facts in
-  quick succession), Neo4j will eventually have both. If ordering ever matters
-  (perhaps if fact B depends on fact A being in place), we might enforce
-  sequential processing per user by using task chaining or a dedicated queue per
-  user, but that’s likely over-complicating. MVP assumption: facts are
-  independent enough that concurrent updates are okay.
+  normally fine because each task is independent per user. Even if two tasks
+  for the same user are running (say the user mentioned two separate new facts
+  in quick succession), Neo4j will eventually have both. If ordering ever
+  matters (perhaps if fact B depends on fact A being in place), we might
+  enforce sequential processing per user by using task chaining or a dedicated
+  queue per user, but that’s likely over-complicating. MVP assumption: facts
+  are independent enough that concurrent updates are okay.
 
 ## Security Model
 
-**User Authentication (Google OIDC):** We exclusively rely on Google Sign-In for
-user authentication, which provides a robust, secure login without managing our
-own passwords. Users authenticate with Google, and our client obtains an ID
+**User Authentication (Google OIDC):** We exclusively rely on Google Sign-In
+for user authentication, which provides a robust, secure login without managing
+our own passwords. Users authenticate with Google, and our client obtains an ID
 token (JWT) that asserts the user’s identity. The chat-api verifies this token
 on each request:
 
 - It uses Google’s public keys (retrieved from Google’s OIDC discovery doc) to
-  validate the JWT signature and checks the `aud` (audience) claim to ensure the
-  token was intended for our application’s OAuth client ID. It also checks `exp`
-  to ensure the token is not expired.
+  validate the JWT signature and checks the `aud` (audience) claim to ensure
+  the token was intended for our application’s OAuth client ID. It also checks
+  `exp` to ensure the token is not expired.
 - Once validated, the token’s payload yields the user’s info. We use the `sub`
   claim (a Google unique user ID string) as the primary user key in our system,
   as it’s stable and never re-used. This `user_id` will tag all data belonging
   to the user.
 - We may also extract the user’s email and name if needed (the token often
   includes these if scopes allow). However, for privacy and minimalism, we only
-  use email for display or contact purposes; authorization is based on the `sub`
-  ID.
+  use email for display or contact purposes; authorization is based on the
+  `sub` ID.
 - No other authentication method is allowed (no username/password or other OAuth
   providers in MVP). This simplifies security – we trust Google’s identity
   assurance and do not have to implement account recovery, password storage,
@@ -612,8 +613,8 @@ token. There is no separate session cookie or server-side session state. This
 stateless auth (JWT per request) means the client must handle token refresh
 (Google’s ID tokens last about 1 hour). Typically, the front-end would use
 Google’s library to silently refresh tokens or prompt the user to sign in again
-after expiration. Our server could reject expired tokens with 401, prompting the
-client to re-auth.
+after expiration. Our server could reject expired tokens with 401, prompting
+the client to re-auth.
 
 **Access Control & Multi-Tenancy:** By design, each user can only access their
 own data:
@@ -621,11 +622,12 @@ own data:
 - **Knowledge Graph Isolation:** As described, each node/edge in Neo4j is tagged
   with `user_id`. The chat-api, when querying Neo4j for relevant facts, always
   includes a clause filtering on the user’s ID. Similarly, the worker when
-  writing will attach the user’s ID. Thereby, even though all users’ data reside
-  in one Neo4j instance (for MVP), no cross-user data mixing happens at the
-  application level. We do **not** expose any generic Neo4j query interface to
-  end-users; they only get data via the controlled chat pipeline. So, there’s no
-  direct way for a user to craft a query that retrieves someone else’s nodes.
+  writing will attach the user’s ID. Thereby, even though all users’ data
+  reside in one Neo4j instance (for MVP), no cross-user data mixing happens at
+  the application level. We do **not** expose any generic Neo4j query interface
+  to end-users; they only get data via the controlled chat pipeline. So,
+  there’s no direct way for a user to craft a query that retrieves someone
+  else’s nodes.
 
   - In the future or in enterprise scenarios, we could use Neo4j’s
     multi-database feature to give each user their own isolated database or use
@@ -642,9 +644,9 @@ own data:
   chat-api might have read-access to user tokens and write-access to logs,
   whereas the worker might have write-access for logs and full access for user
   records. In practice, we can use one user role for simplicity, but we ensure
-  the connection string is not exposed to end users. The Postgres instance isn’t
-  accessible from the internet – only internally from our services within the
-  cluster. Thus, users cannot directly query or tamper with the database.
+  the connection string is not exposed to end users. The Postgres instance
+  isn’t accessible from the internet – only internally from our services within
+  the cluster. Thus, users cannot directly query or tamper with the database.
 
 - **OpenRouter API Key Security:** The OpenRouter API key that users provide is
   sensitive (it permits billing usage on their behalf). Security measures for
@@ -669,8 +671,8 @@ own data:
   facts derived from them) is considered private to that user. We do not share
   this data across users or use it to retrain models globally (unless a user
   explicitly shares something, which is not in scope). The knowledge graph is
-  essentially a personal knowledge base for each user, albeit stored in a common
-  database.
+  essentially a personal knowledge base for each user, albeit stored in a
+  common database.
 
   - We inform users that their chat inputs and retrieved facts will be sent to
     an external LLM service (OpenRouter/associated model providers) for the
@@ -917,12 +919,13 @@ key configuration:
     retention policy (e.g., keep audit logs for X days or archive old ones) to
     prevent unbounded growth in Postgres.
 
-In summary, the deployment in Kubernetes will leverage the platform’s strengths:
-self-healing, scalability, and easy management of config/secrets. By separating
-services and using proven images (Falcon app, Celery worker) we ensure each can
-be scaled and managed independently. The target cloud (AKS/EKS) will influence
-some details (like using Cloud-specific DB services or not), but the design
-keeps it fairly cloud-agnostic except for how we manage secrets and ingress.
+In summary, the deployment in Kubernetes will leverage the platform’s
+strengths: self-healing, scalability, and easy management of config/secrets. By
+separating services and using proven images (Falcon app, Celery worker) we
+ensure each can be scaled and managed independently. The target cloud (AKS/EKS)
+will influence some details (like using Cloud-specific DB services or not), but
+the design keeps it fairly cloud-agnostic except for how we manage secrets and
+ingress.
 
 ## Architecture & Data Flow Diagrams (Textual Description)
 
@@ -932,8 +935,8 @@ components and external integrations:
 - **User Interface (Client):** The user (from a web or mobile app) interacts
   with the chat system. They log in with Google and initiate chats. The client
   holds the Google ID token (for auth) and either the OpenRouter API key or
-  initiates the OAuth flow for OpenRouter. The client sends chat requests to the
-  chat-api and displays responses to the user.
+  initiates the OAuth flow for OpenRouter. The client sends chat requests to
+  the chat-api and displays responses to the user.
 - **Chat API Service (Falcon web service):** This is the entry point for all
   chat requests. It authenticates the user via the Google token, orchestrates
   retrieval of relevant knowledge, calls the LLM service (OpenRouter), and
@@ -941,11 +944,11 @@ components and external integrations:
   background processing. Think of this as the online query processor that must
   respond quickly.
 - **Knowledge Graph (Neo4j database):** A graph DB that stores facts as nodes
-  and relationships. This is the external memory for the chatbot, enabling it to
-  have up-to-date, structured knowledge per user. It supports Cypher queries and
-  possibly vector similarity searches (either via plugin or by our own indexing
-  approach). Neo4j holds data for all users but tagged by user, effectively
-  partitioning the knowledge by user ownership.
+  and relationships. This is the external memory for the chatbot, enabling it
+  to have up-to-date, structured knowledge per user. It supports Cypher queries
+  and possibly vector similarity searches (either via plugin or by our own
+  indexing approach). Neo4j holds data for all users but tagged by user,
+  effectively partitioning the knowledge by user ownership.
 - **Vector Index (possible component within Neo4j or standalone):** Not a
   separate service per se in MVP, but conceptually the system uses a vector
   similarity search mechanism to find relevant facts. This could be implemented
@@ -954,9 +957,9 @@ components and external integrations:
 - **LLM Service (OpenRouter API):** An external service that front-ends various
   large language models. Our chat-api sends it requests with user prompts +
   context and receives generated responses. Each call is authorized with the
-  user’s own OpenRouter token, so OpenRouter accounts usage per user. OpenRouter
-  itself connects to model providers (like OpenAI, Anthropic, etc.) – abstracted
-  away from our system. The communication is via HTTPS REST calls.
+  user’s own OpenRouter token, so OpenRouter accounts usage per user.
+  OpenRouter itself connects to model providers (like OpenAI, Anthropic, etc.)
+  – abstracted away from our system. The communication is via HTTPS REST calls.
 - **Task Queue (Redis + Celery):** The glue between chat-api and worker. When
   chat-api enqueues a job, it goes into the Redis broker. The Celery worker
   listens and pulls tasks from Redis in FIFO order (roughly).
@@ -996,7 +999,7 @@ them, and external calls going out to Google and OpenRouter.
 of how the components interact when a user sends a message to the chatbot and a
 new fact is learned:
 
-01. **User Authentication (Preliminary):** The user opens the chat application
+1. **User Authentication (Preliminary):** The user opens the chat application
     and clicks "Sign in with Google". Google’s OIDC flow occurs (possibly
     entirely on the front-end): the user authenticates with Google and your app
     obtains a Google ID token for the user. The user is now authenticated in the
@@ -1006,7 +1009,7 @@ new fact is learned:
     obtained their API key, storing it securely. Now the system has (a) the
     user’s identity token and (b) an LLM API key for that user.
 
-02. **User Sends a Chat Message:** The user types a query or message in the chat
+2. **User Sends a Chat Message:** The user types a query or message in the chat
     UI (e.g., "My cat Fluffy just had surgery on her leg. How should I take care
     of her?"). The front-end sends this to the backend by making a **POST**
     request to `/chat`. It includes:
@@ -1018,7 +1021,7 @@ new fact is learned:
       include the OpenRouter API key here, but in our design we assume it’s
       stored so it’s not sent every time.)
 
-03. **Request Validation:** The chat-api service receives the request. It first
+3. **Request Validation:** The chat-api service receives the request. It first
     verifies the Google ID token:
 
     - It checks signature and claims. On success, it knows the user’s ID (let’s
@@ -1029,14 +1032,14 @@ new fact is learned:
     - Assuming the key is found (say a token XYZ…), the chat-api is now ready to
       process the query.
 
-04. **RAG Retrieval – Embedding:** The chat-api takes the user’s query "My cat
-    Fluffy had surgery on her leg..." and passes it to an embedding model to
+4. **RAG Retrieval – Embedding:** The chat-api takes the user’s query "My cat
+    Fluffy had surgery on her leg…" and passes it to an embedding model to
     obtain a vector representation. This could be done by calling an embedding
     endpoint (for instance, OpenRouter might proxy an embedding model, or use
     OpenAI embeddings if available) or using a local library. This step yields a
     vector (e.g., a 1536-d float array) capturing semantic meaning of the query.
 
-05. **RAG Retrieval – Knowledge Graph Query:** Using the embedding vector, the
+5. **RAG Retrieval – Knowledge Graph Query:** Using the embedding vector, the
     chat-api finds relevant knowledge graph entries for User123:
 
     - It queries a vector index of the knowledge graph. For example, it finds
@@ -1060,7 +1063,7 @@ new fact is learned:
     - All queries ensure `user_id = User123` or `user_id is null for global` so
       that we don’t accidentally retrieve someone else’s data.
 
-06. **Prompt Construction:** The chat-api now constructs the prompt for the LLM.
+6. **Prompt Construction:** The chat-api now constructs the prompt for the LLM.
     It might do something like:
 
     - System message: "You are a helpful assistant. The user has a knowledge
@@ -1071,7 +1074,7 @@ new fact is learned:
       is the retrieved knowledge is inserted into the conversation context for
       the LLM.
 
-07. **LLM API Call:** The chat-api makes a POST request to OpenRouter’s chat
+7. **LLM API Call:** The chat-api makes a POST request to OpenRouter’s chat
     completion API. It includes the model (e.g., `gpt-4`), the assembled
     messages (system + user messages, plus possibly any assistant messages if
     continuing a conversation), and sets the Authorization header with
@@ -1083,13 +1086,13 @@ new fact is learned:
     - This step might take a couple of seconds as the model generates an answer.
       OpenRouter then sends back the completion result to our chat-api.
 
-08. **Receive LLM Response:** The chat-api receives the response, which might be
+8. **Receive LLM Response:** The chat-api receives the response, which might be
     something like: "*I’m sorry to hear about Fluffy. After her leg surgery,
     make sure she stays off her leg as much as possible. Keep the wound clean
-    and dry...*" along with any usage tokens info. The chat-api extracts the
+    and dry…*" along with any usage tokens info. The chat-api extracts the
     assistant’s message text.
 
-09. **Send Response to User:** The chat-api immediately responds to the original
+9. **Send Response to User:** The chat-api immediately responds to the original
     HTTP request with a JSON containing the answer. The user’s app receives this
     and displays the answer to the user. From the user’s perspective, they sent
     a question and got a helpful answer that possibly even incorporated the
@@ -1097,7 +1100,7 @@ new fact is learned:
 
 10. **Novelty Detection Trigger:** Meanwhile, in parallel or just after sending
     the response, the chat-api runs the novelty detection on the user’s input
-    ("My cat Fluffy..."). It identifies "Fluffy" as a Named Entity (likely a pet
+    ("My cat Fluffy…"). It identifies "Fluffy" as a Named Entity (likely a pet
     name, which might be classified as a PERSON or simply a PROPER NOUN by NER).
     The system checks Neo4j and does not find any node named "Fluffy" for
     User123. This is flagged as new. It might also parse that Fluffy is the
@@ -1173,7 +1176,7 @@ new fact is learned:
     include: "Fluffy is the user’s cat who recently had leg surgery." This
     additional context will make the answer more personalized (the LLM could say
     "Given that Fluffy is recovering from leg surgery, it’s best to limit stair
-    climbing initially..."). This demonstrates the system’s
+    climbing initially…"). This demonstrates the system’s
     *surprise-awareness*: it learned a new fact (Fluffy, and her condition) and
     used it in future answers.
 
@@ -1190,9 +1193,9 @@ world (knowledge graph) without slowdowns, and the system in the background
 curates that knowledge graph as the conversation progresses.
 
 In summary, the architecture combines real-time retrieval-augmented AI (for
-quality answers) with a persistent evolving memory (the knowledge graph) that is
-updated in the background whenever surprises (new information) are detected. The
-use of Kubernetes ensures this can run reliably at scale, with each component
-(API, worker, databases) in appropriate pods or services. Security is enforced
-at the boundaries (Google auth at entry, token-based LLM calls, data isolation
-in storage), making the system multi-tenant and user-trustworthy.
+quality answers) with a persistent evolving memory (the knowledge graph) that
+is updated in the background whenever surprises (new information) are detected.
+The use of Kubernetes ensures this can run reliably at scale, with each
+component (API, worker, databases) in appropriate pods or services. Security is
+enforced at the boundaries (Google auth at entry, token-based LLM calls, data
+isolation in storage), making the system multi-tenant and user-trustworthy.

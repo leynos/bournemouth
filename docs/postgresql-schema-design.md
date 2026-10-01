@@ -216,9 +216,9 @@ WITH RECURSIVE tail(id, role, content) AS (
 SELECT * FROM tail ORDER BY created_at;
 ```
 
-This approach ensures full auditability, lineage tracking, and efficient storage
-reuse while giving users flexibility to explore alternative continuations of
-their conversations.
+This approach ensures full auditability, lineage tracking, and efficient
+storage reuse while giving users flexibility to explore alternative
+continuations of their conversations.
 
 ### Garbage-collection & quotas
 
@@ -251,21 +251,22 @@ def test_fork_creates_new_branch(pg_session, user_id, base_conv, fork_msg):
     assert base_msgs >= fork_msgs
 ```
 
-Because the schema is pure SQL and every test spins up **postgresql://:memory:**
-via **pytest-postgresql**, no external services are needed.
+Because the schema is pure SQL and every test spins up
+**postgresql://:memory:** via **pytest-postgresql**, no external services are
+needed.
 
 ### Key points
 
-| Design choice Why | | | -------------------------------------------- |
+| Design choice Why |  |  | -------------------------------------------- |
 \-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 | | Immutable `MESSAGE` rows | Once inserted they never change → any message can
 safely be shared by multiple branches. | | `parent_id` per branch | Points to
 the immediate predecessor *within that conversation*. When you fork, the new
 head’s `parent_id` is the old message, so the new branch re-uses the same
 ancestry up to the fork point. | | `CONVERSATION.forked_from_*` columns | Pure
-metadata: lets the UI show *“Forked from message #n in chat X”* but isn’t needed
-for traversal (you can always walk back via `parent_id`). | | `root_message_id`
-shortcut | Saves one join when the UI lists threads. | | Shared messages,
-distinct conversations | Storage-efficient: historic turns are stored **once**,
-yet a forked chat has its own `conversation_id`, making per-branch settings
-(model, temperature, visibility) trivial. |
+metadata: lets the UI show *“Forked from message #n in chat X”* but isn’t
+needed for traversal (you can always walk back via `parent_id`). | |
+`root_message_id` shortcut | Saves one join when the UI lists threads. | |
+Shared messages, distinct conversations | Storage-efficient: historic turns are
+stored **once**, yet a forked chat has its own `conversation_id`, making
+per-branch settings (model, temperature, visibility) trivial. |

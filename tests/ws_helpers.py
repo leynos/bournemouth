@@ -16,6 +16,7 @@ async with ws_collector(ws) as coll:
 
 Licence: ISC (same as project)
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -41,6 +42,7 @@ class WebSocketProtocol(typing.Protocol):
     async def receive_text(self) -> str:
         """Receive text data from the WebSocket."""
         ...
+
 
 _logger = logging.getLogger(__name__)
 

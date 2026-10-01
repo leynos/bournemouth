@@ -1,4 +1,5 @@
 """Shared pytest fixtures for the test suite."""
+
 import sys
 import typing
 from pathlib import Path

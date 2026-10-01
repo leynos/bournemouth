@@ -5,54 +5,55 @@
 ### A. Purpose and Scope of the Report
 
 This report outlines a strategy for developing and implementing robust handling
-of `msgspec` structs over WebSocket connections within the Falcon web framework.
-The primary objective is to establish a methodology analogous to Falcon's
-middleware support for HTTP endpoints, thereby promoting efficient, type-safe,
-and maintainable real-time communication. The scope encompasses the design of a
-custom Falcon middleware, integration with `msgspec` for serialization and
-validation, and practical guidance for utilizing this approach, including a
-worked example derived from an AsyncAPI specification.
+of `msgspec` structs over WebSocket connections within the Falcon web
+framework. The primary objective is to establish a methodology analogous to
+Falcon's middleware support for HTTP endpoints, thereby promoting efficient,
+type-safe, and maintainable real-time communication. The scope encompasses the
+design of a custom Falcon middleware, integration with `msgspec` for
+serialization and validation, and practical guidance for utilizing this
+approach, including a worked example derived from an AsyncAPI specification.
 
 ### B. The Challenge: Efficient and Typed WebSocket Communication
 
 WebSocket technology provides a powerful mechanism for bidirectional, real-time
-communication between clients and servers.1 However, managing the data exchanged
-over WebSockets—particularly ensuring data integrity, type safety, and parsing
-efficiency—can become complex. Standard approaches often involve manual
-serialization and deserialization of data formats like JSON, which can be
-error-prone and lead to performance bottlenecks if not handled carefully. The
-absence of strong typing at the message level can also introduce runtime errors
-that are difficult to debug. `msgspec` is a library designed to address these
-issues by offering high-performance serialization and validation based on Python
-type annotations.2 Integrating `msgspec` effectively with Falcon's WebSocket
-capabilities can significantly enhance the development and reliability of
-real-time applications.
+communication between clients and servers.1 However, managing the data
+exchanged over WebSockets—particularly ensuring data integrity, type safety,
+and parsing efficiency—can become complex. Standard approaches often involve
+manual serialization and deserialization of data formats like JSON, which can
+be error-prone and lead to performance bottlenecks if not handled carefully.
+The absence of strong typing at the message level can also introduce runtime
+errors that are difficult to debug. `msgspec` is a library designed to address
+these issues by offering high-performance serialization and validation based on
+Python type annotations.2 Integrating `msgspec` effectively with Falcon's
+WebSocket capabilities can significantly enhance the development and
+reliability of real-time applications.
 
 ### C. Proposed Solution: `msgspec` with Falcon Middleware
 
 The proposed solution involves creating custom Falcon middleware specifically
-designed for WebSocket connections. This middleware will intercept the WebSocket
-lifecycle at appropriate stages to manage the serialization and deserialization
-of `msgspec.Struct` objects. By leveraging Falcon's ASGI middleware hooks, the
-system can inject `msgspec` encoders and decoders, or convenient helper
-functions, into the request context. This allows `on_websocket` responder
-methods in Falcon resources to work directly with typed Python objects,
-abstracting away the underlying raw message handling. This approach aims to
-mirror the clean separation of concerns and processing pipeline familiar from
-HTTP middleware, bringing similar benefits to WebSocket communication. The use
-of an AsyncAPI definition as a contract for message schemas further strengthens
-this typed approach.3
+designed for WebSocket connections. This middleware will intercept the
+WebSocket lifecycle at appropriate stages to manage the serialization and
+deserialization of `msgspec.Struct` objects. By leveraging Falcon's ASGI
+middleware hooks, the system can inject `msgspec` encoders and decoders, or
+convenient helper functions, into the request context. This allows
+`on_websocket` responder methods in Falcon resources to work directly with
+typed Python objects, abstracting away the underlying raw message handling.
+This approach aims to mirror the clean separation of concerns and processing
+pipeline familiar from HTTP middleware, bringing similar benefits to WebSocket
+communication. The use of an AsyncAPI definition as a contract for message
+schemas further strengthens this typed approach.3
 
 ## II. Foundational Concepts
 
 ### A. Falcon Framework: ASGI and WebSocket Support
 
 Falcon is a minimalist Python web framework known for its performance and
-reliability, suitable for building REST APIs and microservices.5 While initially
-focused on WSGI, Falcon has evolved to support the Asynchronous Server Gateway
-Interface (ASGI), which is essential for handling asynchronous operations like
-WebSockets.1 Falcon's ASGI support allows developers to define `on_websocket()`
-responder methods within resource classes to manage WebSocket connections.6
+reliability, suitable for building REST APIs and microservices.5 While
+initially focused on WSGI, Falcon has evolved to support the Asynchronous
+Server Gateway Interface (ASGI), which is essential for handling asynchronous
+operations like WebSockets.1 Falcon's ASGI support allows developers to define
+`on_websocket()` responder methods within resource classes to manage WebSocket
+connections.6
 
 When a WebSocket handshake request arrives, Falcon routes it to the appropriate
 resource. If an `on_websocket()` responder is found, it is invoked with the
@@ -61,27 +62,27 @@ provides methods for accepting the connection (`ws.accept()`), receiving
 messages (`ws.receive_text()`, `ws.receive_data()`, `ws.receive_media()`),
 sending messages (`ws.send_text()`, `ws.send_data()`, `ws.send_media()`), and
 closing the connection (`ws.close()`).6 Falcon also handles events like client
-disconnections by raising `WebSocketDisconnected` exceptions.6 This foundational
-support for WebSockets in Falcon's ASGI mode is critical for implementing the
-proposed `msgspec` integration.
+disconnections by raising `WebSocketDisconnected` exceptions.6 This
+foundational support for WebSockets in Falcon's ASGI mode is critical for
+implementing the proposed `msgspec` integration.
 
 ### B. `msgspec` Library: High-Performance Serialization and Validation
 
 `msgspec` is a Python library engineered for fast and efficient serialization,
 deserialization, and validation of data, with built-in support for common
-protocols such as JSON, MessagePack, YAML, and TOML.2 A key feature of `msgspec`
-is its use of Python type annotations to define schemas via `msgspec.Struct`
-classes. These `Struct`s are not only for schema definition but also offer
-significant performance advantages over standard library dataclasses or other
-similar libraries.2
+protocols such as JSON, MessagePack, YAML, and TOML.2 A key feature of
+`msgspec` is its use of Python type annotations to define schemas via
+`msgspec.Struct` classes. These `Struct`s are not only for schema definition
+but also offer significant performance advantages over standard library
+dataclasses or other similar libraries.2
 
 `msgspec` provides zero-cost schema validation during deserialization, meaning
 it can decode and validate data (e.g., JSON) often faster than other libraries
 can decode it alone.2 This combination of speed, type safety through familiar
 Python type hints, and support for multiple protocols makes `msgspec` an ideal
 candidate for handling message payloads in high-throughput WebSocket
-applications.2 The library's design emphasizes correctness and strict compliance
-with protocol specifications, ensuring interoperability.2
+applications.2 The library's design emphasizes correctness and strict
+compliance with protocol specifications, ensuring interoperability.2
 
 ### C. AsyncAPI Specification: Defining Asynchronous Message Contracts
 
@@ -93,12 +94,12 @@ typically using JSON or YAML.3 An AsyncAPI document serves as a contract,
 detailing what messages a service can send or receive, and the structure of
 those messages.4
 
-For WebSocket-based systems, an AsyncAPI document can precisely define the types
-of messages exchanged over different channels (endpoints). The payload schemas
-within AsyncAPI, often defined using JSON Schema principles, can be directly
-translated into `msgspec.Struct` definitions. This ensures that the Python types
-used in the Falcon application align with the documented API contract,
-facilitating consistency and reducing integration errors.4
+For WebSocket-based systems, an AsyncAPI document can precisely define the
+types of messages exchanged over different channels (endpoints). The payload
+schemas within AsyncAPI, often defined using JSON Schema principles, can be
+directly translated into `msgspec.Struct` definitions. This ensures that the
+Python types used in the Falcon application align with the documented API
+contract, facilitating consistency and reducing integration errors.4
 
 ### D. Falcon Middleware: Intercepting and Processing Requests
 
@@ -139,20 +140,21 @@ The primary objectives for a `msgspec` WebSocket middleware in Falcon are:
    resource code.
 4. **Consistency with HTTP Middleware Patterns**: Provide a developer experience
    for WebSocket message processing that is analogous to how Falcon HTTP
-   middleware handles request and response bodies, promoting a unified framework
-   feel.
+   middleware handles request and response bodies, promoting a unified
+   framework feel.
 5. **Integration with AsyncAPI**: Facilitate the use of `msgspec.Struct`
    definitions derived from AsyncAPI message schemas, ensuring adherence to the
    API contract.
 
 ### B. Middleware Architecture and Processing Hooks
 
-The proposed `MsgspecWebSocketMiddleware` will leverage Falcon's ASGI middleware
-hooks, specifically `process_request_ws` and `process_resource_ws`. These hooks
-are invoked during the initial HTTP request that establishes the WebSocket
-connection, not for every individual WebSocket message frame.9 This distinction
-is critical: the middleware's role during the handshake is to prepare the
-environment for subsequent message processing within the `on_websocket` handler.
+The proposed `MsgspecWebSocketMiddleware` will leverage Falcon's ASGI
+middleware hooks, specifically `process_request_ws` and `process_resource_ws`.
+These hooks are invoked during the initial HTTP request that establishes the
+WebSocket connection, not for every individual WebSocket message frame.9 This
+distinction is critical: the middleware's role during the handshake is to
+prepare the environment for subsequent message processing within the
+`on_websocket` handler.
 
 - `async def process_request_ws(self, req: falcon.asgi.Request, ws: falcon.asgi.WebSocket)`:
 
@@ -188,18 +190,18 @@ early (e.g., in `process_request_ws` for immediate authentication exchange, as
 shown in Falcon's documentation examples 10), the WebSocket is established
 before the main resource handler's logic. If an error occurs post-acceptance in
 middleware, the middleware must explicitly call `ws.close()`. Deferring
-`accept()` to the `on_websocket` handler or late in `process_resource_ws` allows
-Falcon's standard routing and error handling (e.g., HTTP 403 for no route or
-missing `on_websocket` responder 6) to complete first, which can simplify
-middleware logic focused purely on data transformation. For a `msgspec`
-serialization middleware, deferring `accept()` is often cleaner unless early
-interaction is essential.
+`accept()` to the `on_websocket` handler or late in `process_resource_ws`
+allows Falcon's standard routing and error handling (e.g., HTTP 403 for no
+route or missing `on_websocket` responder 6) to complete first, which can
+simplify middleware logic focused purely on data transformation. For a
+`msgspec` serialization middleware, deferring `accept()` is often cleaner
+unless early interaction is essential.
 
 It's important to understand that these middleware hooks do not intercept each
 individual `await ws.receive_text()` or `await ws.send_text()` call within the
 `on_websocket` handler's main loop. Instead, they equip the handler by
-populating `req.context` with the necessary tools (encoders, decoders, or helper
-methods) for `msgspec` processing.
+populating `req.context` with the necessary tools (encoders, decoders, or
+helper methods) for `msgspec` processing.
 
 An alternative, more integrated Falcon feature for handling typed media is the
 use of `ws.send_media()` and `ws.receive_media()` with custom media handlers.5 A
@@ -207,16 +209,16 @@ use of `ws.send_media()` and `ws.receive_media()` with custom media handlers.5 A
 `await ws.receive_media(type=MyEventStruct)`. While this offers a very clean
 syntax within the resource, the middleware approach provides more explicit
 control points (`process_request_ws`, `process_resource_ws`) for tasks beyond
-simple serialization/deserialization, aligning more closely with the request for
-a solution "similar to the middleware supporting the http endpoints."
+simple serialization/deserialization, aligning more closely with the request
+for a solution "similar to the middleware supporting the http endpoints."
 
 ### C. Integrating with `on_websocket` Responders
 
 With the middleware having prepared the `req.context`, the `on_websocket`
 responder in the resource becomes significantly cleaner. It can focus on the
-application's business logic, operating on deserialized `msgspec.Struct` objects
-and sending `msgspec.Struct` objects, with the actual encoding/decoding handled
-by the tools provided via `req.context`.
+application's business logic, operating on deserialized `msgspec.Struct`
+objects and sending `msgspec.Struct` objects, with the actual encoding/decoding
+handled by the tools provided via `req.context`.
 
 For instance, the middleware might add `msgspec_encoder` and
 `msgspec_decoder_cls` attributes to `req.context`. Handlers instantiate a
@@ -365,11 +367,11 @@ datetime.date | Requires custom encoder/decoder logic or msgspec extension if
 not natively supported by the chosen protocol (e.g., JSON). | | string |
 date-time | datetime.datetime | As above. msgspec.json.encode can handle
 datetime to ISO 8601. | | string | uuid | uuid.UUID | As above.
-msgspec.json.encode can handle UUID to string. | | integer | int32, int64, N/A |
-int | | | number | float, double, N/A | float | | | boolean | N/A | bool | | |
-object | N/A | Another msgspec.Struct, or dict[str, Any] | Prefer nested
+msgspec.json.encode can handle UUID to string. | | integer | int32, int64, N/A
+| int | | | number | float, double, N/A | float | | | boolean | N/A | bool | |
+| object | N/A | Another msgspec.Struct, or dict[str, Any] | Prefer nested
 msgspec.Struct for type safety. | | array | (items: string) | list[str],
-tuple[str,...], set[str] | msgspec supports various collection types. | | null |
+tuple[str,…], set[str] | msgspec supports various collection types. | | null |
 N/A | None (typically used in typing.Union) | For optional fields. |
 
 This systematic translation ensures that the Python code directly reflects the
@@ -613,8 +615,8 @@ This example illustrates how the `on_websocket` handler is simplified. It works
 with Python objects (`UserMessage`, `ServerResponse`, etc.) and delegates
 serialization and deserialization to the encoder and decoder supplied by the
 middleware. The handler focuses on the core logic of message processing,
-responding to pings, and echoing messages, while also demonstrating robust error
-handling for validation issues and disconnections.
+responding to pings, and echoing messages, while also demonstrating robust
+error handling for validation issues and disconnections.
 
 ## V. Advanced Considerations & Best Practices
 
@@ -625,10 +627,10 @@ applications. This involves more than just catching exceptions on the server.
 
 1. **Standardized Error Structs**: Define a common `msgspec.Struct` for error
    messages (like `ErrorMessageStruct` in the example). This struct should be
-   part of the AsyncAPI contract, allowing clients to anticipate and parse error
-   responses consistently. It typically includes fields for an error type/code,
-   a human-readable message, and optional detailed information (e.g., specific
-   field errors from `msgspec.ValidationError.fields`).
+   part of the AsyncAPI contract, allowing clients to anticipate and parse
+   error responses consistently. It typically includes fields for an error
+   type/code, a human-readable message, and optional detailed information
+   (e.g., specific field errors from `msgspec.ValidationError.fields`).
 2. **WebSocket Close Codes**: Utilize WebSocket close codes effectively. The
    WebSocket protocol defines standard close codes (e.g., 1000 for normal
    closure, 1001 for going away, 1011 for internal server error). Falcon allows
@@ -750,8 +752,8 @@ protocol. This involves:
    `msgspec.msgpack.*`).
 2. Calling the appropriate Falcon WebSocket send/receive methods.
 
-**Subprotocol Negotiation**: A robust way to support multiple formats is through
-WebSocket subprotocol negotiation.
+**Subprotocol Negotiation**: A robust way to support multiple formats is
+through WebSocket subprotocol negotiation.
 
 - The client, during the handshake, sends a `Sec-WebSocket-Protocol` header
   listing its preferred subprotocols (e.g., `myprotocol-json`,
@@ -766,8 +768,8 @@ WebSocket subprotocol negotiation.
 
 ### E. Handling Message Polymorphism and Dispatch
 
-In many WebSocket applications, a single connection might carry various types of
-messages (e.g., `ChatMessage`, `UserTypingNotification`, `PresenceUpdate`).
+In many WebSocket applications, a single connection might carry various types
+of messages (e.g., `ChatMessage`, `UserTypingNotification`, `PresenceUpdate`).
 Handling such polymorphism requires a dispatch mechanism.
 
 1. **Tagged Unions / Common Wrapper Struct**: A common approach is to use a
@@ -814,23 +816,23 @@ seamlessly with its decoding process.
 
 ### A. Recap of the `msgspec`-Middleware Strategy
 
-The strategy detailed in this report advocates for the use of custom Falcon ASGI
-middleware to integrate `msgspec` for handling data over WebSocket connections.
-This approach involves leveraging middleware hooks (`process_request_ws`,
-`process_resource_ws`) to set up `msgspec` encoders, decoders, and helper
-utilities within the request context. Resource `on_websocket` handlers can then
-utilize these utilities to send and receive `msgspec.Struct` objects directly,
-abstracting the complexities of raw message serialization, deserialization, and
-validation. This method promotes type safety, leverages `msgspec`'s performance,
-and leads to cleaner, more maintainable WebSocket resource code by separating
-concerns effectively, drawing parallels with established HTTP middleware
-patterns. The use of AsyncAPI to define message contracts further enhances this
-structured approach.
+The strategy detailed in this report advocates for the use of custom Falcon
+ASGI middleware to integrate `msgspec` for handling data over WebSocket
+connections. This approach involves leveraging middleware hooks
+(`process_request_ws`, `process_resource_ws`) to set up `msgspec` encoders,
+decoders, and helper utilities within the request context. Resource
+`on_websocket` handlers can then utilize these utilities to send and receive
+`msgspec.Struct` objects directly, abstracting the complexities of raw message
+serialization, deserialization, and validation. This method promotes type
+safety, leverages `msgspec`'s performance, and leads to cleaner, more
+maintainable WebSocket resource code by separating concerns effectively,
+drawing parallels with established HTTP middleware patterns. The use of
+AsyncAPI to define message contracts further enhances this structured approach.
 
 ### B. Benefits Review
 
-Adopting this `msgspec`-middleware strategy for Falcon WebSockets yields several
-significant benefits:
+Adopting this `msgspec`-middleware strategy for Falcon WebSockets yields
+several significant benefits:
 
 - **Improved Developer Experience**: Working with typed `msgspec.Struct` objects
   instead of raw data or dictionaries enhances code clarity, reduces common
@@ -858,12 +860,12 @@ enhancements and alternative considerations exist:
    approach is to develop a custom Falcon media handler for `msgspec`. This
    would allow `ws.send_media(my_struct_instance)` and
    `await ws.receive_media(type=MyStruct)` to work seamlessly.5 This could
-   simplify the `on_websocket` handler syntax for basic send/receive operations.
-   However, the explicit middleware helper approach provides more granular
-   control points within the WebSocket lifecycle (e.g., during handshake for
-   subprotocol negotiation or complex context setup) beyond just media type
-   handling. The choice between these depends on the desired balance between
-   explicitness and "magical" convenience.
+   simplify the `on_websocket` handler syntax for basic send/receive
+   operations. However, the explicit middleware helper approach provides more
+   granular control points within the WebSocket lifecycle (e.g., during
+   handshake for subprotocol negotiation or complex context setup) beyond just
+   media type handling. The choice between these depends on the desired balance
+   between explicitness and "magical" convenience.
 2. **Automated Code Generation**: To further streamline development, tools could
    be developed or adapted to automatically generate `msgspec.Struct` Python
    classes from AsyncAPI definitions. This would reduce manual translation
@@ -871,9 +873,10 @@ enhancements and alternative considerations exist:
    implementation.
 3. **Schema Evolution and Versioning**: For long-lived WebSocket APIs, managing
    changes to `msgspec.Struct` definitions (and corresponding AsyncAPI schemas)
-   becomes important. Strategies for API versioning, potentially using WebSocket
-   subprotocols or version identifiers within message payloads, would need to be
-   considered to ensure backward compatibility or graceful client upgrades.
+   becomes important. Strategies for API versioning, potentially using
+   WebSocket subprotocols or version identifiers within message payloads, would
+   need to be considered to ensure backward compatibility or graceful client
+   upgrades.
 4. **Advanced** `msgspec` **Features**: Explore more advanced `msgspec` features
    like custom encoders/decoders for complex types or integration with
    `msgspec.Constraints` for more fine-grained validation directly within the
@@ -881,5 +884,5 @@ enhancements and alternative considerations exist:
 
 In summary, integrating `msgspec` with Falcon WebSockets via a dedicated
 middleware component provides a powerful, performant, and maintainable solution
-for building modern real-time applications. The outlined strategy offers a solid
-foundation that can be extended and adapted to meet evolving requirements.
+for building modern real-time applications. The outlined strategy offers a
+solid foundation that can be extended and adapted to meet evolving requirements.
