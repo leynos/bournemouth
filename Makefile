@@ -10,8 +10,11 @@ MDTABLEFIX ?= mdtablefix
 MDTABLEFIX_SELECT = --git --include-untracked
 MDTABLEFIX_RULES = --wrap --renumber --breaks --ellipsis --fences
 
-.PHONY: help default all clean build build-release lint fmt check-fmt \
+.PHONY: prepare help default all clean build build-release lint fmt check-fmt \
 	markdownlint tools nixie test
+
+prepare: ## Install the locked development environment, offline first
+	$(UV_GATE) prepare --group dev
 
 MDLINT ?= markdownlint-cli2
 NIXIE ?= nixie
@@ -20,8 +23,7 @@ all: build check-fmt test typecheck
 
 default: build
 
-build: tools ## Build for test/typecheck
-	$(UV_GATE) prepare --group dev
+build: tools prepare ## Build for test/typecheck
 
 build-release: ## Build artefacts (sdist & wheel)
 	python -m build --sdist --wheel
