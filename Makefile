@@ -1,3 +1,11 @@
+# Every uv call goes through the vendored helper, which cleans the environment,
+# uses the global uv cache, runs offline first and goes online at most once. See
+# https://github.com/leynos/shared-actions/tree/main/uv_gate for the contract.
+UV_GATE ?= python3 scripts/uv_gate.py
+UV ?= uv
+# The helper finds uv on PATH, so a caller's UV=/path/to/uv is honoured by putting
+# that uv's directory first on PATH for every recipe.
+export PATH := $(if $(findstring /,$(UV)),$(patsubst %/,%,$(dir $(UV))):)$(PATH)
 # `make fmt` and `make check-fmt` call mdtablefix directly. `--git` selects the
 # Markdown files Git tracks and `--include-untracked` adds the untracked files
 # Git does not ignore, so a new document is formatted before it is staged.
@@ -6,8 +14,13 @@ MDTABLEFIX ?= mdtablefix
 MDTABLEFIX_SELECT = --git --include-untracked
 MDTABLEFIX_RULES = --wrap --renumber --breaks --ellipsis --fences
 
-.PHONY: help default all clean build build-release lint fmt check-fmt \
+.PHONY: prepare help default all clean build build-release lint fmt check-fmt \
 	markdownlint tools nixie test
+
+.DEFAULT_GOAL := all
+
+prepare: ## Install the locked development environment, offline first
+	$(UV_GATE) prepare --group dev
 
 MDLINT ?= markdownlint-cli2
 NIXIE ?= nixie
@@ -16,9 +29,7 @@ all: build check-fmt test typecheck
 
 default: build
 
-build: tools ## Build for test/typecheck
-	uv venv
-	uv sync --group dev
+build: tools prepare ## Build for test/typecheck
 
 build-release: ## Build artefacts (sdist & wheel)
 	python -m build --sdist --wheel
@@ -61,7 +72,7 @@ nixie: tools ## Validate Mermaid diagrams
 	find . -type f -name '*.md' -not -path './target/*' -print0 | xargs -0 $(NIXIE)
 
 test: build ## Run tests
-	uv run pytest -v
+	$(UV_GATE) run -- pytest -v
 
 help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?##' $(MAKEFILE_LIST) | \
