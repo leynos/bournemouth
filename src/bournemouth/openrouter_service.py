@@ -113,6 +113,7 @@ class OpenRouterService:
         await self._ensure_stack()
 
     async def _get_client(self, api_key: str) -> OpenRouterAsyncClient:
+        """Return the cached client for ``api_key``, creating one if needed."""
         await self._ensure_stack()
         async with self._lock:
             if api_key in self._clients:

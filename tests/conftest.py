@@ -40,6 +40,7 @@ async def db_session_factory() -> typing.AsyncIterator[
             )
 
     def factory() -> AsyncSession:
+        """Return a new session from the shared in-memory session factory."""
         return async_session_factory()
 
     yield factory

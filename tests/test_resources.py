@@ -33,6 +33,7 @@ def app(db_session_factory: typing.Callable[[], AsyncSession]) -> asgi.App:
 
 
 async def _login(client: AsyncClient) -> None:
+    """Log in as the test admin, asserting that a session cookie is set."""
     credentials = base64.b64encode(b"admin:adminpass").decode()
     resp = await client.post(
         "/login", headers={"Authorization": f"Basic {credentials}"}
@@ -213,6 +214,7 @@ async def test_chat_unexpected_error_returns_500(
         *,
         model: str | None = None,
     ) -> ChatCompletionResponse:
+        """Raise a ``RuntimeError`` in place of the OpenRouter call."""
         raise RuntimeError("boom")
 
     monkeypatch.setattr(chat_service, "chat_with_service", fail)

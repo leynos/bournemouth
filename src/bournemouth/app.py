@@ -39,6 +39,7 @@ class MissingDependencyError(ValueError):
     """Raised when a required dependency is not provided."""
 
     def __init__(self, dependency_name: str) -> None:
+        """Build the error message that names the missing dependency."""
         super().__init__(f"{dependency_name} is required")
 
 
