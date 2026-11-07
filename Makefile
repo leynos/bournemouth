@@ -68,7 +68,7 @@ INTERROGATE_TARGETS ?= src tests scripts
 # Level 2 prints a MISSED row per undocumented definition, which the
 # `interrogate` recipe below looks for: the rounded percentage alone can pass a
 # lone gap.
-INTERROGATE_FLAGS ?= -vv --fail-under 100
+INTERROGATE_FLAGS ?= -vv --fail-under 100 --no-color
 INTERROGATE ?= $(UV_GATE) tool --python 3.13 --from 'interrogate==$(INTERROGATE_VERSION)' -- interrogate
 
 # Interrogate rounds its percentage to one decimal, so `--fail-under 100` alone

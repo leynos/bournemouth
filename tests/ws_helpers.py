@@ -82,7 +82,7 @@ class _Pump:
         return False
 
     async def _run(self) -> None:
-        """Queue frames until the socket closes, then set ``done``."""
+        """Queue frames until the socket closes, and set ``done`` when the pump stops."""
         try:
             while not self.ws.closed:
                 raw = await self.ws.receive_text()
