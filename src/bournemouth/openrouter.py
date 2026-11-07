@@ -52,6 +52,7 @@ class InvalidToolMessageError(ValueError):
     """Raised when a tool message is missing required tool_call_id."""
 
     def __init__(self) -> None:
+        """Set the fixed message for a tool message without ``tool_call_id``."""
         super().__init__("tool messages must include tool_call_id")
 
 
@@ -59,6 +60,7 @@ class InvalidContentPartsError(ValueError):
     """Raised when non-user messages contain content parts."""
 
     def __init__(self) -> None:
+        """Set the fixed message for non-user messages with content parts."""
         super().__init__("only user messages may contain content parts")
 
 
@@ -66,6 +68,7 @@ class ClientNotInitializedError(RuntimeError):
     """Raised when client operations are attempted before initialization."""
 
     def __init__(self) -> None:
+        """Set the message telling callers to use ``async with`` first."""
         super().__init__("client not initialized; use async with")
 
 
@@ -73,6 +76,7 @@ class StreamChunkDecodeError(Exception):
     """Raised when stream chunk decoding fails."""
 
     def __init__(self, payload: str) -> None:
+        """Include the undecodable payload in the error message."""
         super().__init__(f"failed to decode stream chunk: {payload}")
 
 
@@ -343,6 +347,7 @@ class OpenRouterGenericAPIError(OpenRouterAPIError):
         *,
         error_details: OpenRouterAPIErrorDetails | None = None,
     ) -> None:
+        """Build the error for a status with no more specific subclass."""
         super().__init__(
             f"API error {status_code}",
             status_code=status_code,
@@ -386,6 +391,7 @@ class OpenRouterStreamChunkDecodeError(OpenRouterResponseDataValidationError):
     """Raised when stream chunk decoding fails."""
 
     def __init__(self, payload: str) -> None:
+        """Include the undecodable payload in the error message."""
         super().__init__(f"failed to decode stream chunk: {payload}")
 
 
@@ -488,12 +494,14 @@ class OpenRouterAsyncClient:
     async def _decode_error_details(
         self, data: bytes
     ) -> OpenRouterAPIErrorDetails | None:
+        """Return the ``error`` object from a body, or ``None`` if undecodable."""
         try:
             return self._ERR_DECODER.decode(data).error
         except msgspec.DecodeError:
             return None
 
     async def _raise_for_status(self, resp: httpx.Response) -> None:
+        """Raise the matching API error for a failed response."""
         if resp.status_code < 400:
             return
         raw = await resp.aread()
@@ -512,6 +520,7 @@ class OpenRouterAsyncClient:
         )
 
     async def _decode_response(self, resp: httpx.Response) -> ChatCompletionResponse:
+        """Check the status, then decode the body as a chat completion."""
         await self._raise_for_status(resp)
         data = await resp.aread()
         try:
@@ -520,6 +529,7 @@ class OpenRouterAsyncClient:
             raise OpenRouterResponseDataValidationError(str(e)) from e
 
     async def _post(self, path: str, *, content: bytes) -> httpx.Response:
+        """POST ``content`` to ``path``, mapping httpx failures to client errors."""
         if not self._client:
             raise ClientNotInitializedError
         try:
@@ -533,6 +543,7 @@ class OpenRouterAsyncClient:
     async def _stream_post(
         self, path: str, *, content: bytes
     ) -> cabc.AsyncIterator[httpx.Response]:
+        """Open a streaming POST, mapping httpx failures to client errors."""
         if not self._client:
             raise ClientNotInitializedError
         try:

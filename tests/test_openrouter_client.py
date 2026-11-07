@@ -46,6 +46,7 @@ def add_chat_response(httpx_mock: HTTPXMock) -> cabc.Callable[..., None]:
     """Return a helper to add a canned chat response."""
 
     def _add_response(**kwargs: typing.Any) -> None:  # noqa: ANN401
+        """Register a POST response for the chat completions URL."""
         httpx_mock.add_response(method="POST", url=CHAT_COMPLETIONS_URL, **kwargs)
 
     return _add_response
@@ -59,6 +60,7 @@ def add_chat_callback(httpx_mock: HTTPXMock) -> cabc.Callable[..., None]:
         handler: cabc.Callable[[httpx.Request], httpx.Response],
         **kwargs: typing.Any,  # noqa: ANN401
     ) -> None:
+        """Register a POST callback for the chat completions URL."""
         httpx_mock.add_callback(
             handler, method="POST", url=CHAT_COMPLETIONS_URL, **kwargs
         )
@@ -80,6 +82,7 @@ async def test_create_chat_completion_success(
     }
 
     async def handler(request: httpx.Request) -> httpx.Response:
+        """Check the request and return the canned completion."""
         assert request.method == "POST"
         assert request.headers["Authorization"] == "Bearer k"
         body = msgspec_json.decode(await request.aread())
@@ -268,6 +271,7 @@ async def test_create_chat_completion_ignores_stream_true(
     }
 
     async def handler(request: httpx.Request) -> httpx.Response:
+        """Assert ``stream`` is false in the body, then return a canned reply."""
         body = msgspec_json.decode(await request.aread())
         assert body["stream"] is False
         return httpx.Response(200, json=content)
@@ -296,6 +300,7 @@ async def test_stream_chat_completion_sets_stream_true(
     )
 
     async def handler(request: httpx.Request) -> httpx.Response:
+        """Assert ``stream`` is true in the body, then return the SSE body."""
         body = msgspec_json.decode(await request.aread())
         assert body["stream"] is True
         return httpx.Response(

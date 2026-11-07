@@ -22,6 +22,7 @@ class UnsupportedMsgspecProtocolError(ValueError):
     """Raised when an unsupported msgspec protocol is requested."""
 
     def __init__(self, protocol: str) -> None:
+        """Name the unsupported protocol in the error message."""
         super().__init__(f"Unsupported msgspec protocol: {protocol}")
 
 
@@ -32,6 +33,7 @@ _DECODER = msgspec_json.Decoder()
 def _msgspec_loads_json_robust(
     content: bytes | str,
 ) -> dict[str, typing.Any] | list[typing.Any] | str | int | float | bool | None:
+    """Decode JSON, raising falcon's malformed-media error on failure."""
     try:
         return _DECODER.decode(content)
     except msgspec.DecodeError as ex:  # pragma: no cover - integration tested

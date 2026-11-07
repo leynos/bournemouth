@@ -34,6 +34,7 @@ def conductor(app: asgi.App) -> testing.ASGIConductor:
 
 
 async def _login(client: AsyncClient) -> str:
+    """Log in as the test admin and return the session cookie value."""
     credentials = base64.b64encode(b"admin:adminpass").decode()
     resp = await client.post(
         "/login", headers={"Authorization": f"Basic {credentials}"}
@@ -43,7 +44,10 @@ async def _login(client: AsyncClient) -> str:
 
 
 class _StreamPatcher:
+    """Fake chat stream that numbers its calls and slows the first one."""
+
     def __init__(self) -> None:
+        """Create the call counter and the lock that guards it."""
         self.call_count = 0
         self.call_lock = asyncio.Lock()
 
@@ -54,6 +58,7 @@ class _StreamPatcher:
         history: list[ChatMessage],
         model: str | None,
     ) -> typing.AsyncIterator[StreamChunk]:
+        """Yield a canned two-chunk reply, sleeping longer on the first call."""
         # Safely determine which call this is
         async with self.call_lock:
             self.call_count += 1
@@ -93,6 +98,7 @@ class _StreamPatcher:
 
 
 def _patch_stream() -> typing.Callable[..., typing.AsyncIterator[StreamChunk]]:
+    """Return a fake stream function backed by a new ``_StreamPatcher``."""
     patcher = _StreamPatcher()
     return patcher.fake_stream
 

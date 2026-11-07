@@ -53,6 +53,7 @@ _logger = logging.getLogger(__name__)
 
 @contextlib.asynccontextmanager
 async def _convert_service_errors() -> typing.AsyncIterator[None]:
+    """Map OpenRouter service errors raised in the block to HTTP errors."""
     try:
         yield
     except OpenRouterServiceTimeoutError as exc:

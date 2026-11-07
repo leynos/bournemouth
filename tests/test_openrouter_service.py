@@ -78,7 +78,10 @@ async def test_aclose_nonblocking(monkeypatch: pytest.MonkeyPatch) -> None:
     finish = asyncio.Event()
 
     class SlowClient(DummyClient):
+        """Client whose completion waits until the test releases it."""
+
         async def create_chat_completion(self, request: ChatCompletionRequest) -> str:
+            """Signal the start, wait for release, then return the canned reply."""
             started.set()
             await finish.wait()
             return await super().create_chat_completion(request)
@@ -119,6 +122,8 @@ async def test_remove_client(monkeypatch: pytest.MonkeyPatch) -> None:
     """Removing a client triggers its closure."""
 
     class ClosingClient(DummyClient):
+        """Client that counts how many times it has been closed."""
+
         closes: int = 0
 
         async def __aexit__(
@@ -127,6 +132,7 @@ async def test_remove_client(monkeypatch: pytest.MonkeyPatch) -> None:
             exc: BaseException | None,
             tb: types.TracebackType | None,
         ) -> None:
+            """Count the close, then close the client as usual."""
             ClosingClient.closes += 1
             await super().__aexit__(exc_type, exc, tb)
 

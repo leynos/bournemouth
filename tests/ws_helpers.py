@@ -53,17 +53,21 @@ class DeadlineReachedError(TimeoutError):
     """Raised when a deadline is reached during WebSocket operations."""
 
     def __init__(self) -> None:
+        """Set the fixed message for a missed deadline."""
         super().__init__("deadline reached")
 
 
 @dc.dataclass(slots=True)
 class _Pump:
+    """Pump a WebSocket's frames into a queue from a background task."""
+
     ws: WebSocketProtocol
     q: asyncio.Queue[typing.Any] = dc.field(default_factory=asyncio.Queue)
     done: asyncio.Event = dc.field(default_factory=asyncio.Event)
     _task: asyncio.Task[None] | None = None
 
     async def __aenter__(self) -> typing.Self:
+        """Start the background pump task and return the pump."""
         self._task = asyncio.create_task(self._run(), name="ws-pump")
         return self
 
@@ -73,10 +77,12 @@ class _Pump:
         exc: BaseException | None,
         tb: types.TracebackType | None,
     ) -> bool | None:
+        """Close the pump and let any exception from the block propagate."""
         await self.aclose()
         return False
 
     async def _run(self) -> None:
+        """Queue frames until the socket closes, and set ``done`` when the pump stops."""
         try:
             while not self.ws.closed:
                 raw = await self.ws.receive_text()
@@ -102,6 +108,7 @@ class _Pump:
         return await asyncio.wait_for(self.q.get(), timeout)
 
     def _remaining(self, deadline: float | None) -> float | None:
+        """Return the seconds left before ``deadline``, raising if it has passed."""
         if deadline is None:
             return None
         left = deadline - asyncio.get_event_loop().time()
@@ -112,6 +119,7 @@ class _Pump:
     async def _get_next(
         self, left: float | None
     ) -> dict[str, typing.Any] | list[typing.Any] | str | int | float | bool | None:
+        """Fetch the next frame, turning a timeout into ``DeadlineReachedError``."""
         try:
             return await self.next(timeout=left)
         except TimeoutError as exc:  # pragma: no cover - defensive

@@ -235,11 +235,16 @@ class ChatWsPachinkoResource(WebSocketResource):  # pyright: ignore[reportUntype
         tasks: set[asyncio.Task[None]] = set()
 
         def _finalize_task(task: asyncio.Task[None]) -> None:
+            """Discard a finished task and read its result, ignoring ordinary errors.
+
+            A cancelled task's ``CancelledError`` is not suppressed.
+            """
             tasks.discard(task)
             with contextlib.suppress(Exception):
                 task.result()
 
         async def handle(request: ChatWsRequest) -> None:
+            """Run ``handle_chat`` for one decoded request on this socket."""
             await self.handle_chat(ws, request)
 
         try:

@@ -21,6 +21,7 @@ class MissingSessionCookieError(RuntimeError):
     """Raised when a session cookie is missing."""
 
     def __init__(self) -> None:
+        """Set the fixed message for a missing session cookie."""
         super().__init__("missing session cookie")
 
 
@@ -28,6 +29,7 @@ class MalformedChatResponseError(RuntimeError):
     """Raised when chat response is missing expected fields."""
 
     def __init__(self, data: dict[str, typing.Any]) -> None:
+        """Include the unexpected response payload in the error message."""
         super().__init__(f"Malformed chat response: missing 'answer' key in {data!r}")
 
 
@@ -35,6 +37,7 @@ class TokenSaveFailedError(RuntimeError):
     """Raised when token save operation fails."""
 
     def __init__(self) -> None:
+        """Set the fixed message for a failed token save."""
         super().__init__("token save failed")
 
 
@@ -74,6 +77,7 @@ async def _post(
 
 
 async def _login_request(session: Session, username: str, password: str) -> str:
+    """Post the credentials to ``/login`` and return the session cookie."""
     resp = await _post(session, "/login", auth=(username, password))
     if not (cookie := resp.cookies.get("session")):
         raise MissingSessionCookieError
@@ -127,6 +131,10 @@ class FormApp(App):  # pyright: ignore[reportUntypedBaseClass, reportMissingType
         submit_label: str,
         submit_cb: cabc.Callable[..., cabc.Awaitable[str | None]],
     ) -> None:
+        """Store the session, form fields and submit callback.
+
+        Each field is a ``(placeholder, id, is_password)`` tuple.
+        """
         super().__init__()
         self.session = session
         self.fields = fields
@@ -134,12 +142,17 @@ class FormApp(App):  # pyright: ignore[reportUntypedBaseClass, reportMissingType
         self.submit_cb = submit_cb
 
     def compose(self) -> ComposeResult:
+        """Yield an input per field, then the submit button and status line."""
         for placeholder, fid, is_pw in self.fields:
             yield Input(placeholder=placeholder, password=is_pw, id=fid)
         yield Button(self.submit_label, id="action")
         yield Static(id="status")
 
     async def on_button_pressed(self, event: Button.Pressed) -> None:  # pyright: ignore[reportUnknownArgumentType]
+        """Submit the form values and show the result in the status line.
+
+        The app quits only when the submit callback succeeds.
+        """
         if event.button.id != "action":
             return
         data = {
@@ -156,16 +169,24 @@ class FormApp(App):  # pyright: ignore[reportUntypedBaseClass, reportMissingType
 
 
 class ChatApp(App):  # pyright: ignore[reportUntypedBaseClass, reportMissingTypeArgument]
+    """Interactive terminal window for chatting with the assistant."""
+
     def __init__(self, session: Session) -> None:
+        """Store the session and start with an empty conversation history."""
         super().__init__()
         self.session = session
         self.history: list[dict[str, str]] = []
 
     def compose(self) -> ComposeResult:
+        """Yield the message log and the input box."""
         yield Log(id="log")
         yield Input(placeholder="Message", id="input")
 
     async def on_input_submitted(self, event: Input.Submitted) -> None:  # pyright: ignore[reportUnknownArgumentType]
+        """Send the submitted message and log the assistant's reply.
+
+        Both turns are then added to the history and the input is cleared.
+        """
         text = event.value
         log = self.query_one("#log", Log)  # pyright: ignore[reportUnknownArgumentType]
         log.write(f"You: {text}")
@@ -177,6 +198,7 @@ class ChatApp(App):  # pyright: ignore[reportUntypedBaseClass, reportMissingType
 
 
 async def _login_form(session: Session, *, user: str, password: str) -> str | None:
+    """Log in with the form values, saving the cookie, and return no message."""
     await perform_login(session.host, user, password, COOKIE_PATH)
     return None
 
@@ -198,6 +220,7 @@ def login(
 
 
 async def _token_form(session: Session, *, token: str) -> str | None:
+    """Store the token for the logged-in session and return a confirmation."""
     if session.cookie is None:
         raise MissingSessionCookieError
     ok = await token_request(session, token)

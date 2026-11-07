@@ -26,6 +26,7 @@ def app(db_session_factory: typing.Callable[[], AsyncSession]) -> asgi.App:
 
 
 async def _login(client: AsyncClient) -> None:
+    """Log in as the test admin, asserting that a session cookie is set."""
     credentials = base64.b64encode(b"admin:adminpass").decode()
     resp = await client.post(
         "/login", headers={"Authorization": f"Basic {credentials}"}
@@ -181,6 +182,7 @@ async def test_stateful_chat_persists_user_message_on_timeout(
         *,
         model: str | None = None,
     ) -> ChatCompletionResponse:
+        """Raise a service timeout in place of the OpenRouter call."""
         raise chat_service.OpenRouterServiceTimeoutError("boom")
 
     monkeypatch.setattr(chat_service, "chat_with_service", fail)
@@ -219,6 +221,7 @@ async def test_stateful_chat_handles_unexpected_error(
         *,
         model: str | None = None,
     ) -> ChatCompletionResponse:
+        """Raise a ``RuntimeError`` in place of the OpenRouter call."""
         raise RuntimeError("boom")
 
     monkeypatch.setattr(chat_service, "chat_with_service", fail)
